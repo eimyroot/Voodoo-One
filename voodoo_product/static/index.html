@@ -8,10 +8,34 @@
 </head>
 <body>
   <div id="auth-screen" class="auth-shell">
+    <section class="landing-panel">
+      <p class="eyebrow">VOODOO / V-ONE</p>
+      <h1>Governed AI Operations Control Room</h1>
+      <p class="lede">Jedno rozhraní pro záměr, approval, execution, verifier a důkaz. Platforma zobrazuje i chybějící nebo neověřená místa bez jejich maskování.</p>
+      <div class="hero-grid">
+        <article class="hero-card">
+          <span>Control Plane</span>
+          <strong>Intent → Route → Approval → Execute → Verify → Evidence</strong>
+        </article>
+        <article class="hero-card">
+          <span>Truth Rules</span>
+          <strong>UNKNOWN != PASS · MISSING != PASS · UNVERIFIED != PASS</strong>
+        </article>
+        <article class="hero-card">
+          <span>Boundaries</span>
+          <strong>Read can automate. Write stays governed. Production stays fail-closed.</strong>
+        </article>
+      </div>
+    </section>
+
     <section class="auth-card">
-      <div class="brand-mark">V1</div>
-      <h1>VOODOO One</h1>
-      <p>Governed AI Operations Control Plane</p>
+      <div class="brand-row">
+        <div class="brand-mark">V1</div>
+        <div>
+          <h2>VOODOO One</h2>
+          <p>Control room access</p>
+        </div>
+      </div>
       <form id="login-form">
         <label>Uživatel<input id="login-username" autocomplete="username" required /></label>
         <label>Heslo<input id="login-password" type="password" autocomplete="current-password" required /></label>
@@ -32,28 +56,78 @@
 
   <div id="app-shell" class="app-shell hidden">
     <header class="topbar">
-      <div class="brand"><span class="brand-mark small">V1</span><strong>VOODOO One</strong></div>
-      <div class="context"><span id="environment-badge">LOCAL</span><span id="health-badge">UNKNOWN</span></div>
-      <div class="user"><span id="current-user"></span><button id="logout-button" class="secondary">Odhlásit</button></div>
+      <div class="brand-stack">
+        <div class="brand"><span class="brand-mark small">V1</span><strong>VOODOO One</strong></div>
+        <p>Dark control-room dashboard for governed operations</p>
+      </div>
+      <div class="topbar-right">
+        <div class="context">
+          <span id="environment-badge">LOCAL</span>
+          <span id="health-badge">UNKNOWN</span>
+        </div>
+        <div class="user"><span id="current-user"></span><button id="logout-button" class="secondary">Odhlásit</button></div>
+      </div>
     </header>
+
     <aside class="sidebar">
-      <button data-view="command" class="nav active">Command Center</button>
-      <button data-view="changes" class="nav">Change Requests</button>
-      <button data-view="approvals" class="nav">Approvals</button>
-      <button data-view="executions" class="nav">Executions</button>
-      <button data-view="evidence" class="nav">Evidence</button>
-      <button data-view="health" class="nav">System Health</button>
+      <button data-view="overview" class="nav active">Control Room</button>
+      <button data-view="runs" class="nav">Runs</button>
+      <button data-view="plans" class="nav">Plans</button>
+      <button data-view="registry" class="nav">Capability Registry</button>
+      <button data-view="evidence" class="nav">Evidence Timeline</button>
+      <button data-view="policy" class="nav">Policy Gates</button>
+      <button data-view="verifier" class="nav">Verifier Center</button>
+      <button data-view="health" class="nav">Runtime Health</button>
+      <button data-view="learning" class="nav">Learning Intelligence</button>
+      <button data-view="governance" class="nav">Governance</button>
     </aside>
+
     <main class="workspace">
-      <section id="view-command" class="view active">
-        <div class="page-head"><div><h1>Command Center</h1><p>Aktuální stav řízených operací.</p></div><button data-refresh="command">Obnovit</button></div>
-        <div id="command-kpis" class="kpi-grid"></div>
-        <div class="grid-two"><article class="panel"><h2>Riziko</h2><div id="risk-overview"></div></article><article class="panel"><h2>Integrita</h2><div id="integrity-overview"></div></article></div>
-        <article class="panel policy-panel"><div class="panel-heading"><div><h2>Policy transparency</h2><p>Runtime facts exposed by the current API. Missing policy metadata is shown explicitly.</p></div><span id="policy-summary-status" class="status UNKNOWN">UNKNOWN</span></div><div id="policy-overview" class="fact-grid"></div></article>
+      <section id="view-overview" class="view active">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Overview</p>
+            <h1>Control Room</h1>
+            <p>Aktuální pravda o řízených operacích, policy a evidenci.</p>
+          </div>
+          <button data-refresh="overview">Obnovit</button>
+        </div>
+        <div id="overview-kpis" class="kpi-grid"></div>
+        <div id="orchestration-graph" class="graph-grid"></div>
+        <div class="grid-two">
+          <article class="panel">
+            <div class="panel-heading"><div><h2>Risk Mix</h2><p>Distribuce change requests podle risk class.</p></div></div>
+            <div id="risk-overview" class="stack-list"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-heading"><div><h2>Integrity</h2><p>Evidence a runtime stop stav.</p></div></div>
+            <div id="integrity-overview" class="stack-list"></div>
+          </article>
+        </div>
       </section>
 
-      <section id="view-changes" class="view">
-        <div class="page-head"><div><h1>Change Requests</h1><p>Požadavek → review → execution → evidence.</p></div><button id="new-change-button">Nový požadavek</button></div>
+      <section id="view-runs" class="view">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Execution</p>
+            <h1>Runs</h1>
+            <p>Poslední execution běhy a jejich fronta.</p>
+          </div>
+          <button data-refresh="runs">Obnovit</button>
+        </div>
+        <div id="runs-kpis" class="kpi-grid compact"></div>
+        <div class="panel table-panel"><table><thead><tr><th>Status</th><th>Execution</th><th>Request</th><th>Risk</th><th>Environment</th><th>Adapter</th><th>Receipt</th></tr></thead><tbody id="runs-table"></tbody></table></div>
+      </section>
+
+      <section id="view-plans" class="view">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Planning</p>
+            <h1>Plans</h1>
+            <p>Požadavky, approvals a governed execution vstup.</p>
+          </div>
+          <button id="new-change-button">Nový požadavek</button>
+        </div>
         <div id="change-form-panel" class="panel hidden">
           <form id="change-form" class="form-grid">
             <label>Workspace<select id="change-workspace" required></select></label>
@@ -66,33 +140,117 @@
             <div class="wide actions"><button type="submit">Vytvořit</button><button type="button" id="cancel-change-button" class="secondary">Zrušit</button></div>
           </form>
         </div>
-        <div class="panel table-panel"><table><thead><tr><th>Risk</th><th>Request</th><th>Environment</th><th>Adapter</th><th>Status</th><th>Approval</th><th>Akce</th></tr></thead><tbody id="changes-table"></tbody></table></div>
+        <div class="grid-two responsive-stack">
+          <article class="panel table-panel"><table><thead><tr><th>Risk</th><th>Request</th><th>Status</th><th>Approvals</th><th>Environment</th><th>Akce</th></tr></thead><tbody id="plans-table"></tbody></table></article>
+          <article class="panel">
+            <div class="panel-heading"><div><h2>Approval Inbox</h2><p>Čekající rozhodnutí a jejich prahy.</p></div><button data-refresh="plans">Obnovit</button></div>
+            <div id="approvals-list" class="cards"></div>
+          </article>
+        </div>
       </section>
 
-      <section id="view-approvals" class="view">
-        <div class="page-head"><div><h1>Approvals</h1><p>Jeden centralizovaný approval inbox.</p></div><button data-refresh="approvals">Obnovit</button></div>
-        <div id="approvals-list" class="cards"></div>
-      </section>
-
-      <section id="view-executions" class="view">
-        <div class="page-head"><div><h1>Executions</h1><p>Skutečně provedené řízené operace.</p></div><button data-refresh="executions">Obnovit</button></div>
-        <div class="panel table-panel"><table><thead><tr><th>Status</th><th>Execution</th><th>Request</th><th>Risk</th><th>Environment</th><th>Adapter</th><th>Receipt</th></tr></thead><tbody id="executions-table"></tbody></table></div>
+      <section id="view-registry" class="view">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Capabilities</p>
+            <h1>Capability Registry</h1>
+            <p>Aktivní execution plochy a canonical runtime dostupnost.</p>
+          </div>
+          <button data-refresh="registry">Obnovit</button>
+        </div>
+        <div id="registry-summary" class="kpi-grid compact"></div>
+        <div id="registry-cards" class="cards"></div>
       </section>
 
       <section id="view-evidence" class="view">
-        <div class="page-head"><div><h1>Evidence</h1><p>Hash-chain receipts a auditní integrita.</p></div><button data-refresh="evidence">Ověřit</button></div>
-        <div id="evidence-summary" class="kpi-grid"></div><div id="receipts-list" class="cards"></div>
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Evidence</p>
+            <h1>Evidence Timeline</h1>
+            <p>Audit, receipts, runs a plány v jedné časové ose.</p>
+          </div>
+          <button data-refresh="evidence">Obnovit</button>
+        </div>
+        <div id="evidence-summary" class="kpi-grid compact"></div>
+        <div id="timeline-list" class="timeline"></div>
+      </section>
+
+      <section id="view-policy" class="view">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Policy</p>
+            <h1>Policy Gates</h1>
+            <p>Fail-closed stav a integritní pravidla vystavená z runtime.</p>
+          </div>
+          <button data-refresh="policy">Obnovit</button>
+        </div>
+        <div id="policy-gates" class="fact-grid"></div>
+      </section>
+
+      <section id="view-verifier" class="view">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Verifier</p>
+            <h1>Verifier Center</h1>
+            <p>Oddělení execution receipt od nezávislého ověření.</p>
+          </div>
+          <button data-refresh="verifier">Obnovit</button>
+        </div>
+        <article class="panel">
+          <div class="panel-heading"><div><h2 id="verifier-rule">ExecutionReceipt != VerificationResult</h2><p>Pokud chybí explicitní verifier verdict, zůstává stav `UNKNOWN`.</p></div></div>
+          <div id="verifier-list" class="cards"></div>
+        </article>
       </section>
 
       <section id="view-health" class="view">
-        <div class="page-head"><div><h1>System Health</h1><p>Runtime, databáze, evidence a bezpečnostní stav.</p></div><button data-refresh="health">Obnovit</button></div>
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Runtime</p>
+            <h1>Runtime Health</h1>
+            <p>API, databáze, canonical runtime a bezpečnostní provozní stav.</p>
+          </div>
+          <button data-refresh="health">Obnovit</button>
+        </div>
         <div id="health-summary" class="fact-grid health-summary"></div>
         <details class="panel raw-health"><summary>Raw health payload</summary><pre id="health-json"></pre></details>
-        <article class="panel danger-zone"><h2>Emergency control</h2><p>Zastaví nové execution operace a vytvoří auditní událost.</p><input id="stop-reason" placeholder="Povinný důvod" /><button id="activate-stop" class="danger">Aktivovat emergency stop</button><button id="clear-stop" class="secondary">Zrušit emergency stop</button></article>
+        <article class="panel danger-zone">
+          <h2>Emergency Control</h2>
+          <p>Zastaví nové execution operace a vytvoří auditní událost.</p>
+          <div class="inline-controls">
+            <input id="stop-reason" placeholder="Povinný důvod" />
+            <button id="activate-stop" class="danger">Aktivovat emergency stop</button>
+            <button id="clear-stop" class="secondary">Zrušit emergency stop</button>
+          </div>
+        </article>
+      </section>
+
+      <section id="view-learning" class="view">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Learning</p>
+            <h1>Learning Intelligence</h1>
+            <p>Observed signály z provozu a explicitně oddělené neexponované scoring vrstvy.</p>
+          </div>
+          <button data-refresh="learning">Obnovit</button>
+        </div>
+        <div id="learning-signals" class="fact-grid"></div>
+        <article class="panel emphasis-panel"><h2>Scoring Router</h2><p id="learning-router" class="muted">NOT_EXPOSED</p></article>
+      </section>
+
+      <section id="view-governance" class="view">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Governance</p>
+            <h1>Governance & Settings</h1>
+            <p>Aktuální konfigurační hranice a runtime policy metadata.</p>
+          </div>
+          <button data-refresh="governance">Obnovit</button>
+        </div>
+        <div id="governance-grid" class="fact-grid"></div>
       </section>
     </main>
     <div id="toast" class="toast hidden"></div>
   </div>
-  <script src="/console/assets/app.js" defer></script>
+  <script src="/console/assets/control_room.js" defer></script>
 </body>
 </html>
