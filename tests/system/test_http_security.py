@@ -148,11 +148,32 @@ def test_approval_policy_compatibility_flag_is_default_off_and_env_controlled(
 
 
 def test_console_source_is_compatible_with_strict_csp() -> None:
-    javascript = (ROOT / "voodoo_product" / "static" / "app.js").read_text(encoding="utf-8")
+    javascript = (ROOT / "voodoo_product" / "static" / "control_room.js").read_text(
+        encoding="utf-8"
+    )
     html = (ROOT / "voodoo_product" / "static" / "index.html").read_text(encoding="utf-8")
 
     assert "onclick=" not in javascript
     assert ".style." not in javascript
     assert "data-change-action" in javascript
     assert "data-decision" in javascript
-    assert '<script src="/console/assets/app.js" defer></script>' in html
+    assert '<script src="/console/assets/control_room.js" defer></script>' in html
+
+
+def test_control_room_script_matches_current_console_dom_contract() -> None:
+    javascript = (ROOT / "voodoo_product" / "static" / "control_room.js").read_text(
+        encoding="utf-8"
+    )
+    html = (ROOT / "voodoo_product" / "static" / "index.html").read_text(encoding="utf-8")
+
+    assert "api('/control-room')" in javascript
+    assert "$('plans-table').addEventListener('click'" in javascript
+    assert "await loadPlans()" in javascript
+    assert 'id="plans-table"' in html
+    assert 'id="approvals-list"' in html
+    assert 'id="runs-table"' in html
+    assert "changes-table" not in html
+    assert "$('changes-table')" not in javascript
+    assert "loadChanges()" not in javascript
+    assert "loadEvidence()" not in javascript
+    assert "loadExecutions()" not in javascript

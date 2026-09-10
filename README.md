@@ -68,6 +68,7 @@ OperationProof != OperationCell
 | VOP semantic revision R2 | CURRENT / MERGED via PR #128 |
 | Canonical FastAPI ProductComposition runtime seam | IMPLEMENTED / MERGED; explicit runtime factory required, default provider pack disabled |
 | Canonical public READ operation API | IMPLEMENTED / MERGED via PR #137; reconciled with resume/runtime via PR #140 |
+| Read-only `/api/v1/control-room` dashboard projection | IMPLEMENTED / targeted tested |
 | Restart-safe durable READ resume | IMPLEMENTED / MERGED via PR #140 |
 | GitHub main governance enforcement | UNKNOWN / fresh post-rename G0 required; historical VERIFIED evidence retained |
 | Default provider runtime pack | BLOCKED / disabled until G8 |
@@ -154,6 +155,12 @@ PROVIDER WRITE = BLOCKED
 Legacy `ExecutionService` remains an explicit compatibility surface and is not canonical fallback
 authority. Public READ API availability does not imply provider runtime activation, provider mutation,
 deployment, or release.
+
+The current web surface at `/console` is a static dark control-room dashboard. It reads one
+read-only `/api/v1/control-room` projection for overview, runs, plans, capability registry, evidence
+timeline, policy gates, verifier separation, runtime health, learning signals, and governance
+settings. This projection does not add new execution authority and must not be read as provider
+runtime activation.
 
 ## G0 governance evidence
 
@@ -301,6 +308,8 @@ set +a
 ```
 
 Console: `http://127.0.0.1:8000/console`
+
+Control-room API: `http://127.0.0.1:8000/api/v1/control-room`
 
 ## Change governance
 

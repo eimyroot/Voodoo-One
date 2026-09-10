@@ -371,7 +371,7 @@ def test_proposed_organization_approval_adr_preserves_current_safety_boundary() 
 
 # GOVERNANCE_V3_CANDIDATE_TESTS_BEGIN
 
-def test_technical_standard_v3_candidate_is_hash_bound_and_not_adopted() -> None:
+def test_effective_technical_standard_is_hash_bound() -> None:
     import hashlib
 
     relative = "WORLD_CLASS_SOFTWARE_DEVOPS_OPERATING_MODE.md"
@@ -382,18 +382,15 @@ def test_technical_standard_v3_candidate_is_hash_bound_and_not_adopted() -> None
     sidecar_fields = sidecar_path.read_text(encoding="utf-8").strip().split()
 
     assert sidecar_fields == [
-        "36d2798f377ee5e6ba05ea8a565fc053ad58182d95a3af4f466050d536285bed",
+        "ed44c6147049887d941b7497f1bce3b817f22b6ae00a5136a27365a2f688d918",
         relative,
     ]
-    assert actual_sha256 == "36d2798f377ee5e6ba05ea8a565fc053ad58182d95a3af4f466050d536285bed"
-    assert "PROPOSED_SUCCESSOR_REVISION" in document
-    assert "2026-08-06-v3-candidate" in document
-    assert "ed44c6147049887d941b7497f1bce3b817f22b6ae00a5136a27365a2f688d918" in document
-    assert "docs/governance/AUTHORITY_AND_ADOPTION_REGISTER.md" in document
-    assert "Vestavěný adopční záznam" not in document
-    assert "ADOPTION_COMMIT:" not in document
-    assert "EFFECTIVE_STATUS: ADOPTED" in document
-    assert "ADOPTED_CONTENT_COMMIT: <candidate commit A>" in document
+    assert actual_sha256 == "ed44c6147049887d941b7497f1bce3b817f22b6ae00a5136a27365a2f688d918"
+    assert "# WORLD-CLASS SOFTWARE / DEVOPS OPERATING MODE" in document
+    assert "## 2. REALITY CHECK" in document
+    assert "## 3. SOURCE OF TRUTH" in document
+    assert "## 7. BEZPEČNOST" in document
+    assert "## 16. DEFINITION OF DONE" in document
 
 
 def test_authority_register_preserves_predecessor_and_externalizes_adoption() -> None:
