@@ -53,6 +53,7 @@ RELEASED / DEPLOYED       = separately governed states
 | Technical trust-plane components | **STRONG / IMPLEMENTED** |
 | Canonical ProductComposition trust-plane seam | **IMPLEMENTED / MERGED** |
 | Canonical public READ operation API | **IMPLEMENTED / MERGED via PR #137** |
+| Read-only control-room dashboard projection | **IMPLEMENTED / TARGETED VERIFIED** |
 | Restart-safe durable resume | **IMPLEMENTED / MERGED via PR #140** |
 | Runtime resume wiring | **IMPLEMENTED / MERGED via PR #140** |
 | G7 post-merge verification | **VERIFIED on `main@60bc9c268...` by CI #1015, D4 #202, E3 #193, E4B #189** |
@@ -182,6 +183,28 @@ verification.verdict  = NOT_VERIFIED
 ```
 
 Execution success, receipt existence, digest integrity, or evidence-chain integrity must never manufacture `VERIFIED`.
+
+## Control-room dashboard projection
+
+The current `/console` web surface is a static dark control-room dashboard backed by one read-only
+`GET /api/v1/control-room` projection. That projection summarizes:
+
+```text
+overview
+runs
+plans
+capability_registry
+evidence_timeline
+policy_gates
+verifier_center
+runtime_health
+learning_intelligence
+governance
+```
+
+It is PRODUCT_SURFACED truth for the current local product API/UI slice. It does not prove provider
+runtime activation, release, deployment, or independent verification beyond the data explicitly
+returned in the projection.
 
 No canonical CREATE_REF, DELETE_REF, or rollback HTTP route exists.
 

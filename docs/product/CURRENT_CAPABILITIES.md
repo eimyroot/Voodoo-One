@@ -39,7 +39,8 @@ Is it released/deployed?
 | FastAPI `/api/v1` product surface | VERIFIED | merged PR #137 plus post-G7 main CI #1015 | G8 provider pack remains off |
 | Canonical public READ Operation API | IMPLEMENTED | merged PR #137; reconciled with resume/runtime via PR #140 | no canonical WRITE route; default provider runtime still off |
 | Restart-safe canonical durable resume | IMPLEMENTED | merged PR #140; post-merge CI #1015 + D4 #202 + E3 #193 + E4B #189 | resumes only already-authorized durable execution; no new authority |
-| Static command-center console | IMPLEMENTED | product HTTP/static surface | product/release hardening still open |
+| Static control-room console | IMPLEMENTED | product HTTP/static surface plus targeted RC1/CSP tests | product/release hardening still open |
+| Read-only `/api/v1/control-room` dashboard projection | IMPLEMENTED | targeted RC1 API test | projects authority/evidence/runtime truth only; no new execution authority |
 | Local bootstrap, login and sessions | VERIFIED | authentication/bootstrap/session tests | no released OIDC/MFA enterprise identity path |
 | RBAC and approval separation | VERIFIED | governance/service tests | not full organization/tenant policy |
 | Approval policy decision model | VERIFIED | deterministic policy-decision tests | default-off runtime compatibility path only; Solo, Team, Regulated enforcement is not implemented |

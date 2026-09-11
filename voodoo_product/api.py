@@ -308,6 +308,17 @@ def create_product_router(
     ) -> dict[str, Any]:
         return service.command_center()
 
+    @router.get("/control-room")
+    def control_room(
+        request: Request,
+        _: Principal = Depends(require_permission("read")),
+    ) -> dict[str, Any]:
+        return service.control_room(
+            canonical_runtime_enabled=(
+                getattr(request.app.state, "voodoo_canonical_operation_runtime", None) is not None
+            )
+        )
+
     @router.get("/change-requests")
     def change_requests(
         _: Principal = Depends(require_permission("read")),

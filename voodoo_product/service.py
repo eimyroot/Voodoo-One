@@ -45,6 +45,7 @@ VALID_RISKS = {"R0", "R1", "R2", "R3", "R4"}
 VALID_ENVIRONMENTS = {"local", "development", "staging", "production"}
 VALID_ADAPTERS = {"echo", "write_artifact", "run_validation"}
 MAX_CHANGE_PAYLOAD_BYTES = 65_536
+CONTROL_ROOM_LIMIT = 12
 
 
 def row_dict(row: DatabaseRow | None) -> dict[str, Any] | None:
@@ -517,6 +518,40 @@ class ProductService:
     def command_center(self) -> dict[str, Any]:
         return self.platform_status_service.command_center()
 
+    def control_room(self, *, canonical_runtime_enabled: bool = False) -> dict[str, Any]:
+        overview = self.command_center()
+        change_requests = self.list_change_requests(limit=CONTROL_ROOM_LIMIT)
+        approvals = self.list_approvals(pending_only=True)
+        executions = self.list_executions(limit=CONTROL_ROOM_LIMIT)
+        receipts = self.list_receipts(limit=CONTROL_ROOM_LIMIT)
+        audits = self.list_audit_events(limit=CONTROL_ROOM_LIMIT)
+        return {
+            "overview": overview,
+            "runs": self._summarize_runs(change_requests, executions),
+            "plans": self._summarize_plans(change_requests, approvals),
+            "capability_registry": self._capability_registry(canonical_runtime_enabled),
+            "evidence_timeline": self._evidence_timeline(
+                change_requests=change_requests,
+                executions=executions,
+                receipts=receipts,
+                audits=audits,
+            ),
+            "policy_gates": self._policy_gates(
+                overview=overview,
+                canonical_runtime_enabled=canonical_runtime_enabled,
+            ),
+            "verifier_center": self._verifier_center(receipts=receipts, executions=executions),
+            "runtime_health": self._runtime_health(
+                health=self.health(),
+                canonical_runtime_enabled=canonical_runtime_enabled,
+            ),
+            "learning_intelligence": self._learning_intelligence(
+                change_requests=change_requests,
+                executions=executions,
+            ),
+            "governance": self._governance_projection(overview=overview),
+        }
+
     def set_emergency_stop(self, *, actor_id: str, active: bool, reason: str) -> dict[str, Any]:
         return self.operational_safety_service.set_emergency_stop(
             actor_id=actor_id,
@@ -526,6 +561,294 @@ class ProductService:
 
     def health(self) -> dict[str, Any]:
         return self.platform_status_service.health()
+
+    def _summarize_runs(
+        self,
+        change_requests: list[dict[str, Any]],
+        executions: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        recent = [
+            {
+                "id": item["id"],
+                "title": item["title"],
+                "status": item["status"],
+                "risk": item["risk"],
+                "environment": item["environment"],
+                "adapter": item["adapter"],
+                "updated_at": item["updated_at"],
+                "receipt_id": item.get("receipt_id"),
+            }
+            for item in executions[:CONTROL_ROOM_LIMIT]
+        ]
+        draft_or_review = sum(
+            1 for item in change_requests if item["status"] in {"DRAFT", "REVIEW_REQUIRED"}
+        )
+        return {
+            "recent": recent,
+            "queue_depth": draft_or_review,
+            "active_count": sum(1 for item in executions if item["status"] == "RUNNING"),
+            "completed_count": sum(1 for item in executions if item["status"] == "SUCCEEDED"),
+            "failed_count": sum(1 for item in executions if item["status"] == "FAILED"),
+        }
+
+    def _summarize_plans(
+        self,
+        change_requests: list[dict[str, Any]],
+        approvals: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        items: list[dict[str, Any]] = []
+        for request in change_requests[:CONTROL_ROOM_LIMIT]:
+            approval = next(
+                (item for item in approvals if item["request_id"] == request["id"]),
+                None,
+            )
+            items.append(
+                {
+                    "request_id": request["id"],
+                    "title": request["title"],
+                    "status": request["status"],
+                    "risk": request["risk"],
+                    "environment": request["environment"],
+                    "requested_by": request["requested_by_username"],
+                    "approval_count": request.get("approval_count", 0),
+                    "approval_required": approval.get("required_count", 1) if approval else 1,
+                    "updated_at": request["updated_at"],
+                }
+            )
+        return {"items": items, "pending_approvals": len(approvals)}
+
+    def _capability_registry(self, canonical_runtime_enabled: bool) -> dict[str, Any]:
+        adapters = [
+            {
+                "id": "echo",
+                "surface": "adapter",
+                "effect": "INERT",
+                "verification": "NOT_REQUIRED",
+                "environments": ["local", "development", "staging", "production"],
+                "runtime_status": "ACTIVE",
+                "source": "runtime_allowlist",
+            },
+            {
+                "id": "write_artifact",
+                "surface": "adapter",
+                "effect": "FILESYSTEM_WRITE",
+                "verification": "RECEIPT_ONLY",
+                "environments": ["local", "development", "staging", "production"],
+                "runtime_status": "ACTIVE",
+                "source": "runtime_allowlist",
+            },
+            {
+                "id": "run_validation",
+                "surface": "adapter",
+                "effect": "LOCAL_PROCESS",
+                "verification": "EXIT_CODE_AND_OUTPUT",
+                "environments": ["local", "development", "staging", "production"],
+                "runtime_status": "ACTIVE",
+                "source": "runtime_allowlist",
+            },
+            {
+                "id": "github.read-ref/v1",
+                "surface": "canonical_operation",
+                "effect": "READ_ONLY",
+                "verification": "INDEPENDENT_VERIFIER",
+                "environments": ["local", "development", "staging"],
+                "runtime_status": "ENABLED" if canonical_runtime_enabled else "DISABLED",
+                "source": "canonical_router",
+            },
+        ]
+        return {
+            "items": adapters,
+            "fail_closed_default": True,
+            "production_effects_enabled": self.config.production_effects_enabled,
+        }
+
+    def _evidence_timeline(
+        self,
+        *,
+        change_requests: list[dict[str, Any]],
+        executions: list[dict[str, Any]],
+        receipts: list[dict[str, Any]],
+        audits: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        for event in audits[:6]:
+            items.append(
+                {
+                    "kind": "AUDIT_EVENT",
+                    "id": event["id"],
+                    "title": event["action"],
+                    "status": "RECORDED",
+                    "timestamp": event["created_at"],
+                    "detail": event["target_type"],
+                }
+            )
+        for receipt in receipts[:3]:
+            items.append(
+                {
+                    "kind": "RECEIPT",
+                    "id": receipt["id"],
+                    "title": receipt["execution_id"],
+                    "status": "RECORDED",
+                    "timestamp": receipt["created_at"],
+                    "detail": receipt["receipt_hash"],
+                }
+            )
+        for execution in executions[:3]:
+            items.append(
+                {
+                    "kind": "EXECUTION",
+                    "id": execution["id"],
+                    "title": execution["title"],
+                    "status": execution["status"],
+                    "timestamp": execution["updated_at"],
+                    "detail": execution["adapter"],
+                }
+            )
+        for request in change_requests[:3]:
+            items.append(
+                {
+                    "kind": "PLAN",
+                    "id": request["id"],
+                    "title": request["title"],
+                    "status": request["status"],
+                    "timestamp": request["updated_at"],
+                    "detail": request["risk"],
+                }
+            )
+        items.sort(key=lambda item: item["timestamp"], reverse=True)
+        return items[:CONTROL_ROOM_LIMIT]
+
+    def _policy_gates(
+        self,
+        *,
+        overview: dict[str, Any],
+        canonical_runtime_enabled: bool,
+    ) -> list[dict[str, Any]]:
+        gates = [
+            ("UNKNOWN != PASS", "ENFORCED", "truth_invariant"),
+            ("MISSING != PASS", "ENFORCED", "truth_invariant"),
+            ("UNVERIFIED != PASS", "ENFORCED", "truth_invariant"),
+            (
+                "Production effects",
+                "ENABLED" if overview["production_effects_enabled"] else "DISABLED",
+                "runtime",
+            ),
+            ("Emergency stop", "ACTIVE" if overview["emergency_stop"] else "INACTIVE", "runtime"),
+            (
+                "Receipt chain",
+                "PASS" if overview["receipt_integrity"]["valid"] else "FAIL",
+                "evidence",
+            ),
+            (
+                "Audit chain",
+                "PASS" if overview["audit_integrity"]["valid"] else "FAIL",
+                "evidence",
+            ),
+            (
+                "Canonical read runtime",
+                "ENABLED" if canonical_runtime_enabled else "DISABLED",
+                "runtime",
+            ),
+        ]
+        return [{"name": name, "status": status, "source": source} for name, status, source in gates]
+
+    def _verifier_center(
+        self,
+        *,
+        receipts: list[dict[str, Any]],
+        executions: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        recent_checks = []
+        execution_index = {item["id"]: item for item in executions}
+        for receipt in receipts[:CONTROL_ROOM_LIMIT]:
+            execution = execution_index.get(receipt["execution_id"], {})
+            recent_checks.append(
+                {
+                    "receipt_id": receipt["id"],
+                    "execution_id": receipt["execution_id"],
+                    "execution_status": execution.get("status", "UNKNOWN"),
+                    "verification_status": "UNKNOWN",
+                    "created_at": receipt["created_at"],
+                }
+            )
+        return {
+            "separation_rule": "ExecutionReceipt != VerificationResult",
+            "recent_checks": recent_checks,
+            "independent_verification_exposed": False,
+        }
+
+    def _runtime_health(
+        self,
+        *,
+        health: dict[str, Any],
+        canonical_runtime_enabled: bool,
+    ) -> list[dict[str, Any]]:
+        return [
+            {"name": "API", "status": health["status"], "detail": "FastAPI product surface"},
+            {"name": "Database", "status": health["database"], "detail": health["database_backend"]},
+            {
+                "name": "Evidence",
+                "status": health.get("evidence_integrity", "UNKNOWN"),
+                "detail": "liveness projection",
+            },
+            {
+                "name": "Identity",
+                "status": self.config.identity_provider.upper(),
+                "detail": "configured provider",
+            },
+            {
+                "name": "Canonical runtime",
+                "status": "ENABLED" if canonical_runtime_enabled else "DISABLED",
+                "detail": "read path activation",
+            },
+        ]
+
+    def _learning_intelligence(
+        self,
+        *,
+        change_requests: list[dict[str, Any]],
+        executions: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        total_requests = len(change_requests)
+        total_executions = len(executions)
+        succeeded = sum(1 for item in executions if item["status"] == "SUCCEEDED")
+        failed = sum(1 for item in executions if item["status"] == "FAILED")
+        return {
+            "signals": [
+                {
+                    "name": "Execution success rate",
+                    "value": f"{round((succeeded / total_executions) * 100)}%"
+                    if total_executions
+                    else "UNKNOWN",
+                    "status": "OBSERVED" if total_executions else "UNKNOWN",
+                },
+                {
+                    "name": "Failure pressure",
+                    "value": str(failed),
+                    "status": "OBSERVED" if total_executions else "UNKNOWN",
+                },
+                {
+                    "name": "Approval queue",
+                    "value": str(
+                        sum(1 for item in change_requests if item["status"] == "REVIEW_REQUIRED")
+                    ),
+                    "status": "OBSERVED" if total_requests else "UNKNOWN",
+                },
+            ],
+            "scoring_router": "NOT_EXPOSED",
+        }
+
+    def _governance_projection(self, *, overview: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "environment": overview["environment"],
+            "trusted_hosts": list(self.config.trusted_hosts),
+            "cors_origins": list(self.config.cors_origins),
+            "identity_provider": self.config.identity_provider,
+            "production_effects_enabled": self.config.production_effects_enabled,
+            "approval_policy_compatibility_enabled": (
+                self.config.approval_policy_compatibility_enabled
+            ),
+        }
 
     def _append_audit(
         self,

@@ -289,18 +289,68 @@ def test_console_and_openapi_are_available(tmp_path: Path) -> None:
     console = client.get("/console")
     assert console.status_code == 200
     assert "VOODOO One" in console.text
+    assert "Governed AI Operations Control Room" in console.text
     assert 'id="change-environment" readonly' in console.text
     css = client.get("/console/assets/styles.css")
     assert css.status_code == 200
-    javascript = client.get("/console/assets/app.js")
+    javascript = client.get("/console/assets/control_room.js")
     assert javascript.status_code == 200
     assert "syncChangeEnvironment" in javascript.text
-    assert "api('/auth/logout',{method:'POST'})" in javascript.text
+    assert "api('/auth/logout', { method: 'POST' })" in javascript.text
     assert "Serverové odvolání relace se nepodařilo potvrdit" in javascript.text
     schema = client.get("/openapi.json")
     assert schema.status_code == 200
     assert "/api/v1/change-requests" in schema.json()["paths"]
     assert "/api/v1/auth/logout" in schema.json()["paths"]
+    assert "/api/v1/control-room" in schema.json()["paths"]
+
+
+def test_control_room_exposes_truthful_dashboard_projection(tmp_path: Path) -> None:
+    client = build_client(tmp_path)
+    admin = bootstrap(client)
+
+    response = client.get("/api/v1/control-room", headers=headers(admin))
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["overview"]["trust_state"] == "HEALTHY"
+    assert payload["capability_registry"]["fail_closed_default"] is True
+    assert payload["governance"]["production_effects_enabled"] is False
+    assert any(
+        item["name"] == "UNKNOWN != PASS" and item["status"] == "ENFORCED"
+        for item in payload["policy_gates"]
+    )
+
+
+def test_control_room_exposes_fail_closed_runtime_truth(tmp_path: Path) -> None:
+    client = build_client(tmp_path)
+    admin = bootstrap(client)
+
+    response = client.get("/api/v1/control-room", headers=headers(admin))
+
+    assert response.status_code == 200, response.text
+    control_room = response.json()
+    assert set(control_room) == {
+        "overview",
+        "runs",
+        "plans",
+        "capability_registry",
+        "evidence_timeline",
+        "policy_gates",
+        "verifier_center",
+        "runtime_health",
+        "learning_intelligence",
+        "governance",
+    }
+    gates = {gate["name"]: gate["status"] for gate in control_room["policy_gates"]}
+    assert gates["UNKNOWN != PASS"] == "ENFORCED"
+    assert gates["MISSING != PASS"] == "ENFORCED"
+    assert gates["UNVERIFIED != PASS"] == "ENFORCED"
+    assert gates["Canonical read runtime"] == "DISABLED"
+    assert control_room["capability_registry"]["fail_closed_default"] is True
+    assert control_room["capability_registry"]["production_effects_enabled"] is False
+    assert control_room["verifier_center"]["independent_verification_exposed"] is False
+    assert control_room["learning_intelligence"]["scoring_router"] == "NOT_EXPOSED"
 
 
 def test_roles_are_permission_based_not_linear(tmp_path: Path) -> None:
