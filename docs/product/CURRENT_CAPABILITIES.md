@@ -92,7 +92,8 @@ Is it released/deployed?
 | OIDC identity provider | BLOCKED | fail-closed configuration tests | no released external identity runtime |
 | Security Intelligence R-SI1.1 | IMPLEMENTED | metadata + tests | intelligence-only; no execution/proof authority |
 | Security Intelligence R-SI1.2 normalization | IMPLEMENTED | merged PR #135 | descriptive/context-only; no authority/runtime/effect widening |
-| CyberCore integration | BLOCKED | product/release-governance hardening | cannot bypass V-One gates |
+| CyberCore read-only intake contract | IMPLEMENTED | deterministic CXP/1 metadata contract + system tests | context/proposal only; no API, persistence, approval, execution or effect authority |
+| CyberCore mutation/runtime integration | BLOCKED | parser/trust/runtime/release-governance hardening | cannot bypass V-One gates |
 | Main GitHub governance policy | UNKNOWN | historical G0 run `32553113424` remains VERIFIED for its original evidence scope | fresh exact-main G0 is required for current `eimyroot/Voodoo-One` identity |
 | Main required latest-head enforcement | UNKNOWN | historical G0 verified PR-only main, required `verify`, latest-head strict checks and no ordinary bypass for its then-current repository identity | current post-rename enforcement must be re-verified live |
 | G8 default READ provider runtime | BLOCKED | G8 gate defined; no default runtime activation yet | must be READ-only, explicit, separate Runner/Verifier credentials, fail-closed |
