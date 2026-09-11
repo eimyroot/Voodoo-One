@@ -29,6 +29,11 @@ GOVERNANCE = _load_script(
 
 CANONICAL_REPOSITORY = "eimyroot/Voodoo-One"
 CANONICAL_REPOSITORY_URL = "https://github.com/eimyroot/Voodoo-One.git"
+LATEST_RETAINED_G0_SOURCE_SHA = "a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c"
+LATEST_RETAINED_G0_RUN = "34031128405"
+LATEST_RETAINED_G0_ARTIFACT_DIGEST = (
+    "sha256:be646405590ac07f6293eaeb94a72c77ecf8ea02c16a31b31ccf93ef4ec92a2c"
+)
 LEGACY_FETCH_ALIASES = frozenset(
     {
         "https://github.com/eimyroot/V-One.git",
@@ -99,7 +104,11 @@ def test_governance_and_publication_docs_bind_current_repository_identity() -> N
 
     assert "repository = eimyroot/Voodoo-One" in governance
     assert "repository = nulleimy/V-One" not in governance
-    assert "fresh live G0 verification required" in governance
+    assert "latest retained g0 evidence" in governance.lower()
+    assert "CURRENT_LIVE_G0 = DERIVED / QUERY_ONLY" in governance
+    assert LATEST_RETAINED_G0_RUN in governance
+    assert LATEST_RETAINED_G0_SOURCE_SHA in governance
+    assert LATEST_RETAINED_G0_ARTIFACT_DIGEST in governance
 
     assert CANONICAL_REPOSITORY_URL in publication
     assert "fetch-only legacy alias" in publication
@@ -119,24 +128,49 @@ def test_operations_runbook_uses_current_repo_and_artifact_derived_schema_truth(
     assert "current expected schema is 14" in runbook
 
 
-def test_current_truth_does_not_promote_historical_g0_after_rename() -> None:
+def test_versioned_truth_uses_retained_g0_evidence_without_self_invalidating_current_pass() -> None:
     state = _read("CURRENT_PRODUCT_STATE.md")
     capabilities = _read("docs/product/CURRENT_CAPABILITIES.md")
     readme = _read("README.md")
 
     assert "CANONICAL_REPOSITORY: eimyroot/Voodoo-One" in state
-    assert "G0_GITHUB_GOVERNANCE=UNKNOWN" in state
-    assert "G0                              = UNKNOWN" in state
+    assert "LATEST_RETAINED_G0_VERDICT=VERIFIED" in state
+    assert "CURRENT_LIVE_G0=DERIVED_QUERY_ONLY" in state
+    assert LATEST_RETAINED_G0_RUN in state
+    assert LATEST_RETAINED_G0_SOURCE_SHA in state
+    assert LATEST_RETAINED_G0_ARTIFACT_DIGEST in state
     assert "historical_verdict = VERIFIED" in state
 
     assert "| Canonical repository | `eimyroot/Voodoo-One` |" in capabilities
-    assert "| Main GitHub governance policy | UNKNOWN |" in capabilities
-    assert "G0_LIVE_ENFORCEMENT_VERIFIED=UNKNOWN_CURRENT" in capabilities
+    assert "LATEST_RETAINED_G0_VERDICT=VERIFIED" in capabilities
+    assert "CURRENT_LIVE_G0=DERIVED_QUERY_ONLY" in capabilities
+    assert LATEST_RETAINED_G0_RUN in capabilities
+    assert LATEST_RETAINED_G0_SOURCE_SHA in capabilities
+    assert LATEST_RETAINED_G0_ARTIFACT_DIGEST in capabilities
     assert "historical_verdict = VERIFIED" in capabilities
 
-    assert (
-        "| GitHub main governance enforcement | UNKNOWN / fresh post-rename G0 required; "
-        "historical VERIFIED evidence retained |"
-    ) in readme
-    assert "current G0 governance is therefore `UNKNOWN`" in readme
-    assert "historical G0 VERIFIED evidence is retained" in readme
+    assert "latest retained g0 evidence" in readme.lower()
+    assert "CURRENT_LIVE_G0=DERIVED_QUERY_ONLY" in readme
+    assert LATEST_RETAINED_G0_RUN in readme
+    assert LATEST_RETAINED_G0_SOURCE_SHA in readme
+    assert LATEST_RETAINED_G0_ARTIFACT_DIGEST in readme
+    assert "historical_verdict = VERIFIED" in readme
+
+    forbidden_current_pass_claims = (
+        "G0_GITHUB_GOVERNANCE=PASS",
+        "G0_LIVE_ENFORCEMENT_VERIFIED=YES",
+        "G0                              = PASS",
+        "current G0 is PASS",
+        "Current G0 is VERIFIED",
+    )
+    for claim in forbidden_current_pass_claims:
+        assert claim not in state
+        assert claim not in capabilities
+        assert claim not in readme
+
+
+def test_release_candidate_requires_fresh_exact_checkout_g0() -> None:
+    workflow = _read(".github/workflows/release-candidate.yml")
+    assert "verify_github_main_governance.py" in workflow
+    assert "--expected-source-sha" in workflow
+    assert '"${GITHUB_SHA}"' in workflow

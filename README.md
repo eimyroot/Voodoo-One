@@ -70,7 +70,7 @@ OperationProof != OperationCell
 | Canonical public READ operation API | IMPLEMENTED / MERGED via PR #137; reconciled with resume/runtime via PR #140 |
 | Read-only `/api/v1/control-room` dashboard projection | IMPLEMENTED / targeted tested |
 | Restart-safe durable READ resume | IMPLEMENTED / MERGED via PR #140 |
-| GitHub main governance enforcement | UNKNOWN / fresh post-rename G0 required; historical VERIFIED evidence retained |
+| GitHub governance evidence | latest retained G0 evidence VERIFIED for exact `main@a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c`; current live G0 is derived/query-only |
 | Default provider runtime pack | BLOCKED / disabled until G8 |
 | Real canonical HTTP READ E2E through default G8 pack | BLOCKED / not yet verified |
 | Provider WRITE activation | BLOCKED pending repeated READ E2E + restart-safe verification gate |
@@ -164,8 +164,36 @@ runtime activation.
 
 ## G0 governance evidence
 
-The repository retains historical live G0 evidence for the repository identity that was current when
-the run executed:
+The repository records immutable G0 evidence scopes, not a self-updating `current main = PASS` claim.
+The latest retained G0 evidence is:
+
+```text
+workflow = g0-governance-verify
+run = 34031128405
+source_sha = a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c
+artifact = g0-governance-evidence-34031128405-1
+artifact_id = 9988632821
+artifact_digest = sha256:be646405590ac07f6293eaeb94a72c77ecf8ea02c16a31b31ccf93ef4ec92a2c
+checksum_validation = PASS
+retained_verdict = VERIFIED
+```
+
+That run independently verified the renamed `eimyroot/Voodoo-One` repository, exact source binding,
+PR-only main, required `verify` from workflow `ci`, latest-head strict checks, force-push and deletion
+disabled, conversation resolution, active rulesets and no ordinary bypass for that exact SHA.
+
+```text
+LATEST_RETAINED_G0_VERDICT=VERIFIED
+LATEST_RETAINED_G0_SOURCE_SHA=a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c
+CURRENT_LIVE_G0=DERIVED_QUERY_ONLY
+RELEASE_CANDIDATE_G0=FRESH_EXACT_CHECKOUT_REQUIRED
+```
+
+`CURRENT_LIVE_G0` must be derived from live GitHub state at decision time. A later commit changes
+`main`, so this retained artifact cannot be reused as exact-current proof. The release-candidate
+workflow therefore performs fresh G0 verification against its exact checked-out `${GITHUB_SHA}`.
+
+The repository also retains the earlier G0 artifact for its original evidence scope:
 
 ```text
 workflow = g0-governance-verify
@@ -173,14 +201,11 @@ run = 32553113424
 source_sha = 76d74d2ed62b6e78f027728c456c22da0b4a95bd
 artifact = g0-governance-evidence-32553113424-1
 artifact_digest = sha256:6e63caee23a57613471df66ef0279c0261ed8d375e4c929accdf50eff7dc4f5f
-verdict = VERIFIED
+historical_verdict = VERIFIED
 ```
 
-That artifact remains valid historical evidence only. The canonical repository is now
-`eimyroot/Voodoo-One`; current G0 governance is therefore `UNKNOWN` until a fresh
-`g0-governance-verify` run executes on the exact post-repair `main` SHA and independently verifies the
-current repository identity and live ruleset. Historical G0 PASS never authorizes provider runtime,
-release, or deployment.
+Historical evidence stays historical. G0 evidence never authorizes provider runtime, release or
+deployment by itself.
 
 ## READ before WRITE
 
@@ -228,7 +253,7 @@ a new provider mutation is authorized.
 - default G8 provider runtime and real product HTTP READ E2E remain blocked/unverified;
 - provider WRITE remains blocked behind READ-before-WRITE evidence and separate effect authorization;
 - no release/deployment inferred from CI, merge, Proof or Cell;
-- historical G0 VERIFIED evidence is retained, while current post-rename GitHub governance remains UNKNOWN until fresh exact-main verification.
+- latest retained G0 evidence is exact-SHA scoped; current live GitHub governance is queried/derived rather than versioned as PASS.
 
 ## Documentation
 

@@ -1,12 +1,12 @@
 # GitHub Main Governance Baseline v1
 
-Status: PREPARED — repository-side contract repaired for `eimyroot/Voodoo-One`; fresh live G0 verification required
+Status: ACTIVE CONTRACT — latest retained exact-main G0 evidence is recorded separately from current live truth
 
 ## Purpose
 
 Define the minimum GitHub repository enforcement required before higher-impact V-One authority, Grant Issuer, Runner, release, or production-capable work may rely on GitHub as a governance boundary.
 
-This document does not claim that GitHub Settings are already enforced. Remote enforcement must be verified independently against the live repository configuration.
+This document defines the contract and records immutable evidence scopes. It does not store a self-updating claim that the moving current `main` is VERIFIED. Current live G0 is derived by querying live GitHub state at decision time.
 
 ## Canonical protected branch
 
@@ -47,7 +47,7 @@ Product/runtime rule `no requester self-approval` remains a separate V-One autho
 
 ## Required verification evidence
 
-P0 is complete only when live GitHub configuration evidence proves the desired state. Acceptable evidence must include:
+P0 is complete for a decision scope only when live GitHub configuration evidence proves the desired state on the exact SHA being evaluated. Acceptable evidence must include:
 
 ```text
 repository = eimyroot/Voodoo-One
@@ -73,7 +73,44 @@ verified_at = <timestamp>
 source = GitHub live repository settings/API
 ```
 
-A repository document, CI pass, issue, PR description or previous observation is not sufficient evidence of GitHub-side enforcement. A repository rename or transfer changes the identity being verified: a historical G0 PASS for a different repository identity remains historical evidence and is not reusable as current G0 proof.
+A repository document, CI pass, issue, PR description or previous observation is not sufficient evidence of GitHub-side enforcement. A repository rename, transfer, new commit, ruleset change or required-check change can make older evidence non-current without invalidating its historical scope.
+
+## Latest retained G0 evidence
+
+The latest retained G0 evidence is immutable evidence for exactly the SHA it observed:
+
+```text
+workflow = g0-governance-verify
+run = 34031128405
+repository = eimyroot/Voodoo-One
+branch = main
+branch_head_sha = a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c
+verifier_source_sha = a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c
+required_status_check = verify
+observed_required_workflow = ci
+observed_required_workflow_path = .github/workflows/ci.yml
+artifact = g0-governance-evidence-34031128405-1
+artifact_id = 9988632821
+artifact_digest = sha256:be646405590ac07f6293eaeb94a72c77ecf8ea02c16a31b31ccf93ef4ec92a2c
+checksum_validation = PASS
+retained_verdict = VERIFIED
+verified_at = 2026-09-06T11:45:16.520493Z
+```
+
+The evidence reported every required G0 check as true, including PR-only main, strict/latest-head
+required checks, GitHub Actions provider/workflow identity, force-push and branch deletion disabled,
+conversation resolution, complete bypass evidence with no ordinary bypass actor, active rulesets and
+exact verifier-source binding for that exact SHA.
+
+This is intentionally **not** serialized as `current main = PASS` because committing such a statement
+would change `main` and immediately make its own exact-SHA proof stale.
+
+```text
+LATEST_RETAINED_G0_VERDICT = VERIFIED
+LATEST_RETAINED_G0_SOURCE_SHA = a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c
+CURRENT_LIVE_G0 = DERIVED / QUERY_ONLY
+RELEASE_CANDIDATE_G0 = FRESH_EXACT_CHECKOUT_REQUIRED
+```
 
 ## Machine verification
 
@@ -152,7 +189,7 @@ Examples that are `BLOCKED` when evidence is otherwise complete:
 - PR-only flow, force-push blocking, deletion blocking or thread resolution is absent;
 - any bypass actor is configured.
 
-Only `VERIFIED` exits successfully. `BLOCKED` and `UNKNOWN` fail closed. A historical PASS is not reusable proof after GitHub ruleset/settings configuration changes or repository-identity changes.
+Only `VERIFIED` exits successfully. `BLOCKED` and `UNKNOWN` fail closed. A retained or historical PASS is not reusable proof for a different exact SHA or changed governance state.
 
 ## Credential boundary
 
@@ -164,7 +201,7 @@ The dedicated token exists only because GitHub may omit sensitive `bypass_actors
 
 A release-candidate workflow is not allowed to produce an RC artifact unless the exact checked-out `main` SHA first produces G0 `VERIFIED`. The resulting `g0-governance-evidence.json` is included in the RC artifact and covered by `SHA256SUMS.txt` alongside the source archive and SBOM.
 
-This gate does not itself authorize release or deployment. It only prevents release-candidate artifact construction from bypassing repository-governance evidence.
+This gate does not reuse `LATEST_RETAINED_G0_VERDICT` as current authorization. It performs fresh exact-checkout verification. The gate does not itself authorize release or deployment.
 
 ## Failure semantics
 
@@ -182,13 +219,15 @@ GITHUB_SETTINGS_ENFORCED = BLOCKED
 P0 = BLOCKED
 ```
 
-Never convert `UNKNOWN` or `BLOCKED` into `PASS` from documentation intent, CI success or branch metadata alone.
+Never convert `UNKNOWN` or `BLOCKED` into `PASS` from documentation intent, CI success, retained evidence or branch metadata alone.
 
 ## Change path
 
 Changes to this baseline use a PR and must not reduce the controls above without explicit owner authorization, documented rationale, risk analysis and replacement controls.
 
 ## Exit gate
+
+For any specific evaluated SHA, a fresh G0 `VERIFIED` result requires:
 
 ```text
 REPO_ENFORCEMENT_CONTRACT = VERIFIED
@@ -207,4 +246,4 @@ ORDINARY_ADMIN_BYPASS_DISABLED = VERIFIED
 P0_GITHUB_GOVERNANCE = PASS
 ```
 
-Until all fields are proven, authority/Runner work may be designed or prepared but must not treat GitHub enforcement as a trusted completed boundary.
+The latest retained evidence satisfies that exit gate for exact `main@a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c`. Whether a later current `main` satisfies it is a live-derived question and requires fresh exact-SHA evidence.

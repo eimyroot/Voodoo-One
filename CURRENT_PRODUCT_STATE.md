@@ -57,7 +57,7 @@ RELEASED / DEPLOYED       = separately governed states
 | Restart-safe durable resume | **IMPLEMENTED / MERGED via PR #140** |
 | Runtime resume wiring | **IMPLEMENTED / MERGED via PR #140** |
 | G7 post-merge verification | **VERIFIED on `main@60bc9c268...` by CI #1015, D4 #202, E3 #193, E4B #189** |
-| GitHub G0 governance | **UNKNOWN / fresh post-rename exact-main verification required** |
+| Latest retained GitHub G0 evidence | **VERIFIED for exact `main@a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c` via run `34031128405`; current live G0 is query-only** |
 | Default provider runtime pack | **DISABLED / FAIL-CLOSED** |
 | Real canonical HTTP READ E2E using default G8 pack | **BLOCKED / NOT YET VERIFIED** |
 | Provider WRITE activation | **BLOCKED** |
@@ -68,14 +68,44 @@ RELEASED / DEPLOYED       = separately governed states
 | Deployment | **NOT PERFORMED** |
 | CyberCore | **BLOCKED pending product/release-governance hardening** |
 
-## G0 GitHub governance — current vs historical evidence
+## G0 GitHub governance — retained evidence vs live-derived truth
 
-Current canonical repository identity is `eimyroot/Voodoo-One`. No fresh post-rename G0 run is yet
-retained for the exact current `main` SHA, so current G0 state is deliberately `UNKNOWN` and the
-release-candidate governance gate remains fail-closed until fresh live evidence exists.
+Current canonical repository identity is `eimyroot/Voodoo-One`. The latest retained post-rename G0
+evidence independently verified repository identity, required-check provenance and live ruleset controls
+for exactly the SHA that it observed. This versioned document records that immutable evidence scope; it
+does not promote the repository's moving current `main` to PASS by self-reference.
 
-The following retained artifact remains valid historical evidence for the repository identity and
-source SHA that existed when it ran:
+```text
+workflow = g0-governance-verify
+run = 34031128405
+event = workflow_dispatch
+branch = main
+source_sha = a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c
+branch_head_sha = a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c
+verifier_source_sha = a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c
+required_check = verify
+required_workflow = ci
+required_workflow_path = .github/workflows/ci.yml
+artifact = g0-governance-evidence-34031128405-1
+artifact_id = 9988632821
+artifact_digest = sha256:be646405590ac07f6293eaeb94a72c77ecf8ea02c16a31b31ccf93ef4ec92a2c
+checksum_validation = PASS
+retained_verdict = VERIFIED
+verified_at = 2026-09-06T11:45:16.520493Z
+```
+
+The verifier observed PR-only main, required `verify` from GitHub Actions workflow `ci`, latest-head
+strict checks, force-push disabled, branch deletion disabled, conversation resolution, no ordinary
+admin/ruleset bypass, active rulesets and exact verifier-source binding. All required G0 checks were
+true for that exact evidence scope.
+
+Current live G0 is deliberately not stored as a mutable-looking PASS/FAIL field in Git. It is derived
+at decision time by comparing live `main` and live settings with fresh verifier evidence. Release-candidate
+construction must run G0 against its exact checked-out `${GITHUB_SHA}` rather than reuse this retained
+artifact as current authorization.
+
+The earlier retained artifact remains valid historical evidence for the repository identity and source
+SHA that existed when it ran:
 
 ```text
 workflow = g0-governance-verify
@@ -90,27 +120,18 @@ evidence_json_checksum = 11a99765485b63b70186037011d31c105dea8dd75b689e0036a8766
 historical_verdict = VERIFIED
 ```
 
-That historical evidence verified PR-only main, required `verify` from workflow `ci`, latest-head
-strict checks, force-push disabled, branch deletion disabled, conversation resolution, no ordinary
-admin/ruleset bypass, active rulesets, and verifier source binding for its exact evidence scope. It
-must not be reused as proof for the renamed current repository identity.
+Historical evidence stays historical. Neither retained run is silently promoted to proof for a later
+`main` SHA.
 
 ```text
 REPO_ENFORCEMENT_CONTRACT       = IMPLEMENTED
-GITHUB_SETTINGS_ENFORCED        = UNKNOWN
-MAIN_PR_ONLY                    = UNKNOWN_CURRENT_G0
-REQUIRED_CI                     = UNKNOWN_CURRENT_G0
-FORCE_PUSH_DISABLED             = UNKNOWN_CURRENT_G0
-BRANCH_DELETE_DISABLED          = UNKNOWN_CURRENT_G0
-CONVERSATION_RESOLUTION         = UNKNOWN_CURRENT_G0
-ORDINARY_ADMIN_BYPASS_DISABLED  = UNKNOWN_CURRENT_G0
-P0_GITHUB_GOVERNANCE            = BLOCKED_PENDING_FRESH_G0
-G0                              = UNKNOWN
+LATEST_RETAINED_G0_VERDICT      = VERIFIED
+LATEST_RETAINED_G0_SOURCE_SHA   = a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c
+CURRENT_LIVE_G0                 = DERIVED_QUERY_ONLY
+P0_GITHUB_GOVERNANCE            = QUERY_LIVE_FOR_DECISION
 ```
 
-A fresh G0 PASS on the exact post-repair `main` SHA may promote these current governance fields back to
-`VERIFIED`; documentation, CI success, or the historical artifact cannot do so by inference. G0 PASS
-does not authorize release or deployment.
+G0 evidence does not authorize provider runtime, release, deployment or production effects.
 
 ## Canonical shared authority/execution prefix
 
@@ -328,13 +349,17 @@ This historical evidence does not authorize or prove any new provider mutation.
 - Historical PR #125 technical merge/post-state is VERIFIED; separate pre-merge merge-authorization provenance remains **NOT VERIFIED** and is not rewritten.
 - ADR-0018 records the R2 terminal-profile correction instead of silently rewriting older history.
 - PR #128 reconciliation remains historical provenance; later G7 evidence does not rewrite it.
-- Historical G0 run `32553113424` remains retained evidence for its original repository identity and exact source SHA; it is not current post-rename proof.
+- Historical G0 run `32553113424` remains retained evidence for its original repository identity and exact source SHA.
+- Latest retained G0 run `34031128405` VERIFIED the renamed canonical repository at exact `main@a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c`; current live G0 remains derived/query-only.
 
 ## Current release truth
 
 ```text
 VOODOO_ALLOW_PRODUCTION_EFFECTS=false
-G0_GITHUB_GOVERNANCE=UNKNOWN
+LATEST_RETAINED_G0_VERDICT=VERIFIED
+LATEST_RETAINED_G0_SOURCE_SHA=a7e7c075dc44d61d4f7e8870cc3c0580ff290c2c
+CURRENT_LIVE_G0=DERIVED_QUERY_ONLY
+RELEASE_CANDIDATE_G0=FRESH_EXACT_CHECKOUT_REQUIRED
 G7_CANONICAL_READ_API=MERGED
 G7_RESTART_SAFE_RESUME=MERGED
 G8_DEFAULT_READ_RUNTIME=OFF
