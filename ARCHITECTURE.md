@@ -354,8 +354,14 @@ CyberCore != Runner
 CyberCore != Verifier
 ```
 
-CyberCore remains blocked while product/release-governance hardening is incomplete. It cannot be used
-to bypass G8, READ E2E, WRITE, release, or deployment gates.
+V-One now contains a contract-only read-only CyberCore intake boundary in
+`voodoo_product/cybercore_intake.py`. It binds CXP/1 and Knowledge Block references, digests, risk,
+target and verification-plan metadata while carrying no approval, authorization, execution or
+production-effect authority. It performs no archive parsing, persistence, API or runtime wiring.
+
+CyberCore mutation/runtime integration remains blocked while parser, publisher trust, runtime and
+release-governance hardening are incomplete. CyberCore cannot be used to bypass G8, READ E2E, WRITE,
+release, or deployment gates.
 
 ## Related documents
 

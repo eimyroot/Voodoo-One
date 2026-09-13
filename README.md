@@ -77,7 +77,8 @@ OperationProof != OperationCell
 | Production effects | BLOCKED / disabled by default |
 | Unrestricted production release | BLOCKED |
 | Public commercial distribution | BLOCKED |
-| CyberCore integration | BLOCKED pending product/release-governance hardening |
+| CyberCore read-only intake contract | IMPLEMENTED / contract-only; no runtime wiring or authority |
+| CyberCore mutation/runtime integration | BLOCKED pending parser/trust/runtime/release-governance hardening |
 
 Product version remains `0.9.0-rc2-dev`; G7 reconciliation is not release/deploy.
 

@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voodoo.one/schemas/cybercore-intake-v1.schema.json",
+  "title": "V-One CyberCore Intake v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "intake_type",
+    "source_system",
+    "cxp_schema",
+    "artifact_id",
+    "artifact_version",
+    "artifact_digest",
+    "payload_digest",
+    "source_reference",
+    "knowledge_block_reference",
+    "knowledge_block_digest",
+    "target_reference",
+    "cybercore_risk",
+    "v_one_risk_class",
+    "signature_status",
+    "expected_effect",
+    "verification_plan",
+    "may_approve",
+    "may_authorize",
+    "may_execute",
+    "production_effect",
+    "intake_digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "intake_type": {
+      "const": "v-one-cybercore-intake/v1"
+    },
+    "source_system": {
+      "const": "CyberCore"
+    },
+    "cxp_schema": {
+      "const": "cxp/v1"
+    },
+    "artifact_id": {
+      "type": "string",
+      "pattern": "^WB-[0-9]{4}-[a-z0-9][a-z0-9-]*$"
+    },
+    "artifact_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "artifact_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "payload_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "source_reference": {
+      "type": "string",
+      "minLength": 1
+    },
+    "knowledge_block_reference": {
+      "type": "string",
+      "pattern": "^KB-[0-9]{4}$"
+    },
+    "knowledge_block_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "target_reference": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cybercore_risk": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "v_one_risk_class": {
+      "enum": [
+        "R1",
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    "signature_status": {
+      "enum": [
+        "NOT_PRESENT",
+        "PRESENT_UNVERIFIED",
+        "VERIFIED_VALID",
+        "VERIFIED_INVALID"
+      ]
+    },
+    "expected_effect": {
+      "enum": [
+        "READ_ONLY",
+        "MUTATION_PROPOSAL"
+      ]
+    },
+    "verification_plan": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "may_approve": {
+      "const": false
+    },
+    "may_authorize": {
+      "const": false
+    },
+    "may_execute": {
+      "const": false
+    },
+    "production_effect": {
+      "const": false
+    },
+    "intake_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "cybercore_risk": {
+            "const": "low"
+          }
+        },
+        "required": [
+          "cybercore_risk"
+        ]
+      },
+      "then": {
+        "properties": {
+          "v_one_risk_class": {
+            "const": "R1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "cybercore_risk": {
+            "const": "medium"
+          }
+        },
+        "required": [
+          "cybercore_risk"
+        ]
+      },
+      "then": {
+        "properties": {
+          "v_one_risk_class": {
+            "const": "R2"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "cybercore_risk": {
+            "const": "high"
+          }
+        },
+        "required": [
+          "cybercore_risk"
+        ]
+      },
+      "then": {
+        "properties": {
+          "v_one_risk_class": {
+            "const": "R3"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "cybercore_risk": {
+            "const": "critical"
+          }
+        },
+        "required": [
+          "cybercore_risk"
+        ]
+      },
+      "then": {
+        "properties": {
+          "v_one_risk_class": {
+            "const": "R4"
+          }
+        }
+      }
+    }
+  ]
+}

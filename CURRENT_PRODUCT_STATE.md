@@ -66,7 +66,8 @@ RELEASED / DEPLOYED       = separately governed states
 | Production release/effects | **BLOCKED / DISABLED** |
 | Release | **NOT PERFORMED** |
 | Deployment | **NOT PERFORMED** |
-| CyberCore | **BLOCKED pending product/release-governance hardening** |
+| CyberCore read-only intake contract | **IMPLEMENTED / CONTRACT-ONLY** |
+| CyberCore mutation/runtime integration | **BLOCKED pending parser/trust/runtime/release-governance hardening** |
 
 ## G0 GitHub governance — current vs historical evidence
 
