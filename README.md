@@ -1,5 +1,9 @@
 # V-One / VOODOO One
 
+> **Portfolio status:** Reference implementation / pre-production engineering. Production effects are disabled by default.
+
+V-One explores one practical question: how can a human or AI perform a consequential action without blurring approval, execution and proof? It separates those stages so authority stays explicit and evidence can be checked independently.
+
 > **Governed Change Authorization, Execution & Evidence Trust Plane**
 
 V-One keeps consequential human- and AI-initiated operations explicit, bounded and independently
