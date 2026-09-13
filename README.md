@@ -1,13 +1,26 @@
-# V-One / VOODOO One
+<div align="center">
+  <h1>V-One / VOODOO One</h1>
+  <p><strong>Keep approval, execution and proof separate when humans or AI perform consequential actions.</strong></p>
+  <p>
+    <img alt="Governance" src="https://img.shields.io/badge/AI-governance-2563eb">
+    <img alt="Fail closed" src="https://img.shields.io/badge/trust-fail--closed-b91c1c">
+    <img alt="Evidence" src="https://img.shields.io/badge/output-verifiable%20evidence-0f766e">
+    <img alt="Status" src="https://img.shields.io/badge/status-reference%20implementation-f59e0b">
+  </p>
+</div>
 
 > **Portfolio status:** Reference implementation / pre-production engineering. Production effects are disabled by default.
 
-V-One explores one practical question: how can a human or AI perform a consequential action without blurring approval, execution and proof? It separates those stages so authority stays explicit and evidence can be checked independently.
+V-One explores one practical question: how can a human or AI perform a consequential action without blurring approval, execution and proof?
 
-> **Governed Change Authorization, Execution & Evidence Trust Plane**
-
-V-One keeps consequential human- and AI-initiated operations explicit, bounded and independently
-verifiable. It owns authority semantics; provider/runtime details remain behind governed boundaries.
+```mermaid
+flowchart LR
+    A[Reviewed operation] --> B[Approval]
+    B --> C[Bounded grant]
+    C --> D[Isolated execution]
+    D --> E[Independent verification]
+    E --> F[Evidence]
+```
 
 ## Canonical model
 
