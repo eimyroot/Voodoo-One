@@ -5,12 +5,13 @@
 ## Snapshot identity
 
 ```text
-AS_OF: 2026-09-06
+AS_OF: 2026-09-16
 EXACT_LIVE_GIT_IDENTITY: QUERY_LIVE_GIT_DIRECTLY
 CANONICAL_REPOSITORY: eimyroot/Voodoo-One
-RECONCILIATION_INPUT_HEAD: 3106ba95125a13adb8e0ee867fbf341d2d2e776e
-RECONCILIATION_BASE_MAIN: 3106ba95125a13adb8e0ee867fbf341d2d2e776e
-RECONCILIATION_MERGE: PR #140 / 60bc9c26813ee23c73bac194a9adb27714e8a1e8
+RECONCILIATION_INPUT_HEAD: 0fc4001e6ba19d1e4dd244a72c55187e9a7937a1
+RECONCILIATION_BASE_MAIN: 0fc4001e6ba19d1e4dd244a72c55187e9a7937a1
+LATEST_SOURCE_MERGE: PR #163 / 0fc4001e6ba19d1e4dd244a72c55187e9a7937a1
+G7_RECONCILIATION_MERGE: PR #140 / 60bc9c26813ee23c73bac194a9adb27714e8a1e8
 LATEST_RUNTIME_ATTESTED_COMMITTED_BASELINE: main@d57d37111b8bc9471a136b6c618aad8e920f1aff
 VOP_SEMANTIC_REVISION: vop-terminology-freeze-r2
 PRODUCT_VERSION: 0.9.0-rc2-dev
@@ -19,7 +20,7 @@ RELEASE: NOT_PERFORMED
 DEPLOYMENT: NOT_PERFORMED
 ```
 
-The exact live `main` identity must be queried directly. The G7 merge SHA above is snapshot provenance, not a self-updating current-main claim.
+The exact live `main` identity must be queried directly. The reconciliation input/base above identify the audited clean base for this 2026-09-16 source-truth pass; the G7 merge SHA remains historical provenance, not a self-updating current-main claim.
 
 ## Historical checkpoint boundary
 
@@ -56,9 +57,11 @@ RELEASED / DEPLOYED       = separately governed states
 | Read-only control-room dashboard projection | **IMPLEMENTED / TARGETED VERIFIED** |
 | Restart-safe durable resume | **IMPLEMENTED / MERGED via PR #140** |
 | Runtime resume wiring | **IMPLEMENTED / MERGED via PR #140** |
+| G8 READ runtime pack implementation | **IMPLEMENTED / MERGED via PR #144 / `22d814d8b7da`; default inactive** |
+| Cross-system control-plane R1→R3 foundation | **IMPLEMENTED / MERGED via PR #149/#151/#153/#155** |
 | G7 post-merge verification | **VERIFIED on `main@60bc9c268...` by CI #1015, D4 #202, E3 #193, E4B #189** |
 | GitHub G0 governance | **UNKNOWN / fresh post-rename exact-main verification required** |
-| Default provider runtime pack | **DISABLED / FAIL-CLOSED** |
+| Default provider runtime activation | **DISABLED / FAIL-CLOSED; merged G8 pack is not installed by default** |
 | Real canonical HTTP READ E2E using default G8 pack | **BLOCKED / NOT YET VERIFIED** |
 | Provider WRITE activation | **BLOCKED** |
 | Reusable CREATE_REF orchestration | **IMPLEMENTED PRE-EFFECT ONLY; NOT CURRENTLY EXECUTED** |
@@ -294,9 +297,9 @@ WRITE_RUNTIME_GATE   = ELIGIBLE
 
 ## G8 current boundary
 
-G8 is the next implementation gate. The first default provider runtime pack is READ-only and must reuse existing canonical components rather than create a parallel provider or authority framework. It must use explicit configuration, separate Runner and Verifier credential decisions/identities, the exact ProductComposition DB/permission authority/profile registry/current fence, and no ambient credential fallback.
+The G8 READ runtime pack implementation is merged. The default application still does not install it, so the product remains fail-closed until an explicit non-production activation path and real HTTP READ E2E are verified. The pack reuses existing canonical components, requires separate Runner and Verifier credential decisions/identities, binds the exact ProductComposition DB/permission authority/profile registry/current fence, and forbids ambient credential fallback.
 
-Until G8 is implemented and real HTTP READ E2E is verified:
+Until explicit G8 activation and real HTTP READ E2E are verified:
 
 ```text
 DEFAULT_PROVIDER_RUNTIME = OFF

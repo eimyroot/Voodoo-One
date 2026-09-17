@@ -37,7 +37,7 @@ Publikace aktuálně podporuje přesně base ref `origin/main`. Jiná hodnota
 Jediný kanonický VOODOO One checkout a source-of-truth baseline je:
 
 ```text
-/Users/eimyna/00_DEV/V-ONE
+/Users/eimyna/0_DEV/Voodoo-One
 ```
 
 Tento checkout je chráněný. Publikace kandidátní větve se z kanonického `main`
@@ -76,13 +76,13 @@ git fetch --no-tags origin \
 EXPECTED_HEAD="$(git rev-parse HEAD)"
 EXPECTED_COMMIT_COUNT="$(git rev-list --count origin/main..HEAD)"
 TARGET_BRANCH="review/admin-session-revocation-v1-20260719-051330"
-EVIDENCE_DIR="/Users/eimyna/00_DEV/V-ONE-EVIDENCE/CODEX/REVIEW_PUBLICATION_$(date -u +%Y%m%dT%H%M%SZ)"
+EVIDENCE_DIR="/Users/eimyna/0_EVIDENCE/Voodoo-One/CODEX/REVIEW_PUBLICATION_$(date -u +%Y%m%dT%H%M%SZ)"
 
 printf 'EXPECTED_HEAD=%s\n' "$EXPECTED_HEAD"
 printf 'EXPECTED_COMMIT_COUNT=%s\n' "$EXPECTED_COMMIT_COUNT"
 printf 'EVIDENCE_DIR=%s\n' "$EVIDENCE_DIR"
 
-/Users/eimyna/00_DEV/V-ONE/.venv/bin/python scripts/publish_review_branch.py \
+/Users/eimyna/0_DEV/Voodoo-One/.venv/bin/python scripts/publish_review_branch.py \
   --expected-head "$EXPECTED_HEAD" \
   --expected-commit-count "$EXPECTED_COMMIT_COUNT" \
   --target-branch "$TARGET_BRANCH" \
@@ -117,7 +117,7 @@ TARGET_BRANCH='review/admin-session-revocation-v1-20260719-051330'
 APPROVAL='<exact REQUIRED_APPROVAL value from the verified plan>'
 EVIDENCE_DIR='<exact EVIDENCE_DIR from the verified plan>'
 
-/Users/eimyna/00_DEV/V-ONE/.venv/bin/python scripts/publish_review_branch.py \
+/Users/eimyna/0_DEV/Voodoo-One/.venv/bin/python scripts/publish_review_branch.py \
   --expected-head "$EXPECTED_HEAD" \
   --expected-commit-count "$EXPECTED_COMMIT_COUNT" \
   --target-branch "$TARGET_BRANCH" \
@@ -140,11 +140,11 @@ Každý plán i pokus o publikaci musí pomocí explicitního
 sidecar uvnitř jediného durable evidence root:
 
 ```text
-/Users/eimyna/00_DEV/V-ONE-EVIDENCE
+/Users/eimyna/0_EVIDENCE/Voodoo-One
 ```
 
 Použij task-specific podadresář ve tvaru
-`/Users/eimyna/00_DEV/V-ONE-EVIDENCE/CODEX/REVIEW_PUBLICATION_<UTC_TIMESTAMP>`
+`/Users/eimyna/0_EVIDENCE/Voodoo-One/CODEX/REVIEW_PUBLICATION_<UTC_TIMESTAMP>`
 a pro autorizovanou fázi znovu použij přesný `EVIDENCE_DIR` z ověřeného plánu.
 
 Evidence nesmí obsahovat přístupové tokeny ani jiné secrets.

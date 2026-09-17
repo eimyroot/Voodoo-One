@@ -1,5 +1,7 @@
 # G8 — Explicit READ-Only Provider Runtime Gate
 
+Current source state: **G8 READ runtime pack IMPLEMENTED / MERGED via PR #144 / `22d814d8b7da56226dba92351bd6a04196268085`; default activation and live gate exit remain NOT VERIFIED.**
+
 ## Purpose
 
 G8 productizes the first default provider runtime pack without widening provider-effect authority. The first pack is READ-only and exists to prove the canonical HTTP → trust-plane → restart-safe Runner → independent Verifier → `VerificationResult/v1` lifecycle as one real operational path.

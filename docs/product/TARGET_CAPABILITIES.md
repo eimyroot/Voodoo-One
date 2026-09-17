@@ -33,7 +33,7 @@ canonical public READ API             = IMPLEMENTED / MERGED
 restart-safe durable resume           = IMPLEMENTED / MERGED
 ```
 
-The default G8 provider runtime is still OFF, real default-runtime HTTP READ E2E is NOT VERIFIED, and
+The merged G8 provider runtime pack is still OFF by default, real product HTTP READ E2E is NOT VERIFIED, and
 provider WRITE/release/deployment remain BLOCKED. Historical implementation does not silently rewrite
 the exact design scope of older ADRs.
 
@@ -61,8 +61,8 @@ verification and key rotation without weakening current exact-content authority.
 
 ## T3 — Isolated Runner Capsules
 
-**Status:** VERIFIED bounded READ pilot primitives + IMPLEMENTED canonical READ terminal; default G8
-product runtime remains PROPOSED/BLOCKED until its own gate passes.
+**Status:** VERIFIED bounded READ pilot primitives + IMPLEMENTED canonical READ terminal + merged G8
+READ runtime pack; default product activation/live acceptance remain BLOCKED until the G8 gate passes.
 
 Current verified/implemented controls include bounded Runner identity/boundary, current lease/fence,
 capability/capsule binding, READ-only provider handling and isolated pilot runtime evidence. Target
@@ -102,15 +102,15 @@ digest verification and transparency/object-lock anchoring.
 
 ## T6 — CyberCore read-only knowledge boundary
 
-**Status:** PROPOSED / BLOCKED during current G8 and release hardening.
+**Status:** IMPLEMENTED / CONTRACT-ONLY via PR #163; parser/trust/persistence/runtime integration remains BLOCKED.
 
-Initial contract may contain source, knowledge reference, artifact digest, publisher, risk, target,
-environment, evidence references, confidence, expected effect, verification plan and observed time.
+The current `v-one-cybercore-intake/v1` contract binds CXP/Knowledge Block references and digests,
+risk, target, bounded expected effect and verification-plan metadata. It performs no archive parsing,
+persistence, API/network I/O, subprocess execution, approval, authorization or production effect.
 
-Required properties: versioned schema, off by default, no shared authority database, no package-code
-execution, no secrets, idempotent intake and audit for accepted/rejected imports.
-
-CyberCore remains intelligence only and cannot issue grants, become Runner/Verifier or bypass V-One.
+Future intake productization still requires safe artifact parsing, publisher trust/signature handling,
+idempotent persistence/audit and separately governed runtime integration. CyberCore remains intelligence
+only and cannot issue grants, become Runner/Verifier or bypass V-One.
 
 ## T7 — AI Change Copilot
 
@@ -171,7 +171,7 @@ ownership.
 
 ## T12 — G8 default READ provider runtime
 
-**Status:** PROPOSED / NEXT PRODUCTIZATION TARGET.
+**Status:** IMPLEMENTED PACK / PRODUCT ACTIVATION + LIVE ACCEPTANCE STILL BLOCKED.
 
 The first default provider pack must be READ-only and reuse the existing canonical composition rather
 than introduce a parallel execution framework. Required properties include:
@@ -187,7 +187,7 @@ than introduce a parallel execution framework. Required properties include:
 
 ## T13 — Real canonical HTTP READ E2E + restart continuity
 
-**Status:** PROPOSED / BLOCKED until G8 exists.
+**Status:** PROPOSED / BLOCKED pending explicit activation and live acceptance of the merged G8 pack.
 
 Target proof chain:
 

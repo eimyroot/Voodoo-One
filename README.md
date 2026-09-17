@@ -11,6 +11,10 @@
 
 > **Portfolio status:** Reference implementation / pre-production engineering. Production effects are disabled by default.
 
+> **Governed Operations Control Plane for Human and AI Execution**
+>
+> Technical trust-plane: **provider-neutral control plane for proof-carrying operations.**
+
 V-One explores one practical question: how can a human or AI perform a consequential action without blurring approval, execution and proof?
 
 ```mermaid
@@ -88,7 +92,7 @@ OperationProof != OperationCell
 | Read-only `/api/v1/control-room` dashboard projection | IMPLEMENTED / targeted tested |
 | Restart-safe durable READ resume | IMPLEMENTED / MERGED via PR #140 |
 | GitHub main governance enforcement | UNKNOWN / fresh post-rename G0 required; historical VERIFIED evidence retained |
-| Default provider runtime pack | BLOCKED / disabled until G8 |
+| G8 READ runtime pack | IMPLEMENTED / merged via PR #144; default activation remains disabled pending live G8 acceptance |
 | Real canonical HTTP READ E2E through default G8 pack | BLOCKED / not yet verified |
 | Provider WRITE activation | BLOCKED pending repeated READ E2E + restart-safe verification gate |
 | Production effects | BLOCKED / disabled by default |
@@ -264,6 +268,7 @@ a new provider mutation is authorized.
 | [`docs/product/POST_G7_CANONICAL_STATE.md`](docs/product/POST_G7_CANONICAL_STATE.md) | Commit-bound post-G7 truth snapshot |
 | [`docs/product/G8_READ_RUNTIME_GATE.md`](docs/product/G8_READ_RUNTIME_GATE.md) | G8 READ-only runtime acceptance boundary |
 | [`docs/product/TARGET_CAPABILITIES.md`](docs/product/TARGET_CAPABILITIES.md) | Target capability contracts |
+| [`docs/product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md`](docs/product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md) | Evidence-bound Control Room current-to-target gap map |
 | [`docs/product/SECURITY_OVERVIEW.md`](docs/product/SECURITY_OVERVIEW.md) | Security-control summary |
 | [`docs/product/MVP_DELIVERY_MAP.md`](docs/product/MVP_DELIVERY_MAP.md) | MVP/product delivery map |
 | [`docs/architecture/TRUST_BOUNDARIES.md`](docs/architecture/TRUST_BOUNDARIES.md) | Trust-boundary topology |
@@ -274,7 +279,8 @@ a new provider mutation is authorized.
 Normative governance remains in
 [`WORLD_CLASS_SOFTWARE_DEVOPS_OPERATING_MODE.md`](WORLD_CLASS_SOFTWARE_DEVOPS_OPERATING_MODE.md),
 [`PROJECT_CONSTITUTION.md`](PROJECT_CONSTITUTION.md), and effective adopted records/ADRs. ADR-0019
-remains `PROPOSED` until its governed adoption gate closes.
+retains its immutable embedded `PROPOSED` label, while the external owner-adoption register makes its
+READ-before-WRITE boundary effective as of 2026-08-24.
 
 ## Local verification
 

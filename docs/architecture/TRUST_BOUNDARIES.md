@@ -5,8 +5,8 @@
 | Document status | Current trust-boundary inventory |
 | Reconciled | `2026-08-24` after canonical G7 PR #140 |
 | Security posture | deny by default / fail closed |
-| GitHub governance | G0 VERIFIED / PASS from retained live verifier evidence |
-| Default provider runtime | OFF / fail-closed until G8 |
+| GitHub governance | UNKNOWN current / historical VERIFIED evidence retained; fresh exact-main post-rename G0 required |
+| Default provider runtime | OFF / fail-closed; G8 pack merged but not installed by default |
 | Production effects | BLOCKED until separately released |
 | Update trigger | any material identity, authority, execution, persistence, evidence or integration change |
 
@@ -258,14 +258,14 @@ is a stable atom over a canonically revalidated Proof/v2. Neither creates new au
 Without that factory, canonical runtime is absent/fail-closed. Legacy `ExecutionService` is an explicit
 compatibility surface, not canonical fallback authority.
 
-G8 must extend this seam as a READ-only composition factory; it must not create a parallel execution or
-authority framework.
+The merged G8 READ runtime pack extends this seam as a READ-only composition factory without creating a
+parallel execution or authority framework. Default product activation remains off.
 
 ## TB-15 — GitHub repository governance
 
-**Status: VERIFIED / G0 PASS.**
+**Status: UNKNOWN current / historical G0 evidence retained.**
 
-Retained live evidence:
+Retained live evidence for the original repository identity:
 
 ```text
 workflow = g0-governance-verify
@@ -273,16 +273,16 @@ run = 32553113424
 source_sha = 76d74d2ed62b6e78f027728c456c22da0b4a95bd
 artifact = g0-governance-evidence-32553113424-1
 artifact_digest = sha256:6e63caee23a57613471df66ef0279c0261ed8d375e4c929accdf50eff7dc4f5f
-verdict = VERIFIED
+historical_verdict = VERIFIED
 ```
 
-Verified controls include PR-only main, required latest-head `verify`, force-push/delete protection,
-conversation resolution, no ordinary bypass, active rulesets and verifier-source binding. G0 does not
-authorize provider runtime, release or deployment.
+Those controls remain historical evidence for their exact identity/SHA. The canonical repository is
+now `eimyroot/Voodoo-One`, so fresh exact-main post-rename G0 verification is required. Historical G0
+evidence does not authorize provider runtime, release or deployment.
 
 ## TB-16 — Security Intelligence / CyberCore
 
-**Status: Security Intelligence IMPLEMENTED context-only; CyberCore BLOCKED during G8/release hardening.**
+**Status: Security Intelligence IMPLEMENTED context-only; CyberCore read-only intake IMPLEMENTED / CONTRACT-ONLY, runtime/mutation integration BLOCKED.**
 
 ```text
 Security Intelligence = observations/classification/context/proposals
@@ -297,7 +297,7 @@ Any future active effect must enter the same canonical capability-bound V-One pa
 
 ## TB-17 — READ-before-WRITE boundary
 
-**Status: ADR-0019 PROPOSED; provider WRITE remains BLOCKED independently.**
+**Status: ADR-0019 exact bytes OWNER-ADOPTED via external register; provider WRITE remains BLOCKED pending evidence and separate effect authorization.**
 
 Before WRITE may become merely `ELIGIBLE`, repeated real authenticated canonical HTTP READ E2E must
 prove:
@@ -317,7 +317,7 @@ FAIL_CLOSED          = VERIFIED
 
 ```text
 VOODOO_ALLOW_PRODUCTION_EFFECTS=false
-G0_GITHUB_GOVERNANCE=PASS
+G0_GITHUB_GOVERNANCE=UNKNOWN
 G7_CANONICAL_READ_API=MERGED
 G7_RESTART_SAFE_RESUME=MERGED
 G8_DEFAULT_PROVIDER_RUNTIME=OFF

@@ -1,6 +1,8 @@
 # Control Plane Registry & Shared-State Foundation R3
 
-Status: **CANDIDATE** until merged through the canonical protected `main` workflow.
+Status: **IMPLEMENTED / MERGED via PR #155 / `ccd871bf173dca0aee4d368100df64dd2d2dffda`**.
+
+The acceptance/promotion criteria below are retained as the historical candidate gate; this document does not by itself claim fresh live-provider, release, deployment, or production evidence.
 
 ## Purpose
 

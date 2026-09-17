@@ -16,12 +16,15 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_evidence_ui_does_not_promote_receipt_integrity_to_verified_operation() -> None:
-    source = (ROOT / "voodoo_product" / "static" / "app.js").read_text(encoding="utf-8")
+    source = (ROOT / "voodoo_product" / "static" / "control_room.js").read_text(
+        encoding="utf-8"
+    )
 
-    assert "verification.receipts.valid?'PASS':'FAIL'" in source
-    assert "verification.audit.valid?'PASS':'FAIL'" in source
-    assert "Independent verification: ${status('UNKNOWN')}" in source
-    assert "receipts.map(r=>`<article class=\"receipt-card\"><header><strong class=\"mono\">${escapeHtml(r.id)}</strong>${status('VERIFIED')}" not in source
+    assert "overview.receipt_integrity.valid?'PASS':'FAIL'" in source
+    assert "overview.audit_integrity.valid?'PASS':'FAIL'" in source
+    assert "status(check.verification_status)" in source
+    assert "Independent verification zatím nemá runtime výsledek." in source
+    assert "status('VERIFIED')" not in source
 
 
 def test_runner_common_language_never_owns_grant_consumption() -> None:

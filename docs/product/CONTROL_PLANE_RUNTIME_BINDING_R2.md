@@ -1,6 +1,8 @@
 # Control Plane Runtime Binding R2
 
-Status: **CANDIDATE** until merged through the canonical protected `main` workflow.
+Status: **IMPLEMENTED / MERGED via PR #151 / `6ebfd41e5bc6307d76f7d74d8187fd5de003595f`**.
+
+The acceptance/promotion criteria below are retained as the historical candidate gate; this document does not by itself claim fresh live-provider, release, deployment, or production evidence.
 
 ## Purpose
 

@@ -7,8 +7,9 @@ release explicitly changes this statement and all production gates are evidenced
 
 The current canonical product includes authoritative snapshot/grant issuance, durable one-time grant
 consumption, bounded isolated READ Runner contracts, an independent Verifier path, a merged READ HTTP
-surface, and restart-safe durable resume. The default provider runtime pack remains disabled/fail-closed
-until G8, and provider WRITE remains blocked.
+surface, and restart-safe durable resume. The G8 READ runtime pack implementation is merged, but the default provider runtime remains
+disabled/fail-closed pending explicit non-production activation and live G8 acceptance; provider WRITE
+remains blocked.
 
 ## Reporting
 
@@ -64,11 +65,11 @@ runtime, production effect, release or deployment.
 
 ## READ-before-WRITE boundary
 
-ADR-0019 is currently `PROPOSED` and creates no authority before its governed adoption gate closes.
-The proposed rule keeps provider WRITE blocked until repeated real canonical authenticated HTTP READ
-E2E proves independent `VerificationResult/v1`, restart-safe durable resume, authority continuity, no
-duplicate authority/effect state, and fail-closed failure injection. A future `ELIGIBLE` result would
-still require a separate WRITE-specific authorization and review.
+ADR-0019 retains its immutable embedded `PROPOSED` label, while its exact bytes are owner-adopted through
+the external adoption register. The effective rule keeps provider WRITE blocked until repeated real
+canonical authenticated HTTP READ E2E proves independent `VerificationResult/v1`, restart-safe durable
+resume, authority continuity, no duplicate authority/effect state, and fail-closed failure injection. A
+future `ELIGIBLE` result would still require a separate WRITE-specific authorization and review.
 
 ## Local checkpoint verification boundary
 

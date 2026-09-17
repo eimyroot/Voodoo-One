@@ -24,7 +24,7 @@ LEGACY_GITHUB_REPOSITORY_ALIASES = frozenset(
         "https://github.com/nulleimy/V-One.git",
     }
 )
-CANONICAL_EVIDENCE_ROOT = Path("/Users/eimyna/00_DEV/V-ONE-EVIDENCE")
+CANONICAL_EVIDENCE_ROOT = Path("/Users/eimyna/0_EVIDENCE/Voodoo-One")
 DEFAULT_BASE_REF = "origin/main"
 DEFAULT_BASE_FETCH_REFSPEC = "+refs/heads/main:refs/remotes/origin/main"
 TARGET_PREFIX = "review/"

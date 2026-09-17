@@ -85,7 +85,7 @@ These rows do not authorize a new provider mutation or release.
 
 ## Gate G0 — GitHub main enforcement
 
-**Status: VERIFIED / PASS.**
+**Status: UNKNOWN current / historical VERIFIED evidence retained.**
 
 Identifiable exit evidence:
 
@@ -101,9 +101,10 @@ evidence_json_checksum = 11a99765485b63b70186037011d31c105dea8dd75b689e0036a8766
 verdict = VERIFIED
 ```
 
-Verified controls include PR-only main, required `verify` from workflow `ci`, latest-head strict checks,
-force-push disabled, branch deletion disabled, conversation resolution, no ordinary bypass, active
-rulesets, and verifier-source binding. G0 PASS is not release/deploy authorization.
+Those controls were VERIFIED for the historical repository identity and exact source SHA shown above.
+After the repository rename to `eimyroot/Voodoo-One`, fresh exact-main G0 evidence is required; current
+G0 therefore remains `UNKNOWN` and release-candidate promotion fails closed. Historical G0 PASS is not
+release/deploy authorization.
 
 ## Gates G1–G6 — Canonical trust-plane foundation
 
@@ -163,9 +164,8 @@ G7 does not activate a default provider runtime pack and does not create a provi
 
 ## Hard gate — READ before WRITE
 
-The safety decision is being governed in
-[`ADR-0019`](docs/adr/ADR-0019-read-e2e-before-write.md). Until its adoption gate and the evidence below
-are complete, WRITE remains BLOCKED.
+The exact bytes of [`ADR-0019`](docs/adr/ADR-0019-read-e2e-before-write.md) are owner-adopted through
+the external adoption register. Its evidence gate below is not yet VERIFIED, so WRITE remains BLOCKED.
 
 Required evidence before WRITE can become merely `ELIGIBLE`:
 
@@ -184,7 +184,7 @@ WRITE_RUNTIME_GATE   = ELIGIBLE
 
 ## Gate G8 — Explicit READ-only provider runtime pack
 
-**Status: BLOCKED / NEXT IMPLEMENTATION GATE.**
+**Status: IMPLEMENTED / MERGED via PR #144 / `22d814d8b7da56226dba92351bd6a04196268085`; default activation and live exit evidence NOT VERIFIED.**
 
 The first default provider pack is READ-only. It must reuse the existing canonical stack rather than
 create a parallel execution framework.
@@ -204,12 +204,14 @@ Required properties:
 Implementation should reuse the existing `GitHubReadTransport`, `GitHubApiRefReadTransport`,
 `GitHubRefReadHandler`, `CanonicalGitHubReadTerminal`, canonical runtime, and durable resume contracts.
 
-G8 exits only after fresh exact-head CI/security/review and a real canonical authenticated HTTP READ E2E
-run has been demonstrated through independent `VerificationResult/v1`.
+The G8 pack implementation is merged, but `main.py` still installs `ProductComposition` without a
+`canonical_runtime_factory`, so the default application remains fail-closed. G8 exits only after fresh
+exact-head CI/security/review and a real canonical authenticated HTTP READ E2E run has been demonstrated
+through independent `VerificationResult/v1`.
 
 ## Gate G8.1 — Real canonical READ E2E + restart
 
-**Status: BLOCKED until G8 runtime exists.**
+**Status: BLOCKED pending explicit G8 activation and real canonical READ E2E/restart evidence.**
 
 Required operational sequence:
 

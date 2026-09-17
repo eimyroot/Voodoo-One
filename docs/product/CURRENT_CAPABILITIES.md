@@ -96,9 +96,10 @@ Is it released/deployed?
 | CyberCore mutation/runtime integration | BLOCKED | parser/trust/runtime/release-governance hardening | cannot bypass V-One gates |
 | Main GitHub governance policy | UNKNOWN | historical G0 run `32553113424` remains VERIFIED for its original evidence scope | fresh exact-main G0 is required for current `eimyroot/Voodoo-One` identity |
 | Main required latest-head enforcement | UNKNOWN | historical G0 verified PR-only main, required `verify`, latest-head strict checks and no ordinary bypass for its then-current repository identity | current post-rename enforcement must be re-verified live |
-| G8 default READ provider runtime | BLOCKED | G8 gate defined; no default runtime activation yet | must be READ-only, explicit, separate Runner/Verifier credentials, fail-closed |
-| Real canonical HTTP READ E2E + restart resume | BLOCKED | G7 components merged; G8 runtime not yet active | must prove HTTP→Runner→independent `VerificationResult/v1` plus no duplicate authority/effect after restart |
-| Provider WRITE activation | BLOCKED | ADR-0019 safety decision is under governed adoption | not eligible before verified repeated READ E2E + restart-safe continuity |
+| G8 READ runtime pack implementation | IMPLEMENTED | merged PR #144 / `22d814d8b7da56226dba92351bd6a04196268085` + adversarial system tests | not installed by default; real HTTP E2E and restart evidence not yet verified |
+| G8 default READ provider runtime | BLOCKED | merged pack is not installed by default | activation must be explicit/non-production with separate Runner/Verifier credentials and fail-closed configuration |
+| Real canonical HTTP READ E2E + restart resume | BLOCKED | G8 pack merged but default activation/live E2E absent | must prove HTTP→Runner→independent `VerificationResult/v1` plus no duplicate authority/effect after restart |
+| Provider WRITE activation | BLOCKED | ADR-0019 is owner-adopted; its READ-before-WRITE evidence gate is not yet VERIFIED | not eligible before verified repeated READ E2E + restart-safe continuity |
 | Release-candidate build | VERIFIED | fail-closed workflow + historical image/SBOM checks | build candidate != deployment; current RC construction is additionally blocked until fresh current G0 succeeds |
 | Unrestricted production release | BLOCKED | production effects default disabled | G8 + real READ E2E + security/legal/ops/release gates remain |
 | Public commercial distribution | BLOCKED | no distribution authorization | licensing/EULA/privacy/support and production gates remain separate |
