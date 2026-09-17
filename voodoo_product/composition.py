@@ -31,6 +31,7 @@ from .observability import (
     StructuredRequestLoggingMiddleware,
     configure_product_logging,
 )
+from .operation_passport import OperationPassportService
 from .operational_safety import OperationalSafetyService
 from .permission_authority import DatabasePermissionAuthority
 from .platform_status import PlatformStatusService
@@ -63,6 +64,7 @@ class ProductComposition:
     platform_status_service: PlatformStatusService
     external_identity_service: GovernedExternalIdentityService
     database_permission_authority: DatabasePermissionAuthority
+    operation_passport_service: OperationPassportService
     canonical_operation_runtime: CanonicalOperationRuntime | None
 
 
@@ -136,6 +138,9 @@ def install_composed_product_platform(
         database=service.db,
         authority_revision="database-permission/product-composition-r1",
     )
+    operation_passport_service = OperationPassportService(database=service.db)
+    if operation_passport_service.db is not service.db:
+        raise ValueError("operation passport service must use product database")
     canonical_operation_runtime: CanonicalOperationRuntime | None = None
     if canonical_runtime_factory is not None:
         canonical_operation_runtime = canonical_runtime_factory(
@@ -174,6 +179,7 @@ def install_composed_product_platform(
         platform_status_service=platform_status_service,
         external_identity_service=external_identity_service,
         database_permission_authority=database_permission_authority,
+        operation_passport_service=operation_passport_service,
         canonical_operation_runtime=canonical_operation_runtime,
     )
 
@@ -193,6 +199,7 @@ def install_composed_product_platform(
     app.state.voodoo_platform_status_service = platform_status_service
     app.state.voodoo_external_identity_service = external_identity_service
     app.state.voodoo_database_permission_authority = database_permission_authority
+    app.state.voodoo_operation_passport_service = operation_passport_service
     app.state.voodoo_canonical_operation_runtime = canonical_operation_runtime
     app.state.voodoo_product_composition = composition
     app.include_router(
@@ -206,6 +213,7 @@ def install_composed_product_platform(
         create_canonical_operation_router(
             identity_provider=resolved_identity_provider,
             runtime=canonical_operation_runtime,
+            operation_passport_service=operation_passport_service,
         )
     )
 

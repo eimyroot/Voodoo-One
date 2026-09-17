@@ -90,6 +90,7 @@ OperationProof != OperationCell
 | Canonical FastAPI ProductComposition runtime seam | IMPLEMENTED / MERGED; explicit runtime factory required, default provider pack disabled |
 | Canonical public READ operation API | IMPLEMENTED / MERGED via PR #137; reconciled with resume/runtime via PR #140 |
 | Read-only `/api/v1/control-room` dashboard projection | IMPLEMENTED / targeted tested |
+| Canonical Operation Passport `GET /api/v1/operations/{execution_id}/passport` | IMPLEMENTED / targeted tested; same-DB durable lineage, verification `UNKNOWN / NOT_PERSISTED` |
 | Restart-safe durable READ resume | IMPLEMENTED / MERGED via PR #140 |
 | GitHub main governance enforcement | UNKNOWN / fresh post-rename G0 required; historical VERIFIED evidence retained |
 | G8 READ runtime pack | IMPLEMENTED / merged via PR #144; default activation remains disabled pending live G8 acceptance |
@@ -334,6 +335,8 @@ set +a
 Console: `http://127.0.0.1:8000/console`
 
 Control-room API: `http://127.0.0.1:8000/api/v1/control-room`
+
+Operation Passport API: `http://127.0.0.1:8000/api/v1/operations/<execution_id>/passport`
 
 ## Change governance
 

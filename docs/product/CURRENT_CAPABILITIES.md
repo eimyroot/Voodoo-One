@@ -86,6 +86,7 @@ Is it released/deployed?
 | OperationProof/v2 | VERIFIED | current contract/tests + historical F6b digest | mutation-only post-verification lineage |
 | OperationCell/v1 | VERIFIED | current contract/tests + historical F6b digest | mutation-only stable operation atom |
 | Unified authority→profile runtime composition | IMPLEMENTED | ProductComposition + canonical runtime tests + PR #140 | public READ API merged; default provider pack still off |
+| Canonical Operation Passport read model | IMPLEMENTED | read-only same-DB lineage projection + contract/HTTP/SQLite tests | joins Snapshot→Grant→Consumption→Outbox→Inbox→Epoch/Lease; `VerificationResult/v1` is not durably persisted and remains `UNKNOWN` |
 | Receipt/audit hash-chain integrity | VERIFIED | ledger verification tests | chain integrity != independent provider verification |
 | SQLite migrations | VERIFIED | migrations 0001–0014 + integrity tests | single-node backend |
 | PostgreSQL backend | BLOCKED | fail-closed startup contract | adapter/concurrency/operations gates not released |
@@ -112,6 +113,7 @@ PR #137 is merged and PR #140 reconciles its READ surface with restart-safe dura
 
 ```text
 GET  /api/v1/operations/status
+GET  /api/v1/operations/{execution_id}/passport
 POST /api/v1/operations/{request_id}/read
 ```
 

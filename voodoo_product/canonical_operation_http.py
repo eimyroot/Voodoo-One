@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .canonical_operation_runtime import CanonicalOperationRuntime
 from .canonical_read_terminal import CanonicalReadTerminalResult
 from .identity import IdentityProvider
+from .operation_passport import OPERATION_PASSPORT_SCHEMA, OperationPassportService
 from .security import Principal
 
 CANONICAL_OPERATION_READ_RESPONSE = "vone.canonical-operation-read/v1"
@@ -83,6 +84,31 @@ class CanonicalOperationApiStatus(BaseModel):
     provider_write_effects_exposed: Literal[False] = False
 
 
+class CanonicalOperationPassportResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    schema_id: Literal["vone.operation-passport/v1"] = Field(
+        default=OPERATION_PASSPORT_SCHEMA,
+        alias="schema",
+    )
+    execution_id: str
+    lifecycle_stage: Literal[
+        "SNAPSHOT_CREATED",
+        "GRANT_ISSUED",
+        "GRANT_CONSUMED",
+        "DISPATCH_ENQUEUED",
+        "DISPATCH_ADMITTED",
+        "EXECUTION_ACTIVE",
+        "EXECUTION_COMPLETED",
+    ]
+    operation: dict[str, object]
+    authority: dict[str, object]
+    dispatch: dict[str, object]
+    runtime: dict[str, object]
+    verification: dict[str, object]
+    integrity: dict[str, bool]
+
+
 def _response_from_read_result(result: CanonicalReadTerminalResult) -> CanonicalReadOperationResponse:
     prepared = result.prepared
     verification = result.verification_result
@@ -149,6 +175,7 @@ def create_canonical_operation_router(
     *,
     identity_provider: IdentityProvider,
     runtime: CanonicalOperationRuntime | None,
+    operation_passport_service: OperationPassportService,
 ) -> APIRouter:
     """Expose the canonical READ operation surface without widening provider authority.
 
@@ -207,6 +234,24 @@ def create_canonical_operation_router(
             configured=runtime is not None,
             read_terminal_configured=runtime is not None and runtime.read_terminal is not None,
         )
+
+    @router.get(
+        "/{execution_id}/passport",
+        response_model=CanonicalOperationPassportResponse,
+    )
+    def operation_passport(
+        execution_id: str = Path(
+            min_length=5,
+            max_length=256,
+            pattern=SAFE_OPERATION_ID_PATTERN,
+        ),
+        _: Principal = Depends(require_permission("read")),
+    ) -> CanonicalOperationPassportResponse:
+        try:
+            passport = operation_passport_service.get(execution_id)
+            return CanonicalOperationPassportResponse.model_validate(passport.to_dict())
+        except Exception as exc:
+            raise _translate_runtime_error(exc) from exc
 
     @router.post(
         "/{request_id}/read",

@@ -55,6 +55,7 @@ RELEASED / DEPLOYED       = separately governed states
 | Canonical ProductComposition trust-plane seam | **IMPLEMENTED / MERGED** |
 | Canonical public READ operation API | **IMPLEMENTED / MERGED via PR #137** |
 | Read-only control-room dashboard projection | **IMPLEMENTED / TARGETED VERIFIED** |
+| Canonical Operation Passport read model | **IMPLEMENTED / TARGETED VERIFIED; durable lineage projection, verification remains `UNKNOWN / NOT_PERSISTED`** |
 | Restart-safe durable resume | **IMPLEMENTED / MERGED via PR #140** |
 | Runtime resume wiring | **IMPLEMENTED / MERGED via PR #140** |
 | G8 READ runtime pack implementation | **IMPLEMENTED / MERGED via PR #144 / `22d814d8b7da`; default inactive** |
@@ -166,6 +167,28 @@ verification.verdict  = NOT_VERIFIED
 ```
 
 Execution success, receipt existence, digest integrity, or evidence-chain integrity must never manufacture `VERIFIED`.
+
+## Canonical Operation Passport read model
+
+The canonical operations API now exposes a read-only durable operation passport at
+`GET /api/v1/operations/{execution_id}/passport`. It reads the same ProductService database and
+correlates the existing immutable/durable lineage without creating a second persistence owner:
+
+```text
+AuthorizationSnapshot
+→ ExecutionGrant/v2
+→ GrantConsumptionWitness/v1
+→ DispatchOutboxEntry
+→ DispatchInboxAdmission
+→ current ExecutionEpoch / ExecutionLease
+```
+
+The projection validates canonical stored JSON and cross-row lineage bindings. It does **not** infer
+independent verification from completion, receipts, audit integrity, or durable runtime state. The
+current schema does not durably store READ `VerificationResult/v1`, so the passport deliberately reports
+`verification.status = NOT_PERSISTED` and `verification.verdict = UNKNOWN` until that later product gate
+is implemented and evidenced. The endpoint is read-only and does not require or activate the G8 provider
+runtime.
 
 ## Control-room dashboard projection
 

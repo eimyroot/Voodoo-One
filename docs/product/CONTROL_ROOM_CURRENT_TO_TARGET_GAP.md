@@ -163,9 +163,16 @@ Status: `IMPLEMENTED` by this reconciliation when the current documentation and 
 
 ### CR-1 — Canonical operation read model
 
-Target: `BACKEND_EXISTS_UX_GAP` → product projection.
+Status: `IMPLEMENTED / TARGETED VERIFIED`.
 
-Create one read-only operation-passport/query model over existing canonical durable objects. It must not create new authority, mutate provider state or introduce a second persistence owner.
+The product now exposes one read-only `vone.operation-passport/v1` query projection over the existing
+canonical durable objects through `GET /api/v1/operations/{execution_id}/passport`. It uses the same
+ProductService database, validates canonical stored JSON and cross-row lineage, creates no authority,
+performs no provider effect and introduces no second persistence owner.
+
+Current verification truth remains deliberately incomplete: READ `VerificationResult/v1` is not yet
+durably stored, so the passport reports `UNKNOWN / NOT_PERSISTED` instead of promoting execution or
+evidence integrity to independent verification.
 
 ### CR-2 — G8 live READ acceptance
 
@@ -251,12 +258,12 @@ The next product-development bottleneck is not another dashboard section and not
 It is:
 
 ```text
-MERGED G8 READ PACK
-→ EXPLICIT NON-PRODUCTION ACTIVATION
+CANONICAL OPERATION PASSPORT READ MODEL = IMPLEMENTED
+→ EXPLICIT NON-PRODUCTION G8 ACTIVATION
 → REAL AUTHENTICATED HTTP READ
 → ACTIVE RESTART / SAME-EXECUTION RESUME
-→ INDEPENDENT VerificationResult/v1
-→ CANONICAL OPERATION PASSPORT READ MODEL
+→ DURABLE / EXPOSED INDEPENDENT VerificationResult/v1
+→ ENRICH OPERATION PASSPORT WITH OBSERVED OUTCOME
 → CONTROL ROOM DRILL-DOWN
 ```
 
