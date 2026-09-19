@@ -1,6 +1,6 @@
 # G8 — Explicit READ-Only Provider Runtime Gate
 
-Current source state: **G8 READ runtime pack IMPLEMENTED / MERGED via PR #144 / `22d814d8b7da56226dba92351bd6a04196268085`; explicit non-production activation path IMPLEMENTED / TARGETED TESTED; default remains OFF and live gate exit remains NOT VERIFIED.**
+Current source state: **G8 READ runtime pack IMPLEMENTED / MERGED via PR #144 / `22d814d8b7da56226dba92351bd6a04196268085`; explicit non-production activation path IMPLEMENTED / TARGETED TESTED; default remains OFF; one exact-main alternative external Linux acceptance is VERIFIED at `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`, while repeated READ evidence and the complete ADR-0019 exit gate remain open.**
 
 ## Purpose
 
@@ -55,6 +55,16 @@ The repository includes `g8-live-product-read-acceptance`, a manual main-only Gi
 The workflow is infrastructure only until it succeeds on an exact `main` SHA. Missing Runner or Verifier credentials, inability to attest either credential through GitHub `/user`, identical Runner/Verifier principals, target-SHA drift, duplicate durable lineage or a non-`VERIFIED` result all fail closed.
 
 The R3 decision record is `docs/governance/G8_LIVE_ACCEPTANCE_R3_DECISION_CARD.md`.
+
+## Exact-main alternative external Linux evidence — 2026-09-19
+
+GitHub Actions workflow dispatch was blocked by account-level Actions policy. The owner explicitly authorized a one-time alternative external Linux run using the existing G8 acceptance semantics without provider WRITE, release, deployment or production effects.
+
+For exact source `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`, the retained evidence verifies authenticated canonical HTTP READ, ACTIVE interruption, same-execution restart/resume, zero duplicate durable lineage, distinct Runner/Verifier credentials, GitHub-only allowed egress, independent `VerificationResult/v1 = VERIFIED`, and exact Runner/Verifier observation of the source SHA.
+
+Evidence root: `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNAL_LINUX_20260919_2f9ab7f`. `acceptance-summary.json` SHA-256: `4691d002fe64ba04f7c8cd895e99aee79d9f383036522338157e724e9b98915c`. `SHA256SUMS.txt` SHA-256: `df0dc0f353f3aa1d876dacd9261c4c816a476c3ac51300f0d1f4c24e631392fe`. Closure report SHA-256: `aacc12efe55f8817ca388f3b3449a5ca90127972e3691d656ee4f68b4e392673`.
+
+This is exact-scope live acceptance evidence, not a silent replacement of the general GitHub Actions standard and not completion of the repeated-evidence / full ADR-0019 WRITE-eligibility gate.
 
 ## Acceptance sequence
 

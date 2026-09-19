@@ -8,8 +8,8 @@
 | Current post-G7 source milestone | PR #140 merged; canonical READ API from PR #137 merged; exact current SHA is queried live |
 | G0 GitHub governance | UNKNOWN current / historical VERIFIED evidence retained; fresh post-rename G0 required |
 | G7 durable resume/runtime wiring | IMPLEMENTED / MERGED |
-| G8 READ runtime pack + explicit non-production activation | IMPLEMENTED / targeted tested; opt-in only, default OFF, live acceptance pending |
-| Real canonical HTTP READ E2E | NOT VERIFIED; explicit activation exists, live acceptance still required |
+| G8 READ runtime pack + explicit non-production activation | IMPLEMENTED / targeted tested; opt-in only, default OFF; one alternative external Linux live acceptance VERIFIED for exact main `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f` |
+| Real canonical HTTP READ E2E | LIVE_VERIFIED for exact main `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f` through the explicitly authorized one-time alternative external Linux acceptance; repeated gate evidence remains required |
 | Provider WRITE | BLOCKED |
 | Production effects | BLOCKED / disabled by default |
 | Release status | DEVELOPMENT / CONTROLLED PILOT ONLY; release/deployment not performed |

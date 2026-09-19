@@ -8,8 +8,8 @@ release explicitly changes this statement and all production gates are evidenced
 The current canonical product includes authoritative snapshot/grant issuance, durable one-time grant
 consumption, bounded isolated READ Runner contracts, an independent Verifier path, a merged READ HTTP
 surface, and restart-safe durable resume. The G8 READ runtime pack implementation is merged, but the default provider runtime remains
-disabled/fail-closed by default; an explicit non-production activation path now exists but live G8 acceptance remains pending; provider WRITE
-remains blocked.
+disabled/fail-closed by default; an explicit non-production activation path exists and one alternative external Linux live acceptance is VERIFIED for exact main `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`; provider WRITE
+remains blocked pending repeated READ evidence and the complete adopted ADR-0019 gate.
 
 ## Reporting
 
@@ -69,7 +69,7 @@ ADR-0019 retains its immutable embedded `PROPOSED` label, while its exact bytes 
 the external adoption register. The effective rule keeps provider WRITE blocked until repeated real
 canonical authenticated HTTP READ E2E proves independent `VerificationResult/v1`, restart-safe durable
 resume, authority continuity, no duplicate authority/effect state, and fail-closed failure injection. A
-future `ELIGIBLE` result would still require a separate WRITE-specific authorization and review.
+one exact-main alternative external Linux acceptance is now VERIFIED at `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`, but the repeated-evidence / complete gate is not thereby closed. A future `ELIGIBLE` result would still require a separate WRITE-specific authorization and review.
 
 ## Local checkpoint verification boundary
 

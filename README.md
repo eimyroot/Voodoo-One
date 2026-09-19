@@ -93,8 +93,8 @@ OperationProof != OperationCell
 | Canonical Operation Passport `GET /api/v1/operations/{execution_id}/passport` | IMPLEMENTED / targeted tested; same-DB durable lineage, verification `UNKNOWN / NOT_PERSISTED` |
 | Restart-safe durable READ resume | IMPLEMENTED / MERGED via PR #140 |
 | GitHub main governance enforcement | UNKNOWN / fresh post-rename G0 required; historical VERIFIED evidence retained |
-| G8 READ runtime pack + explicit non-production activation | IMPLEMENTED / targeted tested; opt-in only, default remains disabled; live acceptance pending |
-| Real canonical HTTP READ E2E through explicitly activated G8 pack | BLOCKED / not yet verified |
+| G8 READ runtime pack + explicit non-production activation | IMPLEMENTED / targeted tested; opt-in only, default remains disabled; one alternative external Linux live acceptance VERIFIED for exact main `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f` |
+| Real canonical HTTP READ E2E through explicitly activated G8 pack | LIVE_VERIFIED for exact main `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f` via explicitly authorized one-time alternative external Linux acceptance; repeated READ-before-WRITE evidence remains separately gated |
 | Provider WRITE activation | BLOCKED pending repeated READ E2E + restart-safe verification gate |
 | Production effects | BLOCKED / disabled by default |
 | Unrestricted production release | BLOCKED |
@@ -171,7 +171,7 @@ CANONICAL PRODUCT RUNTIME SEAM = IMPLEMENTED / MERGED
 CANONICAL PUBLIC READ API = IMPLEMENTED / MERGED
 RESTART-SAFE DURABLE RESUME = IMPLEMENTED / MERGED
 DEFAULT PROVIDER RUNTIME PACK = DISABLED / FAIL-CLOSED
-REAL DEFAULT-RUNTIME HTTP READ E2E = NOT VERIFIED
+REAL DEFAULT-RUNTIME HTTP READ E2E = VERIFIED_ALT_EXTERNAL_LINUX @ 2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f
 PROVIDER WRITE = BLOCKED
 ```
 
@@ -207,8 +207,7 @@ release, or deployment.
 
 ## READ before WRITE
 
-The next governed direction is a READ-only G8 runtime pack followed by repeated real canonical HTTP
-READ E2E and restart/resume verification. Provider WRITE remains blocked unless the adopted safety gate
+One exact-main alternative external Linux G8 run is now VERIFIED for authenticated canonical HTTP READ and same-execution restart/resume at `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`. The next governed direction is repeated real canonical HTTP READ evidence plus the remaining fail-closed ADR-0019 gate. Provider WRITE remains blocked unless the adopted safety gate
 is satisfied with evidence for READ E2E, restart continuity, no duplicate authority/effect, independent
 verification, and fail-closed behavior. Even then, `ELIGIBLE` would not itself authorize a WRITE effect.
 
@@ -248,7 +247,7 @@ a new provider mutation is authorized.
 - separate independent verifier path;
 - receipt/verification semantics separate;
 - canonical public READ API and restart-safe resume are merged;
-- default G8 provider runtime and real product HTTP READ E2E remain blocked/unverified;
+- default G8 provider runtime remains opt-in/fail-closed; real product HTTP READ E2E is LIVE_VERIFIED for exact main `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f` through the one-time alternative external Linux acceptance;
 - provider WRITE remains blocked behind READ-before-WRITE evidence and separate effect authorization;
 - no release/deployment inferred from CI, merge, Proof or Cell;
 - historical G0 VERIFIED evidence is retained, while current post-rename GitHub governance remains UNKNOWN until fresh exact-main verification.
