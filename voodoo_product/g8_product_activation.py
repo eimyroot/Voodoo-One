@@ -497,7 +497,7 @@ def _build_runtime(
         resource_limit_profile_digest=settings.runner_resource_digest,
         network_policy_digest=settings.runner_network_digest,
         bootstrap_revision="isolated-runtime-bootstrap/g8-product-r1",
-        activation_revision="read-only-runtime-activation/g8-product-r1",
+        activation_revision="runner-activation/g8-product-r1",
     )
     runner_policy = CredentialBrokerPolicy.create(
         credential_class=G8_RUNNER_CREDENTIAL_CLASS,
