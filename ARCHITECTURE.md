@@ -365,6 +365,14 @@ CyberCore mutation/runtime integration remains blocked while parser, publisher t
 release-governance hardening are incomplete. CyberCore cannot be used to bypass G8, READ E2E, WRITE,
 release, or deployment gates.
 
+## Proposed target architecture framing
+
+A documentation-only R3 proposal describes the current V-One trust model as one logical Core Kernel
+with fractal Capability Cells. It is **PROPOSED / REVIEW REQUIRED** and does not change current runtime,
+terminal-profile, release, deployment or production-effect state. See
+[`docs/architecture/VONE_PRODUCT_ARCHITECTURE_THESIS_R3.md`](docs/architecture/VONE_PRODUCT_ARCHITECTURE_THESIS_R3.md)
+and [`ADR-0021`](docs/adr/ADR-0021-core-kernel-fractal-capability-architecture.md).
+
 ## Related documents
 
 - [`VISION.md`](VISION.md)
