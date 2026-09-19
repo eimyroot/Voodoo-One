@@ -13,6 +13,7 @@ from voodoo_product.canonical_pipeline import CanonicalOperationPipeline
 from voodoo_product.canonical_read_terminal import CanonicalGitHubReadTerminal
 from voodoo_product.composition import install_composed_product_platform
 from voodoo_product.config import ProductConfig
+from voodoo_product.operation_passport import OperationPassportService
 from voodoo_product.permission_authority import DatabasePermissionAuthority
 from voodoo_product.terminal_profile import (
     BOUNDED_MUTATION_TERMINAL_PROFILE,
@@ -157,8 +158,11 @@ def test_product_composition_always_owns_database_permission_authority(tmp_path:
 
     assert isinstance(composition.database_permission_authority, DatabasePermissionAuthority)
     assert composition.database_permission_authority.db is composition.service.db
+    assert isinstance(composition.operation_passport_service, OperationPassportService)
+    assert composition.operation_passport_service.db is composition.service.db
     assert composition.canonical_operation_runtime is None
     assert app.state.voodoo_database_permission_authority is composition.database_permission_authority
+    assert app.state.voodoo_operation_passport_service is composition.operation_passport_service
     assert app.state.voodoo_canonical_operation_runtime is None
 
 

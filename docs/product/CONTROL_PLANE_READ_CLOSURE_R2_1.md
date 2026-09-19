@@ -1,6 +1,8 @@
 # Control Plane READ Closure R2.1
 
-Status: **CANDIDATE** until merged through the canonical protected `main` workflow.
+Status: **IMPLEMENTED / MERGED via PR #153 / `5a8559b7bd52ab35d07bfc61146bd95920e7d325`**.
+
+The acceptance/promotion criteria below are retained as the historical candidate gate; this document does not by itself claim fresh live-provider, release, deployment, or production evidence.
 
 ## Purpose
 

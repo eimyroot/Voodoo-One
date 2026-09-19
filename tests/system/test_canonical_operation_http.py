@@ -29,6 +29,43 @@ class FakeIdentityProvider:
         raise PermissionError(f"invalid session contains {SECRET_MARKER}")
 
 
+class FakePassport:
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "schema": "vone.operation-passport/v1",
+            "execution_id": "exec-1",
+            "lifecycle_stage": "EXECUTION_COMPLETED",
+            "operation": {"capability": "github.read-ref/v1"},
+            "authority": {"snapshot": {"snapshot_digest": D1}},
+            "dispatch": {"outbox": {"entry_digest": D2}},
+            "runtime": {"status": "COMPLETED"},
+            "verification": {
+                "status": "NOT_PERSISTED",
+                "verdict": "UNKNOWN",
+                "result_digest": None,
+                "independent_verification_exposed": False,
+                "reason": "No durable VerificationResult/v1 is stored for this execution.",
+            },
+            "integrity": {
+                "canonical_json_validated": True,
+                "lineage_bindings_validated": True,
+                "independent_verification_validated": False,
+            },
+        }
+
+
+class FakePassportService:
+    def __init__(self, *, error: Exception | None = None) -> None:
+        self.error = error
+        self.calls: list[str] = []
+
+    def get(self, execution_id: str) -> FakePassport:
+        self.calls.append(execution_id)
+        if self.error is not None:
+            raise self.error
+        return FakePassport()
+
+
 class FakeRuntime:
     def __init__(self, *, verdict: str = "NOT_VERIFIED", error: Exception | None = None) -> None:
         self.read_terminal = object()
@@ -67,12 +104,19 @@ class FakeRuntime:
         )
 
 
-def client(runtime: object | None) -> TestClient:
+def client(
+    runtime: object | None,
+    *,
+    passport_service: object | None = None,
+) -> TestClient:
     app = FastAPI()
     app.include_router(
         create_canonical_operation_router(
             identity_provider=FakeIdentityProvider(),  # type: ignore[arg-type]
             runtime=runtime,  # type: ignore[arg-type]
+            operation_passport_service=(
+                passport_service or FakePassportService()
+            ),  # type: ignore[arg-type]
         )
     )
     return TestClient(app)
@@ -114,6 +158,43 @@ def test_authentication_error_does_not_leak_identity_provider_detail() -> None:
 
     assert response.status_code == 401
     assert response.json()["detail"] == "invalid authentication token"
+    assert SECRET_MARKER not in response.text
+
+
+def test_passport_is_read_only_and_available_without_runtime_activation() -> None:
+    passport_service = FakePassportService()
+    api = client(None, passport_service=passport_service)
+
+    response = api.get(
+        "/api/v1/operations/exec-1/passport",
+        headers=auth("viewer-token"),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["schema"] == "vone.operation-passport/v1"
+    assert payload["execution_id"] == "exec-1"
+    assert payload["lifecycle_stage"] == "EXECUTION_COMPLETED"
+    assert payload["verification"]["verdict"] == "UNKNOWN"
+    assert payload["verification"]["independent_verification_exposed"] is False
+    assert passport_service.calls == ["exec-1"]
+
+
+def test_passport_missing_canonical_execution_is_sanitized() -> None:
+    api = client(
+        None,
+        passport_service=FakePassportService(
+            error=LookupError(f"missing internal row {SECRET_MARKER}")
+        ),
+    )
+
+    response = api.get(
+        "/api/v1/operations/exec-404/passport",
+        headers=auth("viewer-token"),
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "canonical operation resource not found"
     assert SECRET_MARKER not in response.text
 
 
@@ -252,6 +333,10 @@ def test_openapi_exposes_read_only_canonical_operation_surface() -> None:
     paths = api.get("/openapi.json").json()["paths"]
 
     assert "/api/v1/operations/status" in paths
+    assert "/api/v1/operations/{execution_id}/passport" in paths
+    assert paths["/api/v1/operations/{execution_id}/passport"] == {
+        "get": paths["/api/v1/operations/{execution_id}/passport"]["get"]
+    }
     assert "/api/v1/operations/{request_id}/read" in paths
     assert all("create-ref" not in path for path in paths)
     assert all("delete" not in path.casefold() for path in paths)

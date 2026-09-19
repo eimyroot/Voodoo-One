@@ -3,7 +3,7 @@
 ## Scope and authority
 
 This file applies to the entire repository tree rooted at
-`/Users/eimyna/00_DEV/V-ONE`. A more deeply nested `AGENTS.md` may narrow these
+`/Users/eimyna/0_DEV/Voodoo-One`. A more deeply nested `AGENTS.md` may narrow these
 rules only for a demonstrated subtree-specific need. Direct system, developer,
 and user instructions take precedence.
 
@@ -11,7 +11,7 @@ Before every technical task:
 
 1. Verify that `WORLD_CLASS_SOFTWARE_DEVOPS_OPERATING_MODE.md` exists.
 2. Compute its SHA-256 and require
-   `ed44c6147049887d941b7497f1bce3b817f22b6ae00a5136a27365a2f688d918`.
+   `36d2798f377ee5e6ba05ea8a565fc053ad58182d95a3af4f466050d536285bed`.
 3. Read the task-relevant sections before work.
 4. Before implementation, architecture or security changes, remote writes,
    releases, or destructive operations, read the entire file.
@@ -35,8 +35,8 @@ condition is satisfied.
 
 ## Canonical repository and evidence paths
 
-- Repository: `/Users/eimyna/00_DEV/V-ONE`
-- Durable evidence: `/Users/eimyna/00_DEV/V-ONE-EVIDENCE`
+- Repository: `/Users/eimyna/0_DEV/Voodoo-One`
+- Durable evidence: `/Users/eimyna/0_EVIDENCE/Voodoo-One`
 
 Keep generated logs, runtime data, databases, checkpoints, audit output, and
 other evidence outside the repository unless the task explicitly requires a
@@ -207,7 +207,7 @@ evidence. README and roadmap statements are not implementation evidence.
 
 For important audits and security, release, publication, or destructive work,
 record exact source identity, commands, exit results, limitations, and rollback
-under `/Users/eimyna/00_DEV/V-ONE-EVIDENCE/<task-specific-directory>`. Preserve
+under `/Users/eimyna/0_EVIDENCE/Voodoo-One/<task-specific-directory>`. Preserve
 Git and evidence identity. Do not commit generated evidence unless the
 repository contract explicitly requires it.
 

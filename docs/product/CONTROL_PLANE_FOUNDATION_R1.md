@@ -1,6 +1,8 @@
 # Control Plane Foundation R1
 
-Status: **candidate implementation on `feat/control-plane-foundation-r1`**.
+Status: **IMPLEMENTED / MERGED via PR #149 / `07968fd383685f37925582f3b6e17cf65abbb43b`**.
+
+The acceptance/promotion criteria below are retained as the historical candidate gate; this document does not by itself claim fresh live-provider, release, deployment, or production evidence.
 
 This document does not mark the control plane VERIFIED and does not authorize provider WRITE,
 deployment, release, or production effects.

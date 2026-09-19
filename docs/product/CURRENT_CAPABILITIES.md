@@ -86,6 +86,7 @@ Is it released/deployed?
 | OperationProof/v2 | VERIFIED | current contract/tests + historical F6b digest | mutation-only post-verification lineage |
 | OperationCell/v1 | VERIFIED | current contract/tests + historical F6b digest | mutation-only stable operation atom |
 | Unified authority→profile runtime composition | IMPLEMENTED | ProductComposition + canonical runtime tests + PR #140 | public READ API merged; default provider pack still off |
+| Canonical Operation Passport read model | IMPLEMENTED | read-only same-DB lineage projection + contract/HTTP/SQLite tests | joins Snapshot→Grant→Consumption→Outbox→Inbox→Epoch/Lease; `VerificationResult/v1` is not durably persisted and remains `UNKNOWN` |
 | Receipt/audit hash-chain integrity | VERIFIED | ledger verification tests | chain integrity != independent provider verification |
 | SQLite migrations | VERIFIED | migrations 0001–0014 + integrity tests | single-node backend |
 | PostgreSQL backend | BLOCKED | fail-closed startup contract | adapter/concurrency/operations gates not released |
@@ -96,9 +97,10 @@ Is it released/deployed?
 | CyberCore mutation/runtime integration | BLOCKED | parser/trust/runtime/release-governance hardening | cannot bypass V-One gates |
 | Main GitHub governance policy | UNKNOWN | historical G0 run `32553113424` remains VERIFIED for its original evidence scope | fresh exact-main G0 is required for current `eimyroot/Voodoo-One` identity |
 | Main required latest-head enforcement | UNKNOWN | historical G0 verified PR-only main, required `verify`, latest-head strict checks and no ordinary bypass for its then-current repository identity | current post-rename enforcement must be re-verified live |
-| G8 default READ provider runtime | BLOCKED | G8 gate defined; no default runtime activation yet | must be READ-only, explicit, separate Runner/Verifier credentials, fail-closed |
-| Real canonical HTTP READ E2E + restart resume | BLOCKED | G7 components merged; G8 runtime not yet active | must prove HTTP→Runner→independent `VerificationResult/v1` plus no duplicate authority/effect after restart |
-| Provider WRITE activation | BLOCKED | ADR-0019 safety decision is under governed adoption | not eligible before verified repeated READ E2E + restart-safe continuity |
+| G8 READ runtime pack implementation | IMPLEMENTED | merged PR #144 / `22d814d8b7da56226dba92351bd6a04196268085` + adversarial system tests | not installed by default; real HTTP E2E and restart evidence not yet verified |
+| Explicit non-production G8 activation path | IMPLEMENTED | product-owned opt-in assembler + targeted tests | default remains OFF; local/development/staging SQLite only; separate Runner/Verifier credentials; no ambient fallback |
+| Real canonical HTTP READ E2E + restart resume | BLOCKED | explicit activation exists but live E2E/restart evidence is absent | must prove HTTP→Runner→independent `VerificationResult/v1` plus no duplicate authority/effect after restart |
+| Provider WRITE activation | BLOCKED | ADR-0019 is owner-adopted; its READ-before-WRITE evidence gate is not yet VERIFIED | not eligible before verified repeated READ E2E + restart-safe continuity |
 | Release-candidate build | VERIFIED | fail-closed workflow + historical image/SBOM checks | build candidate != deployment; current RC construction is additionally blocked until fresh current G0 succeeds |
 | Unrestricted production release | BLOCKED | production effects default disabled | G8 + real READ E2E + security/legal/ops/release gates remain |
 | Public commercial distribution | BLOCKED | no distribution authorization | licensing/EULA/privacy/support and production gates remain separate |
@@ -111,6 +113,7 @@ PR #137 is merged and PR #140 reconciles its READ surface with restart-safe dura
 
 ```text
 GET  /api/v1/operations/status
+GET  /api/v1/operations/{execution_id}/passport
 POST /api/v1/operations/{request_id}/read
 ```
 

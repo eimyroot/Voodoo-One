@@ -5,12 +5,13 @@
 ## Snapshot identity
 
 ```text
-AS_OF: 2026-09-06
+AS_OF: 2026-09-16
 EXACT_LIVE_GIT_IDENTITY: QUERY_LIVE_GIT_DIRECTLY
 CANONICAL_REPOSITORY: eimyroot/Voodoo-One
-RECONCILIATION_INPUT_HEAD: 3106ba95125a13adb8e0ee867fbf341d2d2e776e
-RECONCILIATION_BASE_MAIN: 3106ba95125a13adb8e0ee867fbf341d2d2e776e
-RECONCILIATION_MERGE: PR #140 / 60bc9c26813ee23c73bac194a9adb27714e8a1e8
+RECONCILIATION_INPUT_HEAD: 0fc4001e6ba19d1e4dd244a72c55187e9a7937a1
+RECONCILIATION_BASE_MAIN: 0fc4001e6ba19d1e4dd244a72c55187e9a7937a1
+LATEST_SOURCE_MERGE: PR #163 / 0fc4001e6ba19d1e4dd244a72c55187e9a7937a1
+G7_RECONCILIATION_MERGE: PR #140 / 60bc9c26813ee23c73bac194a9adb27714e8a1e8
 LATEST_RUNTIME_ATTESTED_COMMITTED_BASELINE: main@d57d37111b8bc9471a136b6c618aad8e920f1aff
 VOP_SEMANTIC_REVISION: vop-terminology-freeze-r2
 PRODUCT_VERSION: 0.9.0-rc2-dev
@@ -19,7 +20,7 @@ RELEASE: NOT_PERFORMED
 DEPLOYMENT: NOT_PERFORMED
 ```
 
-The exact live `main` identity must be queried directly. The G7 merge SHA above is snapshot provenance, not a self-updating current-main claim.
+The exact live `main` identity must be queried directly. The reconciliation input/base above identify the audited clean base for this 2026-09-16 source-truth pass; the G7 merge SHA remains historical provenance, not a self-updating current-main claim.
 
 ## Historical checkpoint boundary
 
@@ -54,11 +55,14 @@ RELEASED / DEPLOYED       = separately governed states
 | Canonical ProductComposition trust-plane seam | **IMPLEMENTED / MERGED** |
 | Canonical public READ operation API | **IMPLEMENTED / MERGED via PR #137** |
 | Read-only control-room dashboard projection | **IMPLEMENTED / TARGETED VERIFIED** |
+| Canonical Operation Passport read model | **IMPLEMENTED / TARGETED VERIFIED; durable lineage projection, verification remains `UNKNOWN / NOT_PERSISTED`** |
 | Restart-safe durable resume | **IMPLEMENTED / MERGED via PR #140** |
 | Runtime resume wiring | **IMPLEMENTED / MERGED via PR #140** |
+| G8 READ runtime pack implementation | **IMPLEMENTED / MERGED via PR #144 / `22d814d8b7da`; default inactive** |
+| Cross-system control-plane R1→R3 foundation | **IMPLEMENTED / MERGED via PR #149/#151/#153/#155** |
 | G7 post-merge verification | **VERIFIED on `main@60bc9c268...` by CI #1015, D4 #202, E3 #193, E4B #189** |
 | GitHub G0 governance | **UNKNOWN / fresh post-rename exact-main verification required** |
-| Default provider runtime pack | **DISABLED / FAIL-CLOSED** |
+| Explicit non-production G8 activation path | **IMPLEMENTED / TARGETED TESTED; opt-in only, default remains disabled** |
 | Real canonical HTTP READ E2E using default G8 pack | **BLOCKED / NOT YET VERIFIED** |
 | Provider WRITE activation | **BLOCKED** |
 | Reusable CREATE_REF orchestration | **IMPLEMENTED PRE-EFFECT ONLY; NOT CURRENTLY EXECUTED** |
@@ -163,6 +167,28 @@ verification.verdict  = NOT_VERIFIED
 ```
 
 Execution success, receipt existence, digest integrity, or evidence-chain integrity must never manufacture `VERIFIED`.
+
+## Canonical Operation Passport read model
+
+The canonical operations API now exposes a read-only durable operation passport at
+`GET /api/v1/operations/{execution_id}/passport`. It reads the same ProductService database and
+correlates the existing immutable/durable lineage without creating a second persistence owner:
+
+```text
+AuthorizationSnapshot
+→ ExecutionGrant/v2
+→ GrantConsumptionWitness/v1
+→ DispatchOutboxEntry
+→ DispatchInboxAdmission
+→ current ExecutionEpoch / ExecutionLease
+```
+
+The projection validates canonical stored JSON and cross-row lineage bindings. It does **not** infer
+independent verification from completion, receipts, audit integrity, or durable runtime state. The
+current schema does not durably store READ `VerificationResult/v1`, so the passport deliberately reports
+`verification.status = NOT_PERSISTED` and `verification.verdict = UNKNOWN` until that later product gate
+is implemented and evidenced. The endpoint is read-only and does not require or activate the G8 provider
+runtime.
 
 ## Control-room dashboard projection
 
@@ -294,11 +320,12 @@ WRITE_RUNTIME_GATE   = ELIGIBLE
 
 ## G8 current boundary
 
-G8 is the next implementation gate. The first default provider runtime pack is READ-only and must reuse existing canonical components rather than create a parallel provider or authority framework. It must use explicit configuration, separate Runner and Verifier credential decisions/identities, the exact ProductComposition DB/permission authority/profile registry/current fence, and no ambient credential fallback.
+The G8 READ runtime pack implementation is merged and the current source now includes an explicit non-production activation path. The default remains `disabled`; activation is accepted only for local/development/staging SQLite composition with production effects disabled, complete explicit G8 configuration, distinct Runner/Verifier credentials and distinct provider instances. The product-owned assembler reuses the exact ProductComposition DB and DatabasePermissionAuthority and builds one READ-only capability/capsule/pipeline/fence graph. It never falls back to ambient `GITHUB_TOKEN` or the legacy `ExecutionService`. Real authenticated HTTP READ E2E and restart/resume acceptance remain unverified.
 
-Until G8 is implemented and real HTTP READ E2E is verified:
+Until real G8 HTTP READ E2E is verified:
 
 ```text
+EXPLICIT_G8_ACTIVATION_PATH = IMPLEMENTED
 DEFAULT_PROVIDER_RUNTIME = OFF
 REAL_CANONICAL_READ_E2E = NOT_VERIFIED
 WRITE_RUNTIME_GATE = BLOCKED

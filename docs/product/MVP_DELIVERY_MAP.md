@@ -6,10 +6,10 @@
 | Exact live Git identity | Query live Git directly; do not self-embed a commit as current |
 | Latest runtime-attested baseline | `main@d57d37111b8bc9471a136b6c618aad8e920f1aff` |
 | Current post-G7 source milestone | PR #140 merged; canonical READ API from PR #137 merged; exact current SHA is queried live |
-| G0 GitHub governance | VERIFIED / PASS from retained live verifier evidence |
+| G0 GitHub governance | UNKNOWN current / historical VERIFIED evidence retained; fresh post-rename G0 required |
 | G7 durable resume/runtime wiring | IMPLEMENTED / MERGED |
-| Default provider runtime pack | DISABLED / FAIL-CLOSED pending G8 |
-| Real canonical HTTP READ E2E | NOT VERIFIED pending G8 |
+| G8 READ runtime pack + explicit non-production activation | IMPLEMENTED / targeted tested; opt-in only, default OFF, live acceptance pending |
+| Real canonical HTTP READ E2E | NOT VERIFIED; explicit activation exists, live acceptance still required |
 | Provider WRITE | BLOCKED |
 | Production effects | BLOCKED / disabled by default |
 | Release status | DEVELOPMENT / CONTROLLED PILOT ONLY; release/deployment not performed |
@@ -150,9 +150,9 @@ Acceptance remains deny-by-default and no client-supplied authority fact becomes
 
 **Status:** PROPOSED for the default product runtime pack and real canonical HTTP E2E.
 
-Bounded GitHub READ Runner/Verifier pilots and canonical READ terminal/runtime components exist, and G7
-adds restart-safe ACTIVE-execution reconstruction. G8 must compose them into the explicit default
-READ-only provider runtime pack and prove one real authenticated canonical path:
+Bounded GitHub READ Runner/Verifier pilots and canonical READ terminal/runtime components exist, G7
+adds restart-safe ACTIVE-execution reconstruction, and the G8 READ runtime pack implementation is merged.
+The default application keeps the pack disabled. An explicit non-production composition path now exists, so MVP-3 still requires one real authenticated canonical path:
 
 ```text
 HTTP admission
@@ -214,7 +214,7 @@ This does not authorize unrestricted production use.
 ## Immediate priority order
 
 1. merge post-G7 product-truth convergence only after exact-head CI and independent review;
-2. implement G8 as a READ-only composition/runtime pack using existing canonical components;
+2. retain and verify the implemented explicit G8 activation path without ambient credentials;
 3. prove authenticated canonical HTTP READ E2E;
 4. inject restart while execution is ACTIVE and prove durable resume without duplicate prepare/grant/consume/dispatch/epoch/lease;
 5. prove independent `VerificationResult/v1` and fail-closed corruption/revocation paths;

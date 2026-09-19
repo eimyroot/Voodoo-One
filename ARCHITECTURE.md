@@ -7,7 +7,7 @@
 | VOP semantic revision | `vop-terminology-freeze-r2` / ADR-0018 |
 | Current packaging | Modular monolith + explicit profile-specific runtime packs |
 | Current composition | Canonical READ API + restart-safe runtime are ProductComposition-integrated; default provider runtime remains fail-closed |
-| GitHub governance | G0 VERIFIED / PASS from retained live verifier evidence |
+| GitHub governance | **UNKNOWN current / historical VERIFIED evidence**; fresh exact-main post-rename G0 required |
 | Production effects | BLOCKED / disabled by default |
 
 ## Purpose
@@ -321,7 +321,7 @@ That historical evidence does not prove or authorize a new A09 provider effect.
 
 ## GitHub governance boundary
 
-G0 is bound to retained live verifier evidence:
+G0 has retained historical live verifier evidence for its original repository identity:
 
 ```text
 workflow = g0-governance-verify
@@ -332,17 +332,19 @@ artifact_digest = sha256:6e63caee23a57613471df66ef0279c0261ed8d375e4c929accdf50e
 verdict = VERIFIED
 ```
 
-That evidence established PR-only main, required latest-head `verify` from workflow `ci`, force-push
-and deletion protection, conversation resolution, no ordinary bypass, active rulesets and verifier
-source binding. G0 is PASS. This is repository-governance evidence only; it does not authorize provider
-runtime, release or deployment.
+That historical evidence established PR-only main, required latest-head `verify` from workflow `ci`,
+force-push and deletion protection, conversation resolution, no ordinary bypass, active rulesets and
+verifier source binding for its exact repository identity and SHA. The canonical repository is now
+`eimyroot/Voodoo-One`, so current G0 is `UNKNOWN` until a fresh exact-main post-rename verifier run
+passes. Historical G0 evidence does not authorize provider runtime, release or deployment.
 
 ## READ-before-WRITE boundary
 
-ADR-0019 is `PROPOSED` until its governed adoption gate closes. The proposed invariant requires repeated
-real canonical authenticated HTTP READ E2E, independent `VerificationResult/v1`, restart-safe durable
-resume, no duplicate authority/effect, authority continuity and fail-closed failure injection before
-WRITE may become merely `ELIGIBLE`. `ELIGIBLE` is not effect authorization.
+ADR-0019 retains its immutable embedded `PROPOSED` label, but its exact bytes are owner-adopted through
+the external adoption register as of 2026-08-24. The effective invariant requires repeated real
+canonical authenticated HTTP READ E2E, independent `VerificationResult/v1`, restart-safe durable resume,
+no duplicate authority/effect, authority continuity and fail-closed failure injection before WRITE may
+become merely `ELIGIBLE`. `ELIGIBLE` is not effect authorization.
 
 ## CyberCore boundary
 

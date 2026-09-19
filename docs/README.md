@@ -15,6 +15,7 @@ normative authority remains governed separately by adopted records and repositor
 | What is the post-G7 canonical checkpoint? | [`product/POST_G7_CANONICAL_STATE.md`](product/POST_G7_CANONICAL_STATE.md) |
 | What is the next READ runtime gate? | [`product/G8_READ_RUNTIME_GATE.md`](product/G8_READ_RUNTIME_GATE.md) |
 | What should it support later? | [`product/TARGET_CAPABILITIES.md`](product/TARGET_CAPABILITIES.md) |
+| What is the Control Room CURRENT → TARGET gap? | [`product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md`](product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md) |
 | What is the security overview? | [`product/SECURITY_OVERVIEW.md`](product/SECURITY_OVERVIEW.md) |
 | What is the Security Intelligence R-SI1.1 authority ceiling? | [`product/SECURITY_INTELLIGENCE_RSI1_BOUNDARY.md`](product/SECURITY_INTELLIGENCE_RSI1_BOUNDARY.md) |
 | What is the MVP delivery map? | [`product/MVP_DELIVERY_MAP.md`](product/MVP_DELIVERY_MAP.md) |
@@ -56,7 +57,7 @@ TRUST-PLANE COMPONENT CHAIN = IMPLEMENTED / deeply tested
 CANONICAL FastAPI ProductComposition RUNTIME SEAM = IMPLEMENTED / MERGED
 CANONICAL PUBLIC READ OPERATION API = IMPLEMENTED / MERGED
 G7 DURABLE RESUME + RUNTIME WIRING = IMPLEMENTED / MERGED
-G0 GITHUB GOVERNANCE = VERIFIED / PASS from retained live verifier evidence
+G0 GITHUB GOVERNANCE = UNKNOWN current / historical VERIFIED evidence retained
 DEFAULT PROVIDER RUNTIME PACK = DISABLED / FAIL-CLOSED
 REAL CANONICAL HTTP READ E2E WITH DEFAULT PACK = NOT VERIFIED
 READ_ONLY_VERIFIED TERMINAL = VerificationResult/v1

@@ -20,6 +20,7 @@ CORE_DOCUMENTS = {
     "docs/architecture/TRUST_BOUNDARIES.md",
     "docs/product/CURRENT_CAPABILITIES.md",
     "docs/product/TARGET_CAPABILITIES.md",
+    "docs/product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md",
     "docs/product/SECURITY_OVERVIEW.md",
     "docs/product/MVP_DELIVERY_MAP.md",
     "docs/governance/ADR0008_R3_EVIDENCE_INDEX.md",
@@ -86,6 +87,7 @@ def test_readme_links_every_core_document() -> None:
             "foundation/TERMINOLOGY.md",
             "docs/product/CURRENT_CAPABILITIES.md",
             "docs/product/TARGET_CAPABILITIES.md",
+            "docs/product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md",
             "docs/product/SECURITY_OVERVIEW.md",
             "docs/product/MVP_DELIVERY_MAP.md",
             "docs/architecture/TRUST_BOUNDARIES.md",
@@ -110,6 +112,7 @@ def test_documentation_index_links_core_navigation() -> None:
         "../foundation/TERMINOLOGY.md",
         "product/CURRENT_CAPABILITIES.md",
         "product/TARGET_CAPABILITIES.md",
+        "product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md",
         "product/MVP_DELIVERY_MAP.md",
         "architecture/TRUST_BOUNDARIES.md",
         "governance/ADR0008_R3_EVIDENCE_INDEX.md",
@@ -135,6 +138,7 @@ def test_relative_links_resolve_in_critical_docs() -> None:
         "docs/architecture/TRUST_BOUNDARIES.md",
         "docs/product/CURRENT_CAPABILITIES.md",
         "docs/product/TARGET_CAPABILITIES.md",
+        "docs/product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md",
         "docs/product/SECURITY_OVERVIEW.md",
         "docs/product/MVP_DELIVERY_MAP.md",
         "docs/governance/ADR0008_R3_EVIDENCE_INDEX.md",
@@ -369,6 +373,49 @@ def test_proposed_organization_approval_adr_preserves_current_safety_boundary() 
     assert "| Policy Decision Graph | PROPOSED | ADR-0003" in capabilities
 
 
+def test_control_room_gap_map_preserves_current_target_and_platform_boundaries() -> None:
+    gap = _read("docs/product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md")
+    readme = _read("README.md")
+    index = _read("docs/README.md")
+    vision = _read("VISION.md")
+
+    relative = "docs/product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md"
+    assert f"({relative})" in readme
+    assert "(product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md)" in index
+    assert f"({relative})" in vision
+    for label in ("ALREADY_EXISTS", "BACKEND_EXISTS_UX_GAP", "IMPLEMENTATION_REQUIRED"):
+        assert label in gap
+    assert "The Control Room is the V-One system-of-engagement surface" in gap
+    assert "It is not the whole VOODOO OS platform." in gap
+    assert "ExecutionReceipt != VerificationResult" not in gap or "independent" in gap
+    assert "provider WRITE" in gap
+    assert "production effects" in gap
+
+
+def test_operational_governance_uses_current_local_roots() -> None:
+    agents = _read("AGENTS.md")
+    publication = _read("docs/governance/REVIEW_BRANCH_PUBLICATION.md")
+    publisher = _read("scripts/publish_review_branch.py")
+
+    current_repo = "/Users/eimyna/0_DEV/Voodoo-One"
+    current_evidence = "/Users/eimyna/0_EVIDENCE/Voodoo-One"
+    legacy_repo = "/Users/eimyna/00_DEV/V-ONE"
+    legacy_evidence = "/Users/eimyna/00_DEV/V-ONE-EVIDENCE"
+
+    assert current_repo in agents
+    assert current_evidence in agents
+    assert legacy_repo not in agents
+    assert legacy_evidence not in agents
+
+    assert current_repo in publication
+    assert current_evidence in publication
+    assert legacy_repo not in publication
+    assert legacy_evidence not in publication
+
+    assert f'Path("{current_evidence}")' in publisher
+    assert legacy_evidence not in publisher
+
+
 # GOVERNANCE_V3_CANDIDATE_TESTS_BEGIN
 
 def test_effective_technical_standard_is_hash_bound() -> None:
@@ -382,10 +429,10 @@ def test_effective_technical_standard_is_hash_bound() -> None:
     sidecar_fields = sidecar_path.read_text(encoding="utf-8").strip().split()
 
     assert sidecar_fields == [
-        "ed44c6147049887d941b7497f1bce3b817f22b6ae00a5136a27365a2f688d918",
+        "36d2798f377ee5e6ba05ea8a565fc053ad58182d95a3af4f466050d536285bed",
         relative,
     ]
-    assert actual_sha256 == "ed44c6147049887d941b7497f1bce3b817f22b6ae00a5136a27365a2f688d918"
+    assert actual_sha256 == "36d2798f377ee5e6ba05ea8a565fc053ad58182d95a3af4f466050d536285bed"
     assert "# WORLD-CLASS SOFTWARE / DEVOPS OPERATING MODE" in document
     assert "## 2. REALITY CHECK" in document
     assert "## 3. SOURCE OF TRUTH" in document

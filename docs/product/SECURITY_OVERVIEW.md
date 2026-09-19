@@ -201,7 +201,8 @@ proofs.
 
 ## GitHub governance boundary
 
-G0 is no longer `UNKNOWN`. It is tied to retained live verifier evidence:
+Current G0 is `UNKNOWN` for the renamed canonical repository `eimyroot/Voodoo-One`. Retained live
+verifier evidence remains valid only for its original repository identity and exact source SHA:
 
 ```text
 workflow = g0-governance-verify
@@ -212,25 +213,20 @@ artifact = g0-governance-evidence-32553113424-1
 artifact_id = 9470619984
 artifact_digest = sha256:6e63caee23a57613471df66ef0279c0261ed8d375e4c929accdf50eff7dc4f5f
 evidence_json_checksum = 11a99765485b63b70186037011d31c105dea8dd75b689e0036a8766d05e8137d
-verdict = VERIFIED
+historical_verdict = VERIFIED
 ```
 
-That evidence verified PR-only main, required latest-head `verify` from workflow `ci`, force-push and
-branch-deletion protection, conversation resolution, no ordinary bypass, active rulesets and verifier
-source binding.
-
-```text
-G0 = PASS
-```
-
-G0 PASS is repository-governance evidence only. It does not authorize a provider runtime, production
-effect, release or deployment.
+That historical evidence verified PR-only main, required latest-head `verify`, force-push/delete
+protection, conversation resolution, no ordinary bypass, active rulesets and verifier-source binding
+for its original evidence scope. A fresh exact-main post-rename G0 run is required before current
+repository-governance claims may become VERIFIED again. Historical G0 evidence does not authorize a
+provider runtime, production effect, release or deployment.
 
 ## READ-before-WRITE boundary
 
-ADR-0019 is currently `PROPOSED — governed adoption pending` and creates no authority before its gate
-closes. The proposed rule keeps provider WRITE blocked until repeated real canonical authenticated HTTP
-READ E2E proves all of:
+ADR-0019 retains its immutable embedded `PROPOSED — governed adoption pending` label, while its exact
+bytes are owner-adopted through the external adoption register. The effective rule keeps provider WRITE
+blocked until repeated real canonical authenticated HTTP READ E2E proves all of:
 
 ```text
 READ_E2E             = VERIFIED
@@ -247,9 +243,9 @@ rollback semantics, release and deployment gates.
 
 ## G8 security boundary
 
-The next provider-runtime milestone is READ-only. G8 must reuse the canonical ProductComposition,
-GitHub READ transport, READ terminal and resume contracts; it must not create a parallel execution or
-authority framework.
+The G8 READ runtime pack implementation is merged and reuses the canonical ProductComposition,
+GitHub GET-only READ transport, READ terminal and resume contracts. The default application does not
+install the pack, so source implementation does not yet equal product activation or live acceptance.
 
 Required fail-closed properties include:
 
@@ -261,8 +257,8 @@ Required fail-closed properties include:
 - no CREATE_REF, DELETE_REF, rollback, generic execute or arbitrary mutation transport;
 - missing or ambiguous configuration aborts activation.
 
-Real canonical HTTP READ E2E through this default pack remains **NOT VERIFIED** until G8 is implemented
-and exercised.
+Real canonical HTTP READ E2E through the merged pack remains **NOT VERIFIED** until the pack is
+explicitly activated in a non-production product path and exercised with retained restart/verifier evidence.
 
 ## Supply-chain / release boundary
 
@@ -295,7 +291,7 @@ used as a workaround.
 
 Current remaining release gates include:
 
-- G8 explicit READ-only default provider runtime;
+- explicit non-production activation and live acceptance of the merged G8 READ-only provider runtime;
 - repeated real canonical authenticated HTTP READ E2E;
 - restart/resume no-duplicate and fail-closed evidence;
 - fresh security/adversarial review for the runtime candidate;
