@@ -253,6 +253,88 @@ def test_g8_product_assembly_prepares_one_canonical_read_lineage_without_provide
     assert service.list_receipts() == []
 
 
+def test_g8_product_read_terminal_runs_through_activation_binding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    enable_settings(monkeypatch)
+    fake_principal_observation(monkeypatch)
+    observed_reads: list[tuple[str, str]] = []
+
+    def provider_read(
+        *,
+        pin: object,
+        token: str,
+        repository: str,
+        ref: str,
+    ) -> str:
+        del pin, token
+        observed_reads.append((repository, ref))
+        return "a" * 40
+
+    monkeypatch.setattr(g8_module, "_provider_read_with_pin", provider_read)
+
+    subject = config(tmp_path)
+    factory = resolve_g8_read_runtime_factory(subject)
+    assert factory is not None
+    app = FastAPI()
+    composition = install_composed_product_platform(
+        app,
+        config=subject,
+        repository_root=tmp_path,
+        canonical_runtime_factory=factory,
+    )
+    service = composition.service
+    runtime = composition.canonical_operation_runtime
+    assert runtime is not None
+
+    bootstrap = service.bootstrap_admin(
+        username="admin",
+        password="VeryStrongAdminPassword1!",
+        token="b" * 48,
+    )
+    reviewer = service.create_user(
+        actor_id=bootstrap["user_id"],
+        username="reviewer",
+        password="VeryStrongReviewerPassword1!",
+        role="operator",
+    )
+    request = service.create_change_request(
+        actor_id=bootstrap["user_id"],
+        workspace_id=bootstrap["workspace_id"],
+        title="Canonical GitHub ref read",
+        description="run through G8 READ terminal",
+        risk="R0",
+        environment="staging",
+        adapter=GITHUB_READ_REF_REQUEST_ADAPTER,
+        payload={"repository": "eimyroot/Voodoo-One", "ref": "refs/heads/main"},
+    )
+    service.submit_change_request(actor_id=bootstrap["user_id"], request_id=request["id"])
+    service.approve_change_request(
+        actor_id=reviewer["id"],
+        request_id=request["id"],
+        decision="APPROVED",
+        reason="bounded read-only G8 terminal regression",
+    )
+
+    result = runtime.run_read_only(
+        actor_id=bootstrap["user_id"],
+        request_id=request["id"],
+        idempotency_key="g8-product-read-terminal-1",
+        correlation_id="corr-g8-product-read-terminal-1",
+    )
+
+    assert result.prepared.capability == GITHUB_READ_REF_CAPABILITY
+    assert result.runner_observation.runtime_activation_digest
+    assert result.verifier_observation.commit_sha == result.runner_observation.commit_sha
+    assert result.verification_result.verdict == "VERIFIED"
+    assert result.durable_completion.lease.execution_id == result.prepared.execution_id
+    assert observed_reads == [
+        ("eimyroot/Voodoo-One", "refs/heads/main"),
+        ("eimyroot/Voodoo-One", "refs/heads/main"),
+    ]
+
+
 def test_github_read_ref_target_binder_is_exact_and_read_only() -> None:
     binder = GitHubReadRefTargetBinder()
     target = binder.bind(
