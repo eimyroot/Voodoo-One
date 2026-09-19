@@ -33,8 +33,7 @@ canonical public READ API             = IMPLEMENTED / MERGED
 restart-safe durable resume           = IMPLEMENTED / MERGED
 ```
 
-The merged G8 provider runtime pack is still OFF by default, real product HTTP READ E2E is NOT VERIFIED, and
-provider WRITE/release/deployment remain BLOCKED. Historical implementation does not silently rewrite
+The merged G8 provider runtime pack is still OFF by default. One exact-main real product HTTP READ E2E plus same-execution restart/resume is LIVE_VERIFIED through the explicitly authorized alternative external Linux acceptance at `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`; repeated ADR-0019 evidence is still incomplete, and provider WRITE/release/deployment remain BLOCKED. Historical implementation does not silently rewrite
 the exact design scope of older ADRs.
 
 ## T1 — Policy Decision Graph
@@ -62,7 +61,7 @@ verification and key rotation without weakening current exact-content authority.
 ## T3 — Isolated Runner Capsules
 
 **Status:** VERIFIED bounded READ pilot primitives + IMPLEMENTED canonical READ terminal + merged G8
-READ runtime pack; default product activation/live acceptance remain BLOCKED until the G8 gate passes.
+READ runtime pack; one exact-main alternative external Linux live acceptance is VERIFIED at `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`, while default activation remains OFF and the repeated/full G8 gate remains open.
 
 Current verified/implemented controls include bounded Runner identity/boundary, current lease/fence,
 capability/capsule binding, READ-only provider handling and isolated pilot runtime evidence. Target

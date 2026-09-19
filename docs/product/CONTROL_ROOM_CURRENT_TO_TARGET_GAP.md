@@ -61,7 +61,7 @@ The current repository directly contains:
 - guarded change-request / approval actions and emergency-stop control;
 - system tests for console availability, CSP compatibility, projection shape and fail-closed truth.
 
-Current product truth also confirms that the Control Room projection is `IMPLEMENTED / TARGETED VERIFIED`, while the default G8 provider runtime is still disabled and real canonical HTTP READ E2E remains unverified.
+Current product truth also confirms that the Control Room projection is `IMPLEMENTED / TARGETED VERIFIED`. The default G8 provider runtime remains disabled/fail-closed, while one exact-main canonical HTTP READ E2E plus same-execution restart/resume is LIVE_VERIFIED through the explicitly authorized alternative external Linux acceptance at `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`.
 
 ## 5. Screen-by-screen gap map
 

@@ -33,3 +33,13 @@ DŮKAZNĚ OVĚŘITELNÁ: ANO — sanitized retained artifact with SHA-256 checks
 ```
 
 Current implementation status is **IMPLEMENTED / LOCALLY VERIFIED; LIVE G8 EXIT GATE NOT VERIFIED**. Full repository pytest, product readiness, workflow contract tests, YAML parsing, Python lint/compile checks and a fresh SQLite fixture smoke have passed locally on the CR-3 candidate bytes. The live G8 exit gate remains **NOT VERIFIED** until this workflow runs successfully on the exact main SHA with separately provisioned fine-grained READ-only Runner and Verifier credentials bound to distinct user principals.
+
+## Subsequent evidence update — 2026-09-19
+
+The historical decision above targeted the GitHub Actions path. After workflow dispatch was blocked by account-level Actions policy, the owner explicitly authorized a one-time alternative external Linux acceptance using the same G8 evidence semantics.
+
+Exact source `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f` subsequently passed authenticated canonical HTTP READ, ACTIVE interruption, same-execution restart/resume, zero duplicate lineage, distinct Runner/Verifier credentials, GitHub-only allowed egress and independent verification. The retained acceptance status is `VERIFIED_ALT_EXTERNAL_LINUX`.
+
+This later evidence supersedes the card's earlier current-state statement that live acceptance was not verified for this exact source scope. It does not rewrite the original decision, does not establish repeated ADR-0019 evidence, and does not authorize provider WRITE, release, deployment or production effects.
+
+Evidence root: `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNAL_LINUX_20260919_2f9ab7f`.

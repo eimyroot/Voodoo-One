@@ -320,17 +320,22 @@ WRITE_RUNTIME_GATE   = ELIGIBLE
 
 ## G8 current boundary
 
-The G8 READ runtime pack implementation is merged and the current source now includes an explicit non-production activation path. The default remains `disabled`; activation is accepted only for local/development/staging SQLite composition with production effects disabled, complete explicit G8 configuration, distinct Runner/Verifier credentials and distinct provider instances. The product-owned assembler reuses the exact ProductComposition DB and DatabasePermissionAuthority and builds one READ-only capability/capsule/pipeline/fence graph. It never falls back to ambient `GITHUB_TOKEN` or the legacy `ExecutionService`. Real authenticated HTTP READ E2E and restart/resume acceptance remain unverified.
+The G8 READ runtime pack implementation is merged and the current source now includes an explicit non-production activation path. The default remains `disabled`; activation is accepted only for local/development/staging SQLite composition with production effects disabled, complete explicit G8 configuration, distinct Runner/Verifier credentials and distinct provider instances. The product-owned assembler reuses the exact ProductComposition DB and DatabasePermissionAuthority and builds one READ-only capability/capsule/pipeline/fence graph. It never falls back to ambient `GITHUB_TOKEN` or the legacy `ExecutionService`. One explicitly authorized alternative external Linux acceptance is now VERIFIED for exact main `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`: authenticated canonical HTTP READ, ACTIVE interruption, same-execution restart/resume, independent verification and zero duplicate lineage all passed. The default runtime remains OFF, and the broader repeated-evidence / full ADR-0019 WRITE-eligibility gate remains open.
 
-Until real G8 HTTP READ E2E is verified:
+Current exact-scope G8 evidence for `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`:
 
 ```text
 EXPLICIT_G8_ACTIVATION_PATH = IMPLEMENTED
 DEFAULT_PROVIDER_RUNTIME = OFF
-REAL_CANONICAL_READ_E2E = NOT_VERIFIED
-WRITE_RUNTIME_GATE = BLOCKED
+REAL_CANONICAL_READ_E2E = VERIFIED_ALT_EXTERNAL_LINUX_EXACT_SHA
+RESTART_RESUME = VERIFIED_ALT_EXTERNAL_LINUX_EXACT_SHA
+NO_DUPLICATE_LINEAGE = VERIFIED
+INDEPENDENT_VERIFY = VERIFIED
+WRITE_RUNTIME_GATE = BLOCKED_PENDING_REPEATED_READ_AND_FULL_ADR0019_GATE
 PRODUCTION_EFFECTS = DISABLED
 ```
+
+Evidence is retained under `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNAL_LINUX_20260919_2f9ab7f`. The acceptance summary SHA-256 is `4691d002fe64ba04f7c8cd895e99aee79d9f383036522338157e724e9b98915c`, the evidence manifest SHA-256 is `df0dc0f353f3aa1d876dacd9261c4c816a476c3ac51300f0d1f4c24e631392fe`, and the closure report SHA-256 is `aacc12efe55f8817ca388f3b3449a5ca90127972e3691d656ee4f68b4e392673`. An earlier masked HTTP 403 is retained as historical evidence but is classified `NOT_REPRODUCED`: direct runtime diagnosis, an instrumented HTTP probe and the subsequent original full acceptance harness all succeeded on the same source SHA.
 
 ## Historical bounded mutation evidence
 
@@ -366,7 +371,7 @@ G0_GITHUB_GOVERNANCE=UNKNOWN
 G7_CANONICAL_READ_API=MERGED
 G7_RESTART_SAFE_RESUME=MERGED
 G8_DEFAULT_READ_RUNTIME=OFF
-REAL_CANONICAL_READ_E2E=NOT_VERIFIED
+REAL_CANONICAL_READ_E2E=VERIFIED_ALT_EXTERNAL_LINUX_EXACT_SHA
 WRITE_RUNTIME_GATE=BLOCKED
 RELEASE=NOT_PERFORMED
 DEPLOYMENT=NOT_PERFORMED
