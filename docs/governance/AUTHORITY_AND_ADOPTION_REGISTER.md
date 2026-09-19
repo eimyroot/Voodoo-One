@@ -4,7 +4,7 @@
 |---|---|
 | Document class | Governance authority and adoption register |
 | Candidate preparation date | `2026-08-06` |
-| Latest recorded owner adoption date | `2026-08-24` |
+| Latest recorded owner adoption date | `2026-09-19` |
 | Scope | VOODOO One governance documents, accepted ADRs, and technical operating-standard succession |
 | Live repository authority | None; live Git, tests, CI, artifacts and runtime remain separate evidence sources |
 | Owner adoption effect | An explicit owner decision over an exact content SHA-256 and candidate commit creates adoption when recorded here without modifying the adopted content |
@@ -270,3 +270,34 @@ The adopted bytes are exactly those in candidate commit
 merged those bytes without modifying the ADR. This external record establishes effective adoption and
 does not itself authorize G8 implementation beyond the separately recorded owner instruction, any
 provider mutation, release, deployment, or production effect.
+
+## 13. ADR-0021 + Product & Architecture Thesis R3 owner adoption record
+
+```text
+ARCHITECTURE_PACKAGE: docs/adr/ADR-0021-core-kernel-fractal-capability-architecture.md + docs/architecture/VONE_PRODUCT_ARCHITECTURE_THESIS_R3.md
+VERSION_OR_CANDIDATE_VERSION: VOODOO One Core Kernel + Fractal Capability Architecture R3
+DECLARED_STATUS: PROPOSED / REVIEW REQUIRED
+EFFECTIVE_STATUS: ADOPTED
+OWNER: project owner VOODOO — ENGINEERING
+ADOPTION_METHOD: explicit owner decision over exact candidate commit 33a82f3ecbb930154e415dc4e8325ad9670ae6f9 and exact bound ADR-0021 / R3 Thesis SHA-256 identities
+ADOPTION_DATE: 2026-09-19
+ADOPTED_CONTENT_COMMIT: 33a82f3ecbb930154e415dc4e8325ad9670ae6f9
+ADR_0021_CONTENT_SHA256: 7e49c7b65223e3ee04f758b3c8f963520b7d92412d84a6be84ab9aabf2f44493
+R3_THESIS_CONTENT_SHA256: 5107b552a9a691508ca883fc05c41351383b128e55b362337eca1bfb29f8f543
+SUPERSEDES: none; establishes effective R3 target framing while preserving the owner-adopted R2 baseline and current runtime truth except where an explicit later adopted decision says otherwise
+CONFLICTS_RESOLVED: Core Kernel is a logical provider-neutral trust/authority boundary, not a mandatory new service or microservice; fractal architecture means semantic self-similarity of governed capability contracts, not recursive self-authorization or autonomous recursive execution; child operations receive no implicit authority from parent operations; downstream authority may only preserve or narrow authority; Capability Cell remains distinct from canonical OperationCell/v1; control-plane ExecutionGrant consumption, Runner authority ceiling, Runner/Verifier separation and profile-specific evidence semantics remain unchanged; CyberCore remains intelligence/context/proposal input and does not become execution authority; adoption does not upgrade implementation, provider, capability, release, deployment or production-effect state
+NEXT_REVIEW: before any material change to Core Kernel authority ownership, before a machine-readable Capability Cell contract redefines existing VOP primitives, before hierarchical authority semantics are widened, before Operation Graph execution, or after contradictory runtime/security evidence
+IMPLEMENTATION_AUTHORIZATION: NOT_CREATED_BY_THIS_RECORD
+PROVIDER_WRITE: NOT_AUTHORIZED
+RELEASE: NOT_AUTHORIZED
+DEPLOYMENT: NOT_AUTHORIZED
+PRODUCTION_EFFECTS: NOT_AUTHORIZED
+```
+
+The adopted ADR-0021 and R3 Thesis bytes are exactly those in candidate commit
+`33a82f3ecbb930154e415dc4e8325ad9670ae6f9` with the recorded SHA-256 identities. Their embedded
+`PROPOSED / REVIEW REQUIRED` labels remain unchanged; this external record establishes effective
+`ADOPTED` status.
+This adoption does not itself authorize implementation of a new Core Kernel service, Capability Cell
+runtime/schema, Operation Graph, provider mutation, release, deployment or production effect. Those
+remain separate governed decisions and evidence gates.
