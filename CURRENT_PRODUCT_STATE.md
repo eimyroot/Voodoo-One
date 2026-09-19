@@ -58,12 +58,12 @@ RELEASED / DEPLOYED       = separately governed states
 | Canonical Operation Passport read model | **IMPLEMENTED / TARGETED VERIFIED; durable lineage projection, verification remains `UNKNOWN / NOT_PERSISTED`** |
 | Restart-safe durable resume | **IMPLEMENTED / MERGED via PR #140** |
 | Runtime resume wiring | **IMPLEMENTED / MERGED via PR #140** |
-| G8 READ runtime pack implementation | **IMPLEMENTED / MERGED via PR #144 / `22d814d8b7da`; default inactive** |
+| G8 READ runtime pack implementation | **IMPLEMENTED / MERGED; READ acceptance VERIFIED_ALT_EXTERNAL_LINUX for `main@2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`; default inactive** |
 | Cross-system control-plane R1→R3 foundation | **IMPLEMENTED / MERGED via PR #149/#151/#153/#155** |
 | G7 post-merge verification | **VERIFIED on `main@60bc9c268...` by CI #1015, D4 #202, E3 #193, E4B #189** |
 | GitHub G0 governance | **UNKNOWN / fresh post-rename exact-main verification required** |
-| Explicit non-production G8 activation path | **IMPLEMENTED / TARGETED TESTED; opt-in only, default remains disabled** |
-| Real canonical HTTP READ E2E using default G8 pack | **BLOCKED / NOT YET VERIFIED** |
+| Explicit non-production G8 activation path | **IMPLEMENTED / LIVE VERIFIED by owner-authorized alternative external Linux evidence; opt-in only, default remains disabled** |
+| Real canonical HTTP READ E2E using explicitly activated G8 pack | **VERIFIED_ALT_EXTERNAL_LINUX; official GitHub Actions parity pending due account-level Actions policy** |
 | Provider WRITE activation | **BLOCKED** |
 | Reusable CREATE_REF orchestration | **IMPLEMENTED PRE-EFFECT ONLY; NOT CURRENTLY EXECUTED** |
 | Reusable DELETE_REF rollback orchestration | **IMPLEMENTED PRE-EFFECT ONLY; NOT CURRENTLY EXECUTED** |
@@ -320,14 +320,17 @@ WRITE_RUNTIME_GATE   = ELIGIBLE
 
 ## G8 current boundary
 
-The G8 READ runtime pack implementation is merged and the current source now includes an explicit non-production activation path. The default remains `disabled`; activation is accepted only for local/development/staging SQLite composition with production effects disabled, complete explicit G8 configuration, distinct Runner/Verifier credentials and distinct provider instances. The product-owned assembler reuses the exact ProductComposition DB and DatabasePermissionAuthority and builds one READ-only capability/capsule/pipeline/fence graph. It never falls back to ambient `GITHUB_TOKEN` or the legacy `ExecutionService`. Real authenticated HTTP READ E2E and restart/resume acceptance remain unverified.
+The G8 READ runtime pack implementation is merged and the current source now includes an explicit non-production activation path. The default remains `disabled`; activation is accepted only for local/development/staging SQLite composition with production effects disabled, complete explicit G8 configuration, distinct Runner/Verifier credentials and distinct provider instances. The product-owned assembler reuses the exact ProductComposition DB and DatabasePermissionAuthority and builds one READ-only capability/capsule/pipeline/fence graph. It never falls back to ambient `GITHUB_TOKEN` or the legacy `ExecutionService`.
 
-Until real G8 HTTP READ E2E is verified:
+On 2026-09-19 the owner authorized a one-time alternative external Linux G8 acceptance run because official GitHub Actions workflow dispatch for `eimyroot/Voodoo-One` was blocked before run creation by account-level Actions policy. That run verified the existing G8 acceptance semantics against exact `main` SHA `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`: authenticated canonical HTTP READ, ACTIVE interruption, same-execution resume, independent Verifier readback with separate credentials, no provider write, no release, no deployment and no production effects. Durable sanitized evidence is retained under `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNAL_LINUX_20260919_2f9ab7f`; the evidence manifest `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNAL_LINUX_20260919_2f9ab7f/SHA256SUMS.txt` has SHA-256 `b4ced161adc99c98243b523c3bf15a1055e92a5096e0839755d2a2f86f889d92`.
+
+Official GitHub Actions parity remains pending. This is recorded as an external account-policy blocker, not as a product READ failure.
 
 ```text
 EXPLICIT_G8_ACTIVATION_PATH = IMPLEMENTED
 DEFAULT_PROVIDER_RUNTIME = OFF
-REAL_CANONICAL_READ_E2E = NOT_VERIFIED
+REAL_CANONICAL_READ_E2E = VERIFIED_ALT_EXTERNAL_LINUX
+G8_GITHUB_ACTIONS_PARITY = PENDING_ACCOUNT_ACTIONS_POLICY
 WRITE_RUNTIME_GATE = BLOCKED
 PRODUCTION_EFFECTS = DISABLED
 ```
@@ -366,7 +369,8 @@ G0_GITHUB_GOVERNANCE=UNKNOWN
 G7_CANONICAL_READ_API=MERGED
 G7_RESTART_SAFE_RESUME=MERGED
 G8_DEFAULT_READ_RUNTIME=OFF
-REAL_CANONICAL_READ_E2E=NOT_VERIFIED
+REAL_CANONICAL_READ_E2E=VERIFIED_ALT_EXTERNAL_LINUX
+G8_GITHUB_ACTIONS_PARITY=PENDING_ACCOUNT_ACTIONS_POLICY
 WRITE_RUNTIME_GATE=BLOCKED
 RELEASE=NOT_PERFORMED
 DEPLOYMENT=NOT_PERFORMED

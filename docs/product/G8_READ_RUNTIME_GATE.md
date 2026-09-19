@@ -1,6 +1,6 @@
 # G8 — Explicit READ-Only Provider Runtime Gate
 
-Current source state: **G8 READ runtime pack IMPLEMENTED / MERGED via PR #144 / `22d814d8b7da56226dba92351bd6a04196268085`; explicit non-production activation path IMPLEMENTED / TARGETED TESTED; default remains OFF and live gate exit remains NOT VERIFIED.**
+Current source state: **G8 READ runtime pack IMPLEMENTED / MERGED; explicit non-production activation path IMPLEMENTED; owner-authorized alternative external Linux READ acceptance VERIFIED for `main@2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`; default remains OFF and official GitHub Actions parity remains pending due account-level Actions policy.**
 
 ## Purpose
 
@@ -52,7 +52,9 @@ The default runtime pack must contain no provider mutation transport and no call
 
 The repository includes `g8-live-product-read-acceptance`, a manual main-only GitHub Actions gate. It requires separately provisioned fine-grained READ credentials `VONE_G8_RUNNER_GITHUB_TOKEN` and `VONE_G8_VERIFIER_GITHUB_TOKEN` bound to distinct GitHub user principals. The workflow-level `contents: read` permission remains only the Actions checkout ceiling; the installation-scoped `github.token` is not used as a G8 user credential because it cannot satisfy the released `/user` principal attestation contract. The workflow performs no provider mutation, release or deployment.
 
-The workflow is infrastructure only until it succeeds on an exact `main` SHA. Missing Runner or Verifier credentials, inability to attest either credential through GitHub `/user`, identical Runner/Verifier principals, target-SHA drift, duplicate durable lineage or a non-`VERIFIED` result all fail closed.
+The workflow is the official parity path. On 2026-09-19 GitHub returned HTTP 422 before run creation because Actions were disabled by account-level policy for the user, so the owner authorized a one-time alternative external Linux run using the existing G8 acceptance semantics as the evidence standard. That alternative run verified exact `main` SHA `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f` with separate Runner and Verifier credentials, GitHub-only egress, no provider write, no release, no deployment and durable sanitized evidence under `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNAL_LINUX_20260919_2f9ab7f`.
+
+Missing Runner or Verifier credentials, inability to attest either credential through GitHub `/user`, identical Runner/Verifier principals, target-SHA drift, duplicate durable lineage or a non-`VERIFIED` result all fail closed.
 
 The R3 decision record is `docs/governance/G8_LIVE_ACCEPTANCE_R3_DECISION_CARD.md`.
 
@@ -83,6 +85,23 @@ The restart gate explicitly exercises the existing `ACTIVE`-execution resume con
 
 Repeated READ E2E evidence must be retained before ADR-0019 can make WRITE runtime merely `ELIGIBLE`.
 
+## Retained alternative acceptance evidence
+
+```text
+G8_READ_ACCEPTANCE          = VERIFIED_ALT_EXTERNAL_LINUX
+EXACT_MAIN_SHA              = 2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f
+RUNNER_VERIFIER_SEPARATION  = VERIFIED
+AUTHENTICATED_HTTP_READ     = VERIFIED
+ACTIVE_INTERRUPTION_RESUME  = VERIFIED
+INDEPENDENT_VERIFIER_READ   = VERIFIED
+PROVIDER_WRITE              = NOT_PERFORMED
+RELEASE                     = NOT_PERFORMED
+DEPLOYMENT                  = NOT_PERFORMED
+GITHUB_ACTIONS_PARITY       = PENDING_ACCOUNT_ACTIONS_POLICY
+EVIDENCE_ROOT               = /Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNAL_LINUX_20260919_2f9ab7f
+EVIDENCE_MANIFEST_SHA256    = b4ced161adc99c98243b523c3bf15a1055e92a5096e0839755d2a2f86f889d92
+```
+
 ## Non-scope
 
 - no CREATE_REF provider call;
@@ -101,7 +120,8 @@ G8 R1 may only claim:
 
 ```text
 DEFAULT_READ_PROVIDER_RUNTIME = IMPLEMENTED / VERIFIED
-REAL_CANONICAL_READ_E2E       = VERIFIED
+REAL_CANONICAL_READ_E2E       = VERIFIED_ALT_EXTERNAL_LINUX
+GITHUB_ACTIONS_PARITY         = PENDING_ACCOUNT_ACTIONS_POLICY
 WRITE_RUNTIME_GATE            = BLOCKED or ELIGIBLE per ADR-0019 evidence
 ```
 

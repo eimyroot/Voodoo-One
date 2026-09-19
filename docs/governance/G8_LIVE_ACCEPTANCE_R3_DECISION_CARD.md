@@ -32,4 +32,10 @@ VRATNÁ: ANO — workflow/secret can be disabled; provider state is read-only
 DŮKAZNĚ OVĚŘITELNÁ: ANO — sanitized retained artifact with SHA-256 checksums
 ```
 
-Current implementation status is **IMPLEMENTED / LOCALLY VERIFIED; LIVE G8 EXIT GATE NOT VERIFIED**. Full repository pytest, product readiness, workflow contract tests, YAML parsing, Python lint/compile checks and a fresh SQLite fixture smoke have passed locally on the CR-3 candidate bytes. The live G8 exit gate remains **NOT VERIFIED** until this workflow runs successfully on the exact main SHA with separately provisioned fine-grained READ-only Runner and Verifier credentials bound to distinct user principals.
+Current implementation status is **IMPLEMENTED / OWNER-AUTHORIZED ALTERNATIVE EXTERNAL LINUX READ ACCEPTANCE VERIFIED; OFFICIAL GITHUB ACTIONS PARITY PENDING**.
+
+On 2026-09-19 the official `g8-live-product-read-acceptance` workflow could not be dispatched because GitHub returned HTTP 422 before creating a run: account-level Actions policy had disabled Actions for the user. The owner authorized a one-time alternative external Linux acceptance run using the existing G8 acceptance workflow semantics as the evidence standard.
+
+The alternative run verified exact `main` SHA `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f` with distinct Runner and Verifier credentials, GitHub-only egress, authenticated canonical HTTP READ, ACTIVE interruption, same-execution resume, independent verifier readback and `VerificationResult/v1`. It performed no provider write, release, deployment or production effect. Durable sanitized evidence is retained at `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNAL_LINUX_20260919_2f9ab7f`; `SHA256SUMS.txt` has SHA-256 `b4ced161adc99c98243b523c3bf15a1055e92a5096e0839755d2a2f86f889d92`.
+
+The official GitHub Actions gate remains the parity rerun path once the account-level Actions policy blocker is removed. This pending parity item does not downgrade the owner-authorized product READ acceptance evidence and does not authorize provider WRITE, release or deployment.
