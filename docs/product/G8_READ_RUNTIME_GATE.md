@@ -48,6 +48,14 @@ capability       = github.read-ref/v1
 
 The default runtime pack must contain no provider mutation transport and no callable CREATE_REF, DELETE_REF, rollback, generic execute, or arbitrary API method surface.
 
+## Acceptance automation
+
+The repository includes `g8-live-product-read-acceptance`, a manual main-only GitHub Actions gate. It requires separately provisioned fine-grained READ credentials `VONE_G8_RUNNER_GITHUB_TOKEN` and `VONE_G8_VERIFIER_GITHUB_TOKEN` bound to distinct GitHub user principals. The workflow-level `contents: read` permission remains only the Actions checkout ceiling; the installation-scoped `github.token` is not used as a G8 user credential because it cannot satisfy the released `/user` principal attestation contract. The workflow performs no provider mutation, release or deployment.
+
+The workflow is infrastructure only until it succeeds on an exact `main` SHA. Missing Runner or Verifier credentials, inability to attest either credential through GitHub `/user`, identical Runner/Verifier principals, target-SHA drift, duplicate durable lineage or a non-`VERIFIED` result all fail closed.
+
+The R3 decision record is `docs/governance/G8_LIVE_ACCEPTANCE_R3_DECISION_CARD.md`.
+
 ## Acceptance sequence
 
 A G8 candidate is not product-ready until one exact candidate head demonstrates:
