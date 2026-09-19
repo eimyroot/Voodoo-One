@@ -93,8 +93,8 @@ OperationProof != OperationCell
 | Canonical Operation Passport `GET /api/v1/operations/{execution_id}/passport` | IMPLEMENTED / targeted tested; same-DB durable lineage, verification `UNKNOWN / NOT_PERSISTED` |
 | Restart-safe durable READ resume | IMPLEMENTED / MERGED via PR #140 |
 | GitHub main governance enforcement | UNKNOWN / fresh post-rename G0 required; historical VERIFIED evidence retained |
-| G8 READ runtime pack | IMPLEMENTED / merged via PR #144; default activation remains disabled pending live G8 acceptance |
-| Real canonical HTTP READ E2E through default G8 pack | BLOCKED / not yet verified |
+| G8 READ runtime pack + explicit non-production activation | IMPLEMENTED / targeted tested; opt-in only, default remains disabled; live acceptance pending |
+| Real canonical HTTP READ E2E through explicitly activated G8 pack | BLOCKED / not yet verified |
 | Provider WRITE activation | BLOCKED pending repeated READ E2E + restart-safe verification gate |
 | Production effects | BLOCKED / disabled by default |
 | Unrestricted production release | BLOCKED |

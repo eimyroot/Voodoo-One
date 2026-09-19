@@ -214,5 +214,6 @@ def test_composed_installer_preserves_routes_and_middleware(tmp_path: Path) -> N
 def test_product_entrypoint_uses_composed_installer() -> None:
     source = (ROOT / "voodoo_product" / "main.py").read_text(encoding="utf-8")
     assert "from .composition import install_composed_product_platform" in source
-    assert "install_composed_product_platform(app)" in source
+    assert "resolve_g8_read_runtime_factory(config)" in source
+    assert "canonical_runtime_factory=resolve_g8_read_runtime_factory(config)" in source
     assert "from .api import install_product_platform" not in source

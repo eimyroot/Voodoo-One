@@ -120,7 +120,7 @@ The Control Room does not yet expose these as one canonical operation passport. 
 
 The following cannot be solved by visual redesign alone:
 
-1. explicit non-production activation of the merged G8 READ runtime pack;
+1. real authenticated HTTP READ through the implemented explicit non-production G8 activation path;
 2. real authenticated canonical HTTP READ E2E through current DB authority;
 3. process interruption while ACTIVE and restart-safe resume of the same execution;
 4. evidence that no duplicate prepare/grant/consume/outbox/inbox/epoch/lease is created;
@@ -176,9 +176,11 @@ evidence integrity to independent verification.
 
 ### CR-2 — G8 live READ acceptance
 
+Status: explicit non-production activation path is `IMPLEMENTED / TARGETED TESTED`; live acceptance remains open.
+
 Target: prove the backend path that the product experience is meant to represent.
 
-- activate the merged READ-only runtime only through explicit non-production configuration;
+- explicit opt-in activation is implemented; default remains disabled and production activation fails closed;
 - run authenticated canonical HTTP READ E2E;
 - inject restart while ACTIVE;
 - prove durable same-execution resume and no duplicate authority/dispatch state;

@@ -62,7 +62,7 @@ RELEASED / DEPLOYED       = separately governed states
 | Cross-system control-plane R1→R3 foundation | **IMPLEMENTED / MERGED via PR #149/#151/#153/#155** |
 | G7 post-merge verification | **VERIFIED on `main@60bc9c268...` by CI #1015, D4 #202, E3 #193, E4B #189** |
 | GitHub G0 governance | **UNKNOWN / fresh post-rename exact-main verification required** |
-| Default provider runtime activation | **DISABLED / FAIL-CLOSED; merged G8 pack is not installed by default** |
+| Explicit non-production G8 activation path | **IMPLEMENTED / TARGETED TESTED; opt-in only, default remains disabled** |
 | Real canonical HTTP READ E2E using default G8 pack | **BLOCKED / NOT YET VERIFIED** |
 | Provider WRITE activation | **BLOCKED** |
 | Reusable CREATE_REF orchestration | **IMPLEMENTED PRE-EFFECT ONLY; NOT CURRENTLY EXECUTED** |
@@ -320,11 +320,12 @@ WRITE_RUNTIME_GATE   = ELIGIBLE
 
 ## G8 current boundary
 
-The G8 READ runtime pack implementation is merged. The default application still does not install it, so the product remains fail-closed until an explicit non-production activation path and real HTTP READ E2E are verified. The pack reuses existing canonical components, requires separate Runner and Verifier credential decisions/identities, binds the exact ProductComposition DB/permission authority/profile registry/current fence, and forbids ambient credential fallback.
+The G8 READ runtime pack implementation is merged and the current source now includes an explicit non-production activation path. The default remains `disabled`; activation is accepted only for local/development/staging SQLite composition with production effects disabled, complete explicit G8 configuration, distinct Runner/Verifier credentials and distinct provider instances. The product-owned assembler reuses the exact ProductComposition DB and DatabasePermissionAuthority and builds one READ-only capability/capsule/pipeline/fence graph. It never falls back to ambient `GITHUB_TOKEN` or the legacy `ExecutionService`. Real authenticated HTTP READ E2E and restart/resume acceptance remain unverified.
 
-Until explicit G8 activation and real HTTP READ E2E are verified:
+Until real G8 HTTP READ E2E is verified:
 
 ```text
+EXPLICIT_G8_ACTIVATION_PATH = IMPLEMENTED
 DEFAULT_PROVIDER_RUNTIME = OFF
 REAL_CANONICAL_READ_E2E = NOT_VERIFIED
 WRITE_RUNTIME_GATE = BLOCKED

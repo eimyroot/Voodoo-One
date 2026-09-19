@@ -76,6 +76,16 @@ inline styles or eval. `VOODOO_ENV=production` additionally enables one-year HST
 only behind correctly terminated HTTPS. Supported Uvicorn commands disable both access and server
 headers.
 
+## Explicit G8 READ activation
+
+The canonical G8 provider runtime remains disabled unless `VOODOO_G8_READ_RUNTIME=enabled`. Enable it only in `local`, `development` or `staging`; production and unreleased database backends fail closed. The disabled path does not read G8 credentials and does not use generic `GITHUB_TOKEN`.
+
+Activation requires distinct Runner and Verifier GitHub tokens, distinct provider-instance identities, content-addressed Runner/Verifier runtime profile digests, the dependency-lock digest, SBOM digest and a canonical non-negative `VOODOO_G8_REVOCATION_EPOCH`. Inject secrets through the environment/secret manager rather than committing them to `.env` files. Startup attests both GitHub credential principals and aborts if the identities collapse or configuration is incomplete.
+
+`VOODOO_G8_REVOCATION_EPOCH` is currently a startup-configured global epoch. Increasing it requires a process restart and invalidates authority created under the previous epoch; this is not a dynamic revocation service. Emergency stop remains the separate database-backed live deny control.
+
+The activation path still does **not** prove the G8 exit gate. After startup, retain separate evidence for authenticated HTTP READ E2E, interruption while ACTIVE, same-execution resume without duplicate authority/dispatch/lease state, independent Verifier readback and `VerificationResult/v1`. Provider WRITE remains blocked.
+
 ## Readiness gate
 
 ```bash

@@ -8,7 +8,7 @@ release explicitly changes this statement and all production gates are evidenced
 The current canonical product includes authoritative snapshot/grant issuance, durable one-time grant
 consumption, bounded isolated READ Runner contracts, an independent Verifier path, a merged READ HTTP
 surface, and restart-safe durable resume. The G8 READ runtime pack implementation is merged, but the default provider runtime remains
-disabled/fail-closed pending explicit non-production activation and live G8 acceptance; provider WRITE
+disabled/fail-closed by default; an explicit non-production activation path now exists but live G8 acceptance remains pending; provider WRITE
 remains blocked.
 
 ## Reporting

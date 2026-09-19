@@ -120,6 +120,10 @@ class ExecutionService:
                     and not self.config.production_effects_enabled
                 ):
                     raise PermissionError("production effects remain disabled")
+                if str(request_row["adapter"]) == "github-read-ref":
+                    raise PermissionError(
+                        "github-read-ref requires the canonical operation runtime"
+                    )
                 execution_id = self._id_factory("exec")
                 execution_fence = 1
                 now = self._clock()

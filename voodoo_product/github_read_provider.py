@@ -17,6 +17,8 @@ from .isolated_runner import (
 from .trusted_clock import ClockWitness, TrustedClockAuthority
 
 GITHUB_READ_REF_CAPABILITY: Final = "github.read-ref/v1"
+GITHUB_READ_REF_REQUEST_ADAPTER: Final = "github-read-ref"
+GITHUB_READ_REF_BINDER_ID: Final = "github-read-ref-target-binder/v1"
 GITHUB_REF_TARGET_KIND: Final = "git_ref"
 GITHUB_REF_OBSERVATION_TYPE: Final = "github-ref-observation/v1"
 
@@ -141,6 +143,26 @@ def _require_ref(value: object) -> str:
     ):
         raise ValueError("ref is invalid")
     return ref
+
+
+class GitHubReadRefTargetBinder:
+    """Bind the reviewed GitHub READ request to one exact repository/ref target."""
+
+    binder_id = GITHUB_READ_REF_BINDER_ID
+    target_kind = GITHUB_REF_TARGET_KIND
+
+    def bind(self, *, approved_payload: Mapping[str, Any]) -> ExecutionTarget:
+        _require_exact_fields(
+            approved_payload,
+            frozenset({"repository", "ref"}),
+            contract="github-read-ref-request/v1",
+        )
+        repository = _require_repository(approved_payload["repository"])
+        ref = _require_ref(approved_payload["ref"])
+        return ExecutionTarget.create(
+            target_kind=self.target_kind,
+            target_claims={"repository": repository, "ref": ref},
+        )
 
 
 class GitHubReadDenied(PermissionError):

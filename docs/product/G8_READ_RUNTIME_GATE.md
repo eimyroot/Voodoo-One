@@ -1,6 +1,6 @@
 # G8 — Explicit READ-Only Provider Runtime Gate
 
-Current source state: **G8 READ runtime pack IMPLEMENTED / MERGED via PR #144 / `22d814d8b7da56226dba92351bd6a04196268085`; default activation and live gate exit remain NOT VERIFIED.**
+Current source state: **G8 READ runtime pack IMPLEMENTED / MERGED via PR #144 / `22d814d8b7da56226dba92351bd6a04196268085`; explicit non-production activation path IMPLEMENTED / TARGETED TESTED; default remains OFF and live gate exit remains NOT VERIFIED.**
 
 ## Purpose
 

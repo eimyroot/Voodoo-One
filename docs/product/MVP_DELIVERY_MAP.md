@@ -8,8 +8,8 @@
 | Current post-G7 source milestone | PR #140 merged; canonical READ API from PR #137 merged; exact current SHA is queried live |
 | G0 GitHub governance | UNKNOWN current / historical VERIFIED evidence retained; fresh post-rename G0 required |
 | G7 durable resume/runtime wiring | IMPLEMENTED / MERGED |
-| G8 READ runtime pack | IMPLEMENTED / MERGED; not installed by default, live acceptance pending |
-| Real canonical HTTP READ E2E | NOT VERIFIED; merged G8 pack still needs explicit activation + live acceptance |
+| G8 READ runtime pack + explicit non-production activation | IMPLEMENTED / targeted tested; opt-in only, default OFF, live acceptance pending |
+| Real canonical HTTP READ E2E | NOT VERIFIED; explicit activation exists, live acceptance still required |
 | Provider WRITE | BLOCKED |
 | Production effects | BLOCKED / disabled by default |
 | Release status | DEVELOPMENT / CONTROLLED PILOT ONLY; release/deployment not performed |
@@ -152,8 +152,7 @@ Acceptance remains deny-by-default and no client-supplied authority fact becomes
 
 Bounded GitHub READ Runner/Verifier pilots and canonical READ terminal/runtime components exist, G7
 adds restart-safe ACTIVE-execution reconstruction, and the G8 READ runtime pack implementation is merged.
-The default application does not install that pack, so MVP-3 still requires an explicit non-production
-composition path plus one real authenticated canonical path:
+The default application keeps the pack disabled. An explicit non-production composition path now exists, so MVP-3 still requires one real authenticated canonical path:
 
 ```text
 HTTP admission
@@ -215,7 +214,7 @@ This does not authorize unrestricted production use.
 ## Immediate priority order
 
 1. merge post-G7 product-truth convergence only after exact-head CI and independent review;
-2. wire the merged G8 READ-only runtime pack through an explicit non-production configuration path without ambient credentials;
+2. retain and verify the implemented explicit G8 activation path without ambient credentials;
 3. prove authenticated canonical HTTP READ E2E;
 4. inject restart while execution is ACTIVE and prove durable resume without duplicate prepare/grant/consume/dispatch/epoch/lease;
 5. prove independent `VerificationResult/v1` and fail-closed corruption/revocation paths;
