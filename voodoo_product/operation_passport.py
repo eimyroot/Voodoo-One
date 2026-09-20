@@ -6,10 +6,36 @@ from typing import Any
 
 from .evidence_primitives import canonical_json
 from .persistence import DatabaseRow, DatabaseStatement, ProductDatabaseAdapter
+from .verification_result import VerificationResult
 
 OPERATION_PASSPORT_SCHEMA = "vone.operation-passport/v1"
 VERIFICATION_NOT_PERSISTED = "NOT_PERSISTED"
+VERIFICATION_PERSISTED = "PERSISTED"
 VERIFICATION_UNKNOWN = "UNKNOWN"
+
+SELECT_RECENT_EXECUTIONS = DatabaseStatement(
+    name="operation_passport.select_recent_executions",
+    mode="read",
+    sqlite_sql="""
+        SELECT execution_id
+        FROM authorization_snapshots
+        ORDER BY created_at DESC, execution_id DESC
+        LIMIT ?
+    """,
+)
+
+
+SELECT_RECENT_VERIFIED_EXECUTIONS = DatabaseStatement(
+    name="operation_passport.select_recent_verified_executions",
+    mode="read",
+    sqlite_sql="""
+        SELECT execution_id
+        FROM verification_results_v1
+        ORDER BY checked_at DESC, execution_id DESC
+        LIMIT ?
+    """,
+)
+
 
 SELECT_OPERATION_PASSPORT = DatabaseStatement(
     name="operation_passport.select_by_execution",
@@ -48,7 +74,14 @@ SELECT_OPERATION_PASSPORT = DatabaseStatement(
             epoch.updated_at AS epoch_updated_at,
             lease.lease_id AS lease_row_id,
             lease.lease_digest AS lease_row_digest,
-            lease.lease_json
+            lease.lease_json,
+            verification.execution_id AS verification_execution_id,
+            verification.execution_epoch AS verification_execution_epoch,
+            verification.target_digest AS verification_target_digest,
+            verification.runner_observation_digest AS verification_runner_observation_digest,
+            verification.verdict AS verification_row_verdict,
+            verification.result_digest AS verification_row_digest,
+            verification.result_json AS verification_result_json
         FROM authorization_snapshots AS snapshot
         LEFT JOIN execution_grants_v2 AS grant_row
           ON grant_row.execution_id = snapshot.execution_id
@@ -62,6 +95,8 @@ SELECT_OPERATION_PASSPORT = DatabaseStatement(
           ON epoch.execution_id = snapshot.execution_id
         LEFT JOIN execution_leases_v1 AS lease
           ON lease.lease_id = epoch.current_lease_id
+        LEFT JOIN verification_results_v1 AS verification
+          ON verification.execution_id = snapshot.execution_id
         WHERE snapshot.execution_id = ?
     """,
 )
@@ -97,8 +132,8 @@ class OperationPassportService:
 
     The service owns no persistence and creates no authority. It reads the exact ProductService
     database and refuses to project non-canonical JSON or broken cross-row lineage. Independent
-    VerificationResult/v1 is intentionally not inferred from execution completion or evidence
-    integrity because current READ verification results are not durably persisted in this schema.
+    VerificationResult/v1 is projected only when schema-v15 durable evidence is present and validates
+    against canonical execution/target/epoch/completion lineage; otherwise verification remains UNKNOWN.
     """
 
     def __init__(self, *, database: ProductDatabaseAdapter) -> None:
@@ -114,6 +149,29 @@ class OperationPassportService:
         if row is None:
             raise LookupError("canonical operation passport not found")
         return self._project(row)
+
+    def list_recent(self, *, limit: int = 20) -> list[OperationPassport]:
+        if type(limit) is not int or limit < 1 or limit > 100:
+            raise ValueError("limit must be an integer between 1 and 100")
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                SELECT_RECENT_EXECUTIONS,
+                (limit,),
+            ).fetchall()
+        return [
+            self.get(_require_identifier(row["execution_id"], field="execution_id"))
+            for row in rows
+        ]
+
+    def list_recent_verified(self, *, limit: int = 20) -> list[OperationPassport]:
+        if type(limit) is not int or limit < 1 or limit > 100:
+            raise ValueError("limit must be an integer between 1 and 100")
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                SELECT_RECENT_VERIFIED_EXECUTIONS,
+                (limit,),
+            ).fetchall()
+        return [self.get(_require_identifier(row["execution_id"], field="execution_id")) for row in rows]
 
     @classmethod
     def _project(cls, row: DatabaseRow) -> OperationPassport:
@@ -158,6 +216,9 @@ class OperationPassportService:
         outbox = _decode_optional_contract(row["entry_json"], field="entry_json")
         inbox = _decode_optional_contract(row["admission_json"], field="admission_json")
         lease = _decode_optional_contract(row["lease_json"], field="lease_json")
+        verification_result = _decode_optional_verification_result(
+            row["verification_result_json"]
+        )
 
         _validate_optional_row_digest(
             grant,
@@ -199,6 +260,7 @@ class OperationPassportService:
             digest_field="lease_digest",
             contract="execution lease",
         )
+        _validate_verification_row(verification_result, row=row)
 
         cls._validate_lineage(
             snapshot=snapshot,
@@ -207,6 +269,7 @@ class OperationPassportService:
             outbox=outbox,
             inbox=inbox,
             lease=lease,
+            verification_result=verification_result,
             row=row,
         )
 
@@ -280,16 +343,29 @@ class OperationPassportService:
             "completed_at": row["completed_at"],
             "updated_at": row["epoch_updated_at"],
         }
-        verification = {
-            "status": VERIFICATION_NOT_PERSISTED,
-            "verdict": VERIFICATION_UNKNOWN,
-            "result_digest": None,
-            "independent_verification_exposed": False,
-            "reason": (
-                "No durable VerificationResult/v1 is stored for this execution; "
-                "execution/runtime state must not be promoted to VERIFIED."
-            ),
-        }
+        if verification_result is None:
+            verification = {
+                "status": VERIFICATION_NOT_PERSISTED,
+                "verdict": VERIFICATION_UNKNOWN,
+                "result_digest": None,
+                "independent_verification_exposed": False,
+                "reason": (
+                    "No durable VerificationResult/v1 is stored for this execution; "
+                    "execution/runtime state must not be promoted to VERIFIED."
+                ),
+            }
+        else:
+            verification = {
+                "status": VERIFICATION_PERSISTED,
+                "verdict": verification_result.verdict,
+                "result_digest": verification_result.result_digest,
+                "independent_verification_exposed": True,
+                "reason": verification_result.reason,
+                "checked_at": verification_result.checked_at,
+                "verification_strength_class": (
+                    verification_result.verification_strength_class
+                ),
+            }
         operation = {
             "request_id": snapshot["request_id"],
             "actor_id": snapshot["actor_id"],
@@ -313,7 +389,7 @@ class OperationPassportService:
             integrity={
                 "canonical_json_validated": True,
                 "lineage_bindings_validated": True,
-                "independent_verification_validated": False,
+                "independent_verification_validated": verification_result is not None,
             },
         )
 
@@ -326,6 +402,7 @@ class OperationPassportService:
         outbox: dict[str, Any] | None,
         inbox: dict[str, Any] | None,
         lease: dict[str, Any] | None,
+        verification_result: VerificationResult | None,
         row: DatabaseRow,
     ) -> None:
         _require_parent_chain(grant, consumption, outbox, inbox, lease)
@@ -420,6 +497,18 @@ class OperationPassportService:
         elif row["epoch_status"] is not None:
             raise RuntimeError("operation passport epoch state exists without current lease")
 
+        if verification_result is not None:
+            if row["epoch_status"] != "COMPLETED":
+                raise RuntimeError("operation passport verification requires completed execution")
+            if verification_result.execution_id != snapshot["execution_id"]:
+                raise RuntimeError("operation passport verification execution binding mismatch")
+            if verification_result.execution_epoch != int(row["current_epoch"]):
+                raise RuntimeError("operation passport verification epoch binding mismatch")
+            if verification_result.target_digest != snapshot["target_digest"]:
+                raise RuntimeError("operation passport verification target binding mismatch")
+            if verification_result.runner_observation_digest != row["completion_digest"]:
+                raise RuntimeError("operation passport verification completion binding mismatch")
+
 
 def _require_identifier(value: object, *, field: str) -> str:
     if not isinstance(value, str) or not value or len(value) > 256 or "\x00" in value:
@@ -443,6 +532,47 @@ def _decode_canonical_object(value: object, *, field: str) -> dict[str, Any]:
 
 def _decode_optional_contract(value: object, *, field: str) -> dict[str, Any] | None:
     return None if value is None else _decode_canonical_object(value, field=field)
+
+
+def _decode_optional_verification_result(value: object) -> VerificationResult | None:
+    if value is None:
+        return None
+    raw = _decode_canonical_object(value, field="verification_result_json")
+    try:
+        return VerificationResult.from_dict(raw)
+    except ValueError as exc:
+        raise RuntimeError(
+            "operation passport verification_result_json is invalid"
+        ) from exc
+
+
+def _validate_verification_row(
+    result: VerificationResult | None, *, row: DatabaseRow
+) -> None:
+    fields = (
+        "verification_execution_id",
+        "verification_execution_epoch",
+        "verification_target_digest",
+        "verification_runner_observation_digest",
+        "verification_row_verdict",
+        "verification_row_digest",
+    )
+    if result is None:
+        if any(row[field] is not None for field in fields):
+            raise RuntimeError(
+                "operation passport verification row exists without contract JSON"
+            )
+        return
+    expected = {
+        "verification_execution_id": result.execution_id,
+        "verification_execution_epoch": result.execution_epoch,
+        "verification_target_digest": result.target_digest,
+        "verification_runner_observation_digest": result.runner_observation_digest,
+        "verification_row_verdict": result.verdict,
+        "verification_row_digest": result.result_digest,
+    }
+    if {key: row[key] for key in expected} != expected:
+        raise RuntimeError("operation passport verification row bindings mismatch")
 
 
 def _require_claim_bindings(

@@ -61,6 +61,7 @@ REQUIRED = [
     "voodoo_product/github_delete_ref_runtime.py",
     "voodoo_product/g8_product_activation.py",
     "scripts/g8_live_product_acceptance.py",
+    "scripts/verify_architecture_atlas.py",
     ".github/workflows/g8-live-product-read.yml",
     "docs/governance/G8_LIVE_ACCEPTANCE_R3_DECISION_CARD.md",
     "voodoo_product/github_read_provider.py",
@@ -209,12 +210,15 @@ REQUIRED = [
     "docs/README.md",
     "docs/architecture/TRUST_BOUNDARIES.md",
     "docs/architecture/VOP_CANONICAL_VOCABULARY.md",
+    "docs/architecture/atlas/README.md",
+    "docs/architecture/atlas/architecture-manifest.yaml",
     "docs/governance/DOCUMENTATION_POLICY.md",
     "docs/governance/GITHUB_MAIN_GOVERNANCE_BASELINE_V1.md",
     "docs/product/CURRENT_CAPABILITIES.md",
     "docs/product/DATABASE_MIGRATIONS.md",
     "docs/product/TARGET_CAPABILITIES.md",
     "tests/system/test_project_documentation.py",
+    "tests/system/test_architecture_atlas.py",
     "docs/adr/ADR-0001-portable-sandbox-path-resolution.md",
     "docs/adr/ADR-0002-local-checkpoint-proofgraph-verification.md",
     "docs/adr/ADR-0015-operation-proof-v2-current-lineage-r1.md",
@@ -421,6 +425,9 @@ def main() -> int:
                 if pattern.search(text):
                     secret_findings.append(f"{path.relative_to(ROOT)} contains {label}")
     checks["secret_scan"] = {"ok": not secret_findings, "findings": secret_findings}
+
+    atlas = run([sys.executable, "scripts/verify_architecture_atlas.py"])
+    checks["architecture_atlas"] = {"ok": atlas["returncode"] == 0, **atlas}
 
     tests = run([sys.executable, "-m", "pytest", "tests/system", "-q"])
     checks["system_tests"] = {"ok": tests["returncode"] == 0, **tests}

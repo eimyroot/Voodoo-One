@@ -15,6 +15,7 @@ from .credential_authentication import CredentialAuthenticationService
 from .db import create_product_database
 from .evidence_primitives import canonical_json, chained_hash, new_id, utc_now
 from .execution import ExecutionService, timestamp_after, timestamp_expired
+from .operation_passport import OperationPassport, OperationPassportService
 from .operational_safety import OperationalSafetyService
 from .persistence import DatabaseConnection, DatabaseRow, ProductDatabaseAdapter
 from .platform_status import PlatformStatusService
@@ -525,22 +526,33 @@ class ProductService:
         executions = self.list_executions(limit=CONTROL_ROOM_LIMIT)
         receipts = self.list_receipts(limit=CONTROL_ROOM_LIMIT)
         audits = self.list_audit_events(limit=CONTROL_ROOM_LIMIT)
+        passport_service = OperationPassportService(database=self.db)
+        canonical_passports = passport_service.list_recent(limit=CONTROL_ROOM_LIMIT)
+        verification_passports = passport_service.list_recent_verified(
+            limit=CONTROL_ROOM_LIMIT
+        )
         return {
             "overview": overview,
             "runs": self._summarize_runs(change_requests, executions),
             "plans": self._summarize_plans(change_requests, approvals),
+            "architecture": self._architecture_projection(canonical_runtime_enabled),
             "capability_registry": self._capability_registry(canonical_runtime_enabled),
             "evidence_timeline": self._evidence_timeline(
                 change_requests=change_requests,
                 executions=executions,
                 receipts=receipts,
                 audits=audits,
+                canonical_passports=canonical_passports,
             ),
             "policy_gates": self._policy_gates(
                 overview=overview,
                 canonical_runtime_enabled=canonical_runtime_enabled,
             ),
-            "verifier_center": self._verifier_center(receipts=receipts, executions=executions),
+            "verifier_center": self._verifier_center(
+                receipts=receipts,
+                executions=executions,
+                verification_passports=verification_passports,
+            ),
             "runtime_health": self._runtime_health(
                 health=self.health(),
                 canonical_runtime_enabled=canonical_runtime_enabled,
@@ -617,6 +629,39 @@ class ProductService:
             )
         return {"items": items, "pending_approvals": len(approvals)}
 
+    @staticmethod
+    def _architecture_projection(canonical_runtime_enabled: bool) -> dict[str, Any]:
+        canonical_status = "ENABLED" if canonical_runtime_enabled else "DISABLED"
+        return {
+            "projection": "AS_IS_RUNTIME",
+            "source": "product_service.control_room",
+            "flows": [
+                {
+                    "id": "legacy_governed_execution",
+                    "label": "Governed adapter execution",
+                    "status": "ACTIVE",
+                    "nodes": [
+                        {"id": "change_request", "label": "Change Request", "status": "ACTIVE", "source": "change_request_service"},
+                        {"id": "approval", "label": "Approval", "status": "ACTIVE", "source": "change_request_service"},
+                        {"id": "execution_service", "label": "Execution Service", "status": "ACTIVE", "source": "execution_service"},
+                        {"id": "receipt_audit", "label": "Receipt + Audit", "status": "ACTIVE", "source": "receipt_ledger + audit_ledger"},
+                    ],
+                },
+                {
+                    "id": "canonical_read",
+                    "label": "Canonical READ",
+                    "status": canonical_status,
+                    "nodes": [
+                        {"id": "canonical_api", "label": "Canonical READ API", "status": "EXPOSED", "source": "canonical_operation_http"},
+                        {"id": "authority_pipeline", "label": "Authority + Dispatch", "status": canonical_status, "source": "canonical_operation_runtime"},
+                        {"id": "read_runner", "label": "READ Runner", "status": canonical_status, "source": "canonical_read_terminal"},
+                        {"id": "independent_verifier", "label": "Independent Verifier", "status": canonical_status, "source": "canonical_read_terminal"},
+                        {"id": "operation_passport", "label": "Operation Passport", "status": "EXPOSED", "source": "operation_passport_service", "note": "schema-v15 durable VerificationResult/v1 is exposed when present; absence remains UNKNOWN / NOT_PERSISTED"},
+                    ],
+                },
+            ],
+        }
+
     def _capability_registry(self, canonical_runtime_enabled: bool) -> dict[str, Any]:
         adapters = [
             {
@@ -662,17 +707,149 @@ class ProductService:
             "production_effects_enabled": self.config.production_effects_enabled,
         }
 
+    @staticmethod
+    def _canonical_evidence_items(
+        passports: list[OperationPassport],
+    ) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+
+        def append(
+            *,
+            execution_id: str,
+            request_id: object,
+            title: str,
+            stage: str,
+            status: str,
+            timestamp: object,
+            reference: object,
+            detail: str,
+        ) -> None:
+            if not isinstance(timestamp, str) or not timestamp:
+                return
+            items.append(
+                {
+                    "kind": stage,
+                    "id": f"canonical:{execution_id}:{stage.casefold()}",
+                    "title": title,
+                    "status": status,
+                    "timestamp": timestamp,
+                    "detail": detail,
+                    "source": "OPERATION_PASSPORT",
+                    "execution_id": execution_id,
+                    "request_id": request_id,
+                    "reference": reference,
+                }
+            )
+
+        for passport in passports:
+            execution_id = passport.execution_id
+            operation = passport.operation
+            request_id = operation["request_id"]
+            authority = passport.authority
+            snapshot = authority["snapshot"]
+            grant = authority["grant"]
+            consumption = authority["consumption"]
+            outbox = passport.dispatch["outbox"]
+            runtime = passport.runtime
+            verification = passport.verification
+            title = f"{execution_id} · {operation['capability']}"
+
+            append(
+                execution_id=execution_id,
+                request_id=request_id,
+                title=title,
+                stage="CANONICAL_AUTHORIZATION",
+                status="AUTHORIZED",
+                timestamp=snapshot["authorized_at"],
+                reference=snapshot["snapshot_digest"],
+                detail=f"AuthorizationSnapshot {snapshot['snapshot_digest']}",
+            )
+            if grant is not None:
+                append(
+                    execution_id=execution_id,
+                    request_id=request_id,
+                    title=title,
+                    stage="CANONICAL_GRANT",
+                    status="ISSUED",
+                    timestamp=grant["issued_at"],
+                    reference=grant["grant_digest"],
+                    detail=f"ExecutionGrant/v2 {grant['grant_digest']}",
+                )
+            if consumption is not None:
+                append(
+                    execution_id=execution_id,
+                    request_id=request_id,
+                    title=title,
+                    stage="CANONICAL_GRANT_CONSUMPTION",
+                    status="CONSUMED",
+                    timestamp=consumption["consumed_at"],
+                    reference=consumption["consumption_digest"],
+                    detail=f"GrantConsumptionWitness/v1 {consumption['consumption_digest']}",
+                )
+            if outbox is not None:
+                append(
+                    execution_id=execution_id,
+                    request_id=request_id,
+                    title=title,
+                    stage="CANONICAL_DISPATCH",
+                    status="ENQUEUED",
+                    timestamp=outbox["created_at"],
+                    reference=outbox["entry_digest"],
+                    detail=f"DispatchOutboxEntry/v1 {outbox['entry_digest']}",
+                )
+
+            runtime_timestamp = runtime["completed_at"] or runtime["updated_at"]
+            runtime_reference = (
+                runtime["completion_digest"] or runtime["execution_capsule_digest"]
+            )
+            verification_state = (
+                f"{verification['status']} / {verification['verdict']}"
+            )
+            append(
+                execution_id=execution_id,
+                request_id=request_id,
+                title=title,
+                stage="CANONICAL_RUNTIME",
+                status=str(runtime["status"]),
+                timestamp=runtime_timestamp,
+                reference=runtime_reference,
+                detail=(
+                    f"Runtime {runtime['status']} · verification {verification_state}"
+                ),
+            )
+
+            if verification["independent_verification_exposed"]:
+                append(
+                    execution_id=execution_id,
+                    request_id=request_id,
+                    title=title,
+                    stage="CANONICAL_VERIFICATION",
+                    status=str(verification["verdict"]),
+                    timestamp=verification["checked_at"],
+                    reference=verification["result_digest"],
+                    detail=(
+                        "VerificationResult/v1 "
+                        f"{verification['result_digest']} · "
+                        f"{verification['verification_strength_class']}"
+                    ),
+                )
+
+        items.sort(key=lambda item: (item["timestamp"], item["id"]), reverse=True)
+        return items
+
+    @classmethod
     def _evidence_timeline(
-        self,
+        cls,
         *,
         change_requests: list[dict[str, Any]],
         executions: list[dict[str, Any]],
         receipts: list[dict[str, Any]],
         audits: list[dict[str, Any]],
+        canonical_passports: list[OperationPassport],
     ) -> list[dict[str, Any]]:
-        items: list[dict[str, Any]] = []
+        legacy_items: list[dict[str, Any]] = []
         for event in audits[:6]:
-            items.append(
+            legacy_items.append(
                 {
                     "kind": "AUDIT_EVENT",
                     "id": event["id"],
@@ -680,10 +857,14 @@ class ProductService:
                     "status": "RECORDED",
                     "timestamp": event["created_at"],
                     "detail": event["target_type"],
+                    "source": "AUDIT_LEDGER",
+                    "execution_id": None,
+                    "request_id": None,
+                    "reference": event["id"],
                 }
             )
         for receipt in receipts[:3]:
-            items.append(
+            legacy_items.append(
                 {
                     "kind": "RECEIPT",
                     "id": receipt["id"],
@@ -691,10 +872,14 @@ class ProductService:
                     "status": "RECORDED",
                     "timestamp": receipt["created_at"],
                     "detail": receipt["receipt_hash"],
+                    "source": "RECEIPT_LEDGER",
+                    "execution_id": receipt["execution_id"],
+                    "request_id": None,
+                    "reference": receipt["receipt_hash"],
                 }
             )
         for execution in executions[:3]:
-            items.append(
+            legacy_items.append(
                 {
                     "kind": "EXECUTION",
                     "id": execution["id"],
@@ -702,10 +887,14 @@ class ProductService:
                     "status": execution["status"],
                     "timestamp": execution["updated_at"],
                     "detail": execution["adapter"],
+                    "source": "LEGACY_EXECUTION",
+                    "execution_id": execution["id"],
+                    "request_id": None,
+                    "reference": execution.get("receipt_id"),
                 }
             )
         for request in change_requests[:3]:
-            items.append(
+            legacy_items.append(
                 {
                     "kind": "PLAN",
                     "id": request["id"],
@@ -713,10 +902,33 @@ class ProductService:
                     "status": request["status"],
                     "timestamp": request["updated_at"],
                     "detail": request["risk"],
+                    "source": "CHANGE_REQUEST",
+                    "execution_id": None,
+                    "request_id": request["id"],
+                    "reference": request["id"],
                 }
             )
-        items.sort(key=lambda item: item["timestamp"], reverse=True)
-        return items[:CONTROL_ROOM_LIMIT]
+
+        canonical_items = cls._canonical_evidence_items(canonical_passports)
+        legacy_items.sort(
+            key=lambda item: (item["timestamp"], item["id"]),
+            reverse=True,
+        )
+        canonical_quota = CONTROL_ROOM_LIMIT // 2
+        legacy_quota = CONTROL_ROOM_LIMIT - canonical_quota
+        selected = canonical_items[:canonical_quota] + legacy_items[:legacy_quota]
+        if len(selected) < CONTROL_ROOM_LIMIT:
+            overflow = canonical_items[canonical_quota:] + legacy_items[legacy_quota:]
+            overflow.sort(
+                key=lambda item: (item["timestamp"], item["id"]),
+                reverse=True,
+            )
+            selected.extend(overflow[: CONTROL_ROOM_LIMIT - len(selected)])
+        selected.sort(
+            key=lambda item: (item["timestamp"], item["id"]),
+            reverse=True,
+        )
+        return selected[:CONTROL_ROOM_LIMIT]
 
     def _policy_gates(
         self,
@@ -757,24 +969,51 @@ class ProductService:
         *,
         receipts: list[dict[str, Any]],
         executions: list[dict[str, Any]],
+        verification_passports: list[OperationPassport],
     ) -> dict[str, Any]:
-        recent_checks = []
+        recent_checks: list[dict[str, Any]] = []
+        canonical_execution_ids: set[str] = set()
+        for passport in verification_passports:
+            verification = passport.verification
+            canonical_execution_ids.add(passport.execution_id)
+            recent_checks.append(
+                {
+                    "source": "VERIFICATION_RESULT_V1",
+                    "receipt_id": None,
+                    "execution_id": passport.execution_id,
+                    "execution_status": passport.runtime["status"],
+                    "verification_status": verification["verdict"],
+                    "verification_strength": verification["verification_strength_class"],
+                    "result_digest": verification["result_digest"],
+                    "checked_at": verification["checked_at"],
+                    "created_at": verification["checked_at"],
+                }
+            )
+
         execution_index = {item["id"]: item for item in executions}
         for receipt in receipts[:CONTROL_ROOM_LIMIT]:
+            if receipt["execution_id"] in canonical_execution_ids:
+                continue
             execution = execution_index.get(receipt["execution_id"], {})
             recent_checks.append(
                 {
+                    "source": "LEGACY_RECEIPT",
                     "receipt_id": receipt["id"],
                     "execution_id": receipt["execution_id"],
                     "execution_status": execution.get("status", "UNKNOWN"),
                     "verification_status": "UNKNOWN",
+                    "verification_strength": None,
+                    "result_digest": None,
+                    "checked_at": None,
                     "created_at": receipt["created_at"],
                 }
             )
+        recent_checks.sort(key=lambda item: item["created_at"], reverse=True)
         return {
             "separation_rule": "ExecutionReceipt != VerificationResult",
-            "recent_checks": recent_checks,
-            "independent_verification_exposed": False,
+            "recent_checks": recent_checks[:CONTROL_ROOM_LIMIT],
+            "independent_verification_exposed": bool(verification_passports),
+            "canonical_result_count": len(verification_passports),
         }
 
     def _runtime_health(

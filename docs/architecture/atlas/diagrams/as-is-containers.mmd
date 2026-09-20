@@ -1,0 +1,19 @@
+flowchart TB
+    B[Browser\nStatic Control Room]
+    subgraph V[VOODOO One product boundary]
+      APP[FastAPI / Uvicorn\nmodular monolith]
+      DB[(SQLite\nproduct + authority + evidence state)]
+      FS[(Governed sandbox filesystem)]
+    end
+    GH[GitHub API]
+
+    B <-->|HTTPS / JSON + static assets| APP
+    APP <-->|SQL transactions| DB
+    APP <-->|allowlisted governed files| FS
+    APP -->|optional G8 READ\ndistinct Runner/Verifier credentials| GH
+
+    NOTE[No standalone broker, worker,\nPostgreSQL service or SandCloud runtime AS-IS]
+    NOTE -.-> V
+
+    classDef missing stroke-dasharray:4 4;
+    class NOTE missing;

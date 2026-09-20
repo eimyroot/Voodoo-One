@@ -23,7 +23,13 @@ def test_evidence_ui_does_not_promote_receipt_integrity_to_verified_operation() 
     assert "overview.receipt_integrity.valid?'PASS':'FAIL'" in source
     assert "overview.audit_integrity.valid?'PASS':'FAIL'" in source
     assert "status(check.verification_status)" in source
+    assert "check.source==='VERIFICATION_RESULT_V1'" in source
+    assert "check.verification_strength" in source
+    assert "check.result_digest" in source
     assert "Independent verification zatím nemá runtime výsledek." in source
+    assert "item.source==='OPERATION_PASSPORT'" in source
+    assert "data-evidence-passport-execution-id" in source
+    assert "await loadView('runs')" in source
     assert "status('VERIFIED')" not in source
 
 

@@ -112,8 +112,8 @@ def test_fresh_database_records_ordered_checksum_history(tmp_path: Path) -> None
     database.initialize()
 
     rows = migration_rows(database)
-    assert database.schema_version() == 14
-    assert [row[0] for row in rows] == list(range(1, 15))
+    assert database.schema_version() == 15
+    assert [row[0] for row in rows] == list(range(1, 16))
     assert [row[1] for row in rows] == [
         "0001_core_schema.sql",
         "0002_auth_rate_limits.sql",
@@ -129,6 +129,7 @@ def test_fresh_database_records_ordered_checksum_history(tmp_path: Path) -> None
         "0012_dispatch_inbox.sql",
         "0013_execution_epoch_leases.sql",
         "0014_workspace_memberships.sql",
+        "0015_durable_verification_results.sql",
     ]
     assert all(len(str(row[2])) == 64 for row in rows)
     assert all(str(row[3]).endswith("+00:00") for row in rows)
@@ -164,7 +165,7 @@ def test_legacy_database_is_adopted_without_data_loss(tmp_path: Path) -> None:
             "SELECT id, username, password_hash FROM users WHERE id = 'usr_legacy'"
         ).fetchone()
     assert tuple(user) == ("usr_legacy", "legacy-admin", "preserved-hash")
-    assert database.schema_version() == 14
+    assert database.schema_version() == 15
 
 
 def test_initialization_is_idempotent(tmp_path: Path) -> None:
@@ -216,7 +217,7 @@ def test_receipt_sequence_migration_reconstructs_chain_links(tmp_path: Path) -> 
     with database.connect() as migrated:
         rows = migrated.execute("SELECT sequence, id FROM receipts ORDER BY sequence").fetchall()
     assert [tuple(row) for row in rows] == [(1, "rcpt_z"), (2, "rcpt_a")]
-    assert database.schema_version() == 14
+    assert database.schema_version() == 15
     service = ProductService(
         ProductConfig(
             environment="test",
@@ -357,7 +358,7 @@ def test_execution_lease_migration_marks_legacy_running_execution_expired(
             "SELECT fence, lease_expires_at FROM executions WHERE id = 'exec_running'"
         ).fetchone()
     assert tuple(execution) == (1, started_at)
-    assert database.schema_version() == 14
+    assert database.schema_version() == 15
 
 
 def test_workspace_environment_migration_preserves_history_and_blocks_bypass(
@@ -399,7 +400,7 @@ def test_workspace_environment_migration_preserves_history_and_blocks_bypass(
     database = SQLiteProductDatabase(path)
     database.initialize()
 
-    assert database.schema_version() == 14
+    assert database.schema_version() == 15
     with database.connect() as migrated:
         legacy = migrated.execute(
             "SELECT environment, status FROM change_requests WHERE id = 'cr_legacy'"
@@ -521,7 +522,7 @@ def test_review_binding_migration_preserves_legacy_history_without_backfill(
     database = SQLiteProductDatabase(path)
     database.initialize()
 
-    assert database.schema_version() == 14
+    assert database.schema_version() == 15
     with database.connect() as migrated:
         pending = migrated.execute(
             """
@@ -557,6 +558,50 @@ def test_review_binding_migration_preserves_legacy_history_without_backfill(
         )
 
 
+def test_durable_verification_migration_upgrades_v14_without_rewriting_prior_state(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "schema-v14-verification.sqlite3"
+    create_schema_version(path, 14)
+    connection = sqlite3.connect(path)
+    try:
+        before_tables = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        }
+        before_history = connection.execute(
+            "SELECT version, name, checksum FROM schema_migrations ORDER BY version"
+        ).fetchall()
+    finally:
+        connection.close()
+
+    database = SQLiteProductDatabase(path)
+    database.initialize()
+
+    assert database.schema_version() == 15
+    with database.connect() as migrated:
+        after_tables = {
+            str(row["name"])
+            for row in migrated.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        }
+        after_history = migrated.execute(
+            "SELECT version, name, checksum FROM schema_migrations ORDER BY version"
+        ).fetchall()
+        verification_count = migrated.execute(
+            "SELECT COUNT(*) AS count FROM verification_results_v1"
+        ).fetchone()
+
+    assert before_tables <= after_tables
+    assert "verification_results_v1" not in before_tables
+    assert "verification_results_v1" in after_tables
+    assert [tuple(row) for row in after_history[:14]] == [tuple(row) for row in before_history]
+    assert int(verification_count["count"]) == 0
+
+
 def test_workspace_membership_migration_does_not_fabricate_legacy_membership(
     tmp_path: Path,
 ) -> None:
@@ -586,7 +631,7 @@ def test_workspace_membership_migration_does_not_fabricate_legacy_membership(
     database = SQLiteProductDatabase(path)
     database.initialize()
 
-    assert database.schema_version() == 14
+    assert database.schema_version() == 15
     with database.connect() as migrated:
         membership_count = migrated.execute(
             "SELECT COUNT(*) AS count FROM workspace_memberships"
@@ -610,7 +655,7 @@ def test_applied_migration_checksum_drift_fails_closed(tmp_path: Path) -> None:
     with pytest.raises(DatabaseMigrationError, match="history drift detected"):
         database.initialize()
 
-    assert database.schema_version() == 14
+    assert database.schema_version() == 15
 
 
 def test_missing_required_environment_trigger_fails_schema_validation(tmp_path: Path) -> None:
@@ -633,9 +678,97 @@ def test_missing_workspace_membership_table_fails_schema_validation(tmp_path: Pa
         database.initialize()
 
 
+DURABLE_CANONICAL_TABLES = (
+    "execution_grants_v2",
+    "grant_consumptions_v1",
+    "dispatch_outbox_v1",
+    "dispatch_inbox_v1",
+    "execution_leases_v1",
+    "execution_epoch_state_v1",
+    "verification_results_v1",
+)
+
+DURABLE_CANONICAL_INDEXES = (
+    "idx_execution_grants_v2_request",
+    "idx_execution_grants_v2_workspace_environment",
+    "idx_grant_consumptions_v1_execution",
+    "idx_dispatch_outbox_v1_workspace_environment",
+    "idx_dispatch_outbox_v1_created_at",
+    "idx_dispatch_inbox_v1_workspace_environment",
+    "idx_dispatch_inbox_v1_execution",
+    "idx_execution_leases_v1_admission_epoch",
+    "idx_execution_leases_v1_execution",
+    "idx_execution_epoch_state_v1_execution",
+    "idx_execution_epoch_state_v1_status_expiry",
+)
+
+DURABLE_CANONICAL_TRIGGERS = (
+    "trg_execution_grants_v2_snapshot_binding_insert",
+    "trg_execution_grants_v2_immutable_update",
+    "trg_execution_grants_v2_immutable_delete",
+    "trg_grant_consumptions_v1_grant_binding_insert",
+    "trg_grant_consumptions_v1_immutable_update",
+    "trg_grant_consumptions_v1_immutable_delete",
+    "trg_dispatch_outbox_v1_binding_insert",
+    "trg_dispatch_outbox_v1_immutable_update",
+    "trg_dispatch_outbox_v1_immutable_delete",
+    "trg_dispatch_inbox_v1_outbox_binding_insert",
+    "trg_dispatch_inbox_v1_immutable_update",
+    "trg_dispatch_inbox_v1_immutable_delete",
+    "trg_execution_leases_v1_admission_binding_insert",
+    "trg_execution_leases_v1_immutable_update",
+    "trg_execution_leases_v1_immutable_delete",
+    "trg_execution_epoch_state_v1_insert_guard",
+    "trg_execution_epoch_state_v1_update_guard",
+    "trg_execution_epoch_state_v1_immutable_delete",
+    "trg_verification_results_v1_binding_insert",
+    "trg_verification_results_v1_immutable_update",
+    "trg_verification_results_v1_immutable_delete",
+)
+
+
+@pytest.mark.parametrize("table_name", DURABLE_CANONICAL_TABLES)
+def test_missing_durable_canonical_table_fails_schema_validation(
+    tmp_path: Path, table_name: str
+) -> None:
+    database = SQLiteProductDatabase(tmp_path / "product.sqlite3")
+    database.initialize()
+    with database.connect() as connection:
+        connection.execute(f'DROP TABLE "{table_name}"')
+
+    with pytest.raises(DatabaseMigrationError, match=table_name):
+        database.initialize()
+
+
+@pytest.mark.parametrize("index_name", DURABLE_CANONICAL_INDEXES)
+def test_missing_durable_canonical_index_fails_schema_validation(
+    tmp_path: Path, index_name: str
+) -> None:
+    database = SQLiteProductDatabase(tmp_path / "product.sqlite3")
+    database.initialize()
+    with database.connect() as connection:
+        connection.execute(f'DROP INDEX "{index_name}"')
+
+    with pytest.raises(DatabaseMigrationError, match="missing indexes"):
+        database.initialize()
+
+
+@pytest.mark.parametrize("trigger_name", DURABLE_CANONICAL_TRIGGERS)
+def test_missing_durable_canonical_trigger_fails_schema_validation(
+    tmp_path: Path, trigger_name: str
+) -> None:
+    database = SQLiteProductDatabase(tmp_path / "product.sqlite3")
+    database.initialize()
+    with database.connect() as connection:
+        connection.execute(f'DROP TRIGGER "{trigger_name}"')
+
+    with pytest.raises(DatabaseMigrationError, match="missing triggers"):
+        database.initialize()
+
+
 def test_failed_pending_migration_rolls_back_complete_initialization(tmp_path: Path) -> None:
     migrations = copy_migrations(tmp_path)
-    (migrations / "0015_broken.sql").write_text(
+    (migrations / "0016_broken.sql").write_text(
         "CREATE TABLE migration_should_rollback (id INTEGER);\nTHIS IS NOT SQL;\n",
         encoding="utf-8",
     )
@@ -691,8 +824,8 @@ def test_concurrent_initialization_serializes_without_duplicate_history(tmp_path
         list(executor.map(initialize, range(8)))
 
     database = SQLiteProductDatabase(path)
-    assert database.schema_version() == 14
-    assert len(migration_rows(database)) == 14
+    assert database.schema_version() == 15
+    assert len(migration_rows(database)) == 15
 
 
 def test_postgresql_backend_fails_before_creating_local_database(tmp_path: Path) -> None:
@@ -720,7 +853,7 @@ def test_health_reports_released_backend_and_schema_version(tmp_path: Path) -> N
 
     assert response.status_code == 200
     assert response.json()["database_backend"] == "sqlite"
-    assert response.json()["schema_version"] == 14
+    assert response.json()["schema_version"] == 15
     assert response.json()["production_effects"] == "DISABLED"
 
     service = app.state.voodoo_product_service

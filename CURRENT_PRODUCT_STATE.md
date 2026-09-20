@@ -55,7 +55,7 @@ RELEASED / DEPLOYED       = separately governed states
 | Canonical ProductComposition trust-plane seam | **IMPLEMENTED / MERGED** |
 | Canonical public READ operation API | **IMPLEMENTED / MERGED via PR #137** |
 | Read-only control-room dashboard projection | **IMPLEMENTED / TARGETED VERIFIED** |
-| Canonical Operation Passport read model | **IMPLEMENTED / TARGETED VERIFIED; durable lineage projection, verification remains `UNKNOWN / NOT_PERSISTED`** |
+| Canonical Operation Passport read model | **IMPLEMENTED / LIVE VERIFIED for schema-v15 READ scope on runtime source `f417d780...`; durable `VerificationResult/v1` persists exactly once and is reprojected after a new process as `PERSISTED / VERIFIED`** |
 | Restart-safe durable resume | **IMPLEMENTED / MERGED via PR #140** |
 | Runtime resume wiring | **IMPLEMENTED / MERGED via PR #140** |
 | G8 READ runtime pack implementation | **IMPLEMENTED / MERGED; READ acceptance VERIFIED_ALT_EXTERNAL_LINUX for `main@2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`; default inactive** |
@@ -63,7 +63,7 @@ RELEASED / DEPLOYED       = separately governed states
 | G7 post-merge verification | **VERIFIED on `main@60bc9c268...` by CI #1015, D4 #202, E3 #193, E4B #189** |
 | GitHub G0 governance | **UNKNOWN / fresh post-rename exact-main verification required** |
 | Explicit non-production G8 activation path | **IMPLEMENTED / LIVE VERIFIED by owner-authorized alternative external Linux evidence; opt-in only, default remains disabled** |
-| Real canonical HTTP READ E2E using explicitly activated G8 pack | **VERIFIED_ALT_EXTERNAL_LINUX; official GitHub Actions parity pending due account-level Actions policy** |
+| Real canonical HTTP READ E2E using explicitly activated G8 pack | **VERIFIED_SCHEMA15_LIVE_READ on runtime source `f417d780...` against remote `main@9933fe65...`; historical exact-main acceptance retained; official GitHub Actions parity pending** |
 | Provider WRITE activation | **BLOCKED** |
 | Reusable CREATE_REF orchestration | **IMPLEMENTED PRE-EFFECT ONLY; NOT CURRENTLY EXECUTED** |
 | Reusable DELETE_REF rollback orchestration | **IMPLEMENTED PRE-EFFECT ONLY; NOT CURRENTLY EXECUTED** |
@@ -185,9 +185,7 @@ AuthorizationSnapshot
 
 The projection validates canonical stored JSON and cross-row lineage bindings. It does **not** infer
 independent verification from completion, receipts, audit integrity, or durable runtime state. The
-current schema does not durably store READ `VerificationResult/v1`, so the passport deliberately reports
-`verification.status = NOT_PERSISTED` and `verification.verdict = UNKNOWN` until that later product gate
-is implemented and evidenced. The endpoint is read-only and does not require or activate the G8 provider
+schema v15 durably stores one immutable READ `VerificationResult/v1` per execution after durable completion. The passport validates canonical result JSON plus execution/epoch/target/completion bindings after restart. Executions with no stored final result still report `verification.status = NOT_PERSISTED` and `verification.verdict = UNKNOWN`; execution success is never promoted to verification. The endpoint is read-only and does not require or activate the G8 provider
 runtime.
 
 ## Control-room dashboard projection
@@ -208,9 +206,12 @@ learning_intelligence
 governance
 ```
 
-It is PRODUCT_SURFACED truth for the current local product API/UI slice. It does not prove provider
-runtime activation, release, deployment, or independent verification beyond the data explicitly
-returned in the projection.
+It is PRODUCT_SURFACED truth for the current local product API/UI slice. The global Evidence Timeline
+combines timestamped canonical lifecycle facts from fully validated Operation Passports with retained
+legacy audit/receipt/run/plan evidence; canonical entries carry execution correlation and Passport
+drill-down, and absent durable verification is not fabricated as a verification event. It does not
+prove provider runtime activation, release, deployment, or independent verification beyond the data
+explicitly returned in the projection.
 
 No canonical CREATE_REF, DELETE_REF, or rollback HTTP route exists.
 
@@ -324,14 +325,17 @@ The G8 READ runtime pack implementation is merged and the current source now inc
 
 On 2026-09-19 the owner authorized a one-time alternative external Linux G8 acceptance run because official GitHub Actions workflow dispatch for `eimyroot/Voodoo-One` was blocked before run creation by account-level Actions policy. That run verified the existing G8 acceptance semantics against exact `main` SHA `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`: authenticated canonical HTTP READ, ACTIVE interruption, same-execution resume, independent Verifier readback with separate credentials, no provider write, no release, no deployment and no production effects. Durable sanitized evidence is retained under `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNAL_LINUX_20260919_2f9ab7f`; the evidence manifest `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNAL_LINUX_20260919_2f9ab7f/SHA256SUMS.txt` has SHA-256 `b4ced161adc99c98243b523c3bf15a1055e92a5096e0839755d2a2f86f889d92`.
 
-Official GitHub Actions parity remains pending. This is recorded as an external account-policy blocker, not as a product READ failure.
+On 2026-09-20 a fresh schema-v15 live READ acceptance was executed from exact runtime source `f417d78060304f0d427794641b72692b063efbde` against provider target `refs/heads/main@9933fe65a5f8ff68703ccb434b4ec0ba31fb4592`. It verified authenticated HTTP READ, schema version 15, exactly one durable `VerificationResult/v1` for both the direct HTTP execution and the interrupted/resumed execution, restart-safe Operation Passport reprojection as `PERSISTED / VERIFIED`, same-execution resume, zero duplicate canonical lineage, distinct Runner/Verifier principals, GitHub-only egress, and zero provider WRITE/release/deployment/production effects. Durable evidence is retained under `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_SCHEMA15_LIVE_20260920_f417d78`; `acceptance-summary.json` SHA-256 is `d01ae75a7fdaf584417cb2ff7c915960b79d32c6708428b774c4434214758722`.
+
+Official GitHub Actions parity remains pending. The full/repeated ADR-0019 READ-before-WRITE evidence gate also remains open; this fresh run does not by itself make provider WRITE eligible or authorized.
 
 ```text
 EXPLICIT_G8_ACTIVATION_PATH = IMPLEMENTED
 DEFAULT_PROVIDER_RUNTIME = OFF
-REAL_CANONICAL_READ_E2E = VERIFIED_ALT_EXTERNAL_LINUX
+REAL_CANONICAL_READ_E2E = VERIFIED_SCHEMA15_LIVE_READ
+SCHEMA15_DURABLE_VERIFICATION = VERIFIED_LIVE_READ_SCOPE
 G8_GITHUB_ACTIONS_PARITY = PENDING_ACCOUNT_ACTIONS_POLICY
-WRITE_RUNTIME_GATE = BLOCKED
+WRITE_RUNTIME_GATE = BLOCKED_REPEATED_GATE_OPEN
 PRODUCTION_EFFECTS = DISABLED
 ```
 
@@ -369,9 +373,10 @@ G0_GITHUB_GOVERNANCE=UNKNOWN
 G7_CANONICAL_READ_API=MERGED
 G7_RESTART_SAFE_RESUME=MERGED
 G8_DEFAULT_READ_RUNTIME=OFF
-REAL_CANONICAL_READ_E2E=VERIFIED_ALT_EXTERNAL_LINUX
+REAL_CANONICAL_READ_E2E=VERIFIED_SCHEMA15_LIVE_READ
+SCHEMA15_DURABLE_VERIFICATION=VERIFIED_LIVE_READ_SCOPE
 G8_GITHUB_ACTIONS_PARITY=PENDING_ACCOUNT_ACTIONS_POLICY
-WRITE_RUNTIME_GATE=BLOCKED
+WRITE_RUNTIME_GATE=BLOCKED_REPEATED_GATE_OPEN
 RELEASE=NOT_PERFORMED
 DEPLOYMENT=NOT_PERFORMED
 ```

@@ -1,0 +1,182 @@
+schema: johny-architecture-atlas/v1
+as_of: "2026-09-19"
+repository: eimyroot/Voodoo-One
+source_runtime_sha: 2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f
+atlas_baseline_commit: ae4d425
+status_values:
+  - VERIFIED
+  - IMPLEMENTED BUT NOT VERIFIED
+  - IN PROGRESS
+  - NEXT
+  - BLOCKED
+  - LATER
+nodes:
+  - id: product.control-plane
+    kind: container
+    status: VERIFIED
+    source_paths:
+      - voodoo_product/main.py
+      - voodoo_product/composition.py
+      - voodoo_product/api.py
+    evidence:
+      - "local targeted product-boundary tests: 112 passed, 2026-09-19"
+  - id: persistence.sqlite
+    kind: datastore
+    status: VERIFIED
+    source_paths:
+      - voodoo_product/db.py
+      - voodoo_product/migrations/sqlite
+    evidence:
+      - "architecture-critical tests include current migration suite"
+      - "G-05 closed on current branch: 35 negative durable schema-object tests + 53 migration tests + 133 related durable-runtime tests pass"
+  - id: identity.local
+    kind: capability
+    status: VERIFIED
+    source_paths:
+      - voodoo_product/identity.py
+      - voodoo_product/security.py
+      - voodoo_product/session_lifecycle.py
+    evidence:
+      - "current auth/session targeted tests passed, 2026-09-19"
+  - id: authority.database-permission
+    kind: component
+    status: VERIFIED
+    source_paths:
+      - voodoo_product/permission_authority.py
+      - voodoo_product/workspace.py
+      - voodoo_product/migrations/sqlite/0014_workspace_memberships.sql
+    evidence:
+      - "current permission/workspace targeted tests passed, 2026-09-19"
+  - id: operation.canonical-read-api
+    kind: capability
+    status: VERIFIED
+    source_paths:
+      - voodoo_product/canonical_operation_http.py
+      - voodoo_product/canonical_operation_runtime.py
+    evidence:
+      - "owner-authorized alternative external Linux acceptance verified authenticated canonical HTTP READ on exact main@2f9ab7f; official GitHub Actions parity remains separate"
+  - id: runtime.g8-read
+    kind: runtime
+    status: VERIFIED
+    source_paths:
+      - voodoo_product/g8_product_activation.py
+      - voodoo_product/g8_read_runtime.py
+      - voodoo_product/g8_credential_pins.py
+      - voodoo_product/g8_assembly_guards.py
+      - .github/workflows/g8-live-product-read.yml
+    evidence:
+      - "G8 runtime verified by owner-authorized alternative external Linux acceptance on exact main@2f9ab7f; default remains off"
+  - id: acceptance.g8-live
+    kind: acceptance_gate
+    status: BLOCKED
+    source_paths:
+      - .github/workflows/g8-live-product-read.yml
+    evidence:
+      - "2026-09-19 dispatch rejected before run creation: HTTP 422 Actions has been disabled for this user; repository Actions enabled and workflow active"
+  - id: acceptance.g8-alt-external-linux
+    kind: acceptance_gate
+    status: VERIFIED
+    source_paths:
+      - docs/product/G8_READ_RUNTIME_GATE.md
+      - docs/governance/G8_LIVE_ACCEPTANCE_R3_DECISION_CARD.md
+    evidence:
+      - "owner-authorized external Linux acceptance verified exact main@2f9ab7f with authenticated HTTP READ, distinct Runner/Verifier, ACTIVE interruption/resume, zero duplicate lineage, no provider WRITE/release/deployment; retained manifest sha256 b4ced161adc99c98243b523c3bf15a1055e92a5096e0839755d2a2f86f889d92"
+  - id: verification.result-durable
+    kind: capability
+    status: VERIFIED
+    source_paths:
+      - voodoo_product/canonical_read_terminal.py
+      - voodoo_product/verification_result_persistence.py
+      - voodoo_product/operation_passport.py
+      - voodoo_product/migrations/sqlite/0015_durable_verification_results.sql
+    evidence:
+      - "local migration/passport/G8 runtime regression proves immutable restart-safe result projection; live provider acceptance remains separate"
+  - id: deployment.release-candidate
+    kind: workflow
+    status: IMPLEMENTED BUT NOT VERIFIED
+    source_paths:
+      - .github/workflows/release-candidate.yml
+      - Dockerfile.product
+    evidence:
+      - "workflow definition exists; no current release/deployment claim"
+  - id: deployment.production
+    kind: deployment
+    status: BLOCKED
+    source_paths:
+      - Dockerfile.product
+      - docker-compose.product.yml
+    evidence:
+      - "no production topology/release/deployment evidence; production effects default disabled"
+  - id: identity.oidc
+    kind: capability
+    status: BLOCKED
+    source_paths:
+      - voodoo_product/identity.py
+      - voodoo_product/config.py
+    evidence:
+      - "startup deliberately aborts when OIDC is selected"
+  - id: persistence.postgresql
+    kind: datastore
+    status: BLOCKED
+    source_paths:
+      - voodoo_product/db.py
+      - voodoo_product/config.py
+    evidence:
+      - "database factory raises unreleased-backend error"
+  - id: integration.cybercore-readonly
+    kind: capability
+    status: IMPLEMENTED BUT NOT VERIFIED
+    source_paths:
+      - schemas/cybercore-intake-v1.schema.json
+      - docs/adr/ADR-0020-cybercore-read-only-intake-v1.md
+    evidence:
+      - "contract-only boundary; no active runtime integration"
+  - id: architecture.core-kernel-fractal
+    kind: target_architecture
+    status: VERIFIED
+    source_paths:
+      - docs/architecture/VONE_PRODUCT_ARCHITECTURE_THESIS_R3.md
+      - docs/adr/ADR-0021-core-kernel-fractal-capability-architecture.md
+      - docs/governance/AUTHORITY_AND_ADOPTION_REGISTER.md
+    evidence:
+      - "exact candidate 33a82f3 is effectively ADOPTED through the authority register; adoption creates no implicit runtime/package/schema authority"
+  - id: architecture.atlas
+    kind: documentation
+    status: VERIFIED
+    source_paths:
+      - docs/architecture/atlas
+    evidence:
+      - "AS-IS baseline + objective drift checker locally verified on current-root replay; maintained as living evidence"
+objective_contract:
+  routes:
+    - {method: GET, path: "/api/v1/health", source: voodoo_product/api.py}
+    - {method: POST, path: "/api/v1/auth/login", source: voodoo_product/api.py}
+    - {method: GET, path: "/api/v1/control-room", source: voodoo_product/api.py}
+    - {method: POST, path: "/api/v1/change-requests/{request_id}/execute", source: voodoo_product/api.py}
+    - {method: GET, path: "/api/v1/operations/{execution_id}/passport", source: voodoo_product/canonical_operation_http.py}
+    - {method: POST, path: "/api/v1/operations/{request_id}/read", source: voodoo_product/canonical_operation_http.py}
+  sqlite_migrations:
+    - 0001_core_schema.sql
+    - 0002_auth_rate_limits.sql
+    - 0003_receipt_sequence.sql
+    - 0004_execution_leases.sql
+    - 0005_workspace_environment_boundary.sql
+    - 0006_external_identity_bindings.sql
+    - 0007_active_sessions.sql
+    - 0008_immutable_review_binding.sql
+    - 0009_authorization_snapshots.sql
+    - 0010_durable_execution_grants.sql
+    - 0011_dispatch_outbox.sql
+    - 0012_dispatch_inbox.sql
+    - 0013_execution_epoch_leases.sql
+    - 0014_workspace_memberships.sql
+    - 0015_durable_verification_results.sql
+  workflows:
+    - .github/workflows/ci.yml
+    - .github/workflows/d4b-live-read.yml
+    - .github/workflows/e3-live-verifier-read.yml
+    - .github/workflows/e4b-live-verification-result.yml
+    - .github/workflows/f4b-live-canary-create-ref.yml
+    - .github/workflows/g0-governance-verify.yml
+    - .github/workflows/g8-live-product-read.yml
+    - .github/workflows/release-candidate.yml

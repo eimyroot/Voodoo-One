@@ -298,6 +298,9 @@ def test_console_and_openapi_are_available(tmp_path: Path) -> None:
     assert "syncChangeEnvironment" in javascript.text
     assert "api('/auth/logout', { method: 'POST' })" in javascript.text
     assert "Serverové odvolání relace se nepodařilo potvrdit" in javascript.text
+    assert "data.architecture.flows" in javascript.text
+    for invented_label in ("Intent Compiler", "Capability Router", "Dynamic DAG"):
+        assert invented_label not in javascript.text
     schema = client.get("/openapi.json")
     assert schema.status_code == 200
     assert "/api/v1/change-requests" in schema.json()["paths"]
@@ -334,6 +337,7 @@ def test_control_room_exposes_fail_closed_runtime_truth(tmp_path: Path) -> None:
         "overview",
         "runs",
         "plans",
+        "architecture",
         "capability_registry",
         "evidence_timeline",
         "policy_gates",
@@ -350,7 +354,48 @@ def test_control_room_exposes_fail_closed_runtime_truth(tmp_path: Path) -> None:
     assert control_room["capability_registry"]["fail_closed_default"] is True
     assert control_room["capability_registry"]["production_effects_enabled"] is False
     assert control_room["verifier_center"]["independent_verification_exposed"] is False
+    assert control_room["verifier_center"]["canonical_result_count"] == 0
+    assert not any(
+        item["source"] == "OPERATION_PASSPORT"
+        for item in control_room["evidence_timeline"]
+    )
     assert control_room["learning_intelligence"]["scoring_router"] == "NOT_EXPOSED"
+
+    architecture = control_room["architecture"]
+    assert architecture["projection"] == "AS_IS_RUNTIME"
+    assert architecture["source"] == "product_service.control_room"
+    flows = {flow["id"]: flow for flow in architecture["flows"]}
+    assert set(flows) == {"legacy_governed_execution", "canonical_read"}
+    assert flows["legacy_governed_execution"]["status"] == "ACTIVE"
+    assert flows["canonical_read"]["status"] == "DISABLED"
+    canonical_nodes = {node["id"]: node for node in flows["canonical_read"]["nodes"]}
+    assert canonical_nodes["canonical_api"]["status"] == "EXPOSED"
+    assert canonical_nodes["authority_pipeline"]["status"] == "DISABLED"
+    assert canonical_nodes["read_runner"]["status"] == "DISABLED"
+    assert canonical_nodes["independent_verifier"]["status"] == "DISABLED"
+
+
+def test_control_room_architecture_projection_tracks_canonical_runtime_presence(
+    tmp_path: Path,
+) -> None:
+    client = build_client(tmp_path)
+    admin = bootstrap(client)
+    client.app.state.voodoo_canonical_operation_runtime = object()
+
+    response = client.get("/api/v1/control-room", headers=headers(admin))
+
+    assert response.status_code == 200, response.text
+    flows = {flow["id"]: flow for flow in response.json()["architecture"]["flows"]}
+    canonical = flows["canonical_read"]
+    assert canonical["status"] == "ENABLED"
+    nodes = {node["id"]: node for node in canonical["nodes"]}
+    assert nodes["canonical_api"]["status"] == "EXPOSED"
+    assert nodes["authority_pipeline"]["status"] == "ENABLED"
+    assert nodes["read_runner"]["status"] == "ENABLED"
+    assert nodes["independent_verifier"]["status"] == "ENABLED"
+    assert nodes["operation_passport"]["status"] == "EXPOSED"
+    assert "schema-v15 durable VerificationResult/v1" in nodes["operation_passport"]["note"]
+    assert "UNKNOWN / NOT_PERSISTED" in nodes["operation_passport"]["note"]
 
 
 def test_roles_are_permission_based_not_linear(tmp_path: Path) -> None:

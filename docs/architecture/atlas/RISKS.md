@@ -1,0 +1,16 @@
+# Architecture Risks
+
+`GAP_ANALYSIS.md` explains gaps and candidate changes. This file is the operational risk register view.
+
+| Risk | Impact | Likelihood / exposure | Current control | Exit evidence |
+| --- | --- | --- | --- | --- |
+| G8 repeated acceptance evidence incomplete | REDUCED / MEDIUM | A historical exact-main run and a fresh schema-v15 live READ run both prove the bounded path, but the full/repeated ADR-0019 closure and official Actions parity remain incomplete | default OFF; both retained live evidence sets; WRITE blocked | complete repeated/failure-injection evidence and effect-specific gate; official Actions parity when account eligibility returns |
+| Independent verification durability gap | CLOSED / HIGH | Final verifier truth previously disappeared after process lifetime | immutable schema-v15 result + restart-safe Passport validation | migration/conflict/binding regressions plus fresh live HTTP and resumed executions each persisted exactly one VERIFIED result and reprojected it after a new process |
+| No production deployment contract | HIGH | Enabling effects would outrun secrets/DB/ops/rollback controls | production effects default OFF | staged deployment evidence, rollback drill, ops/security gates |
+| No production metrics/SLO alerting | HIGH | Incidents may be detected only through logs/health/manual evidence | structured logs + health/evidence integrity | metrics/traces, SLOs, alert tests and runbooks |
+| Startup schema drift for canonical authority objects | CLOSED / previously MEDIUM | Manual loss of `0010-0013` tables/indexes/triggers previously evaded immediate validation | explicit required schema/index/trigger invariants + checksummed migrations | 35 negative object-loss tests; 53 migration tests; 133 related durable-runtime tests |
+| G8 mega-module hardening layers | REDUCED / MEDIUM | Assembly is still large, but duplicate role-bound layers are removed and immutable credential plus assembly-provenance guards are isolated in focused internal modules; provider monkeypatch boundaries, implementation pins and the R2 public builder pin remain intentionally local/pinned | behavioral topology + alias identity + exact AST parity + module-rebind adversarial tests | further behavior-preserving extraction with the same G8 regression gates |
+| High orchestration fan-out | MEDIUM | Broad blast radius from composition changes | explicit binding validators | contract ownership map + focused regression gates |
+| UI pseudo-architecture | CLOSED | Control Room no longer invents architecture nodes; backend emits AS-IS legacy and canonical READ flows with runtime status. | evidence-backed `architecture` projection | product-platform contract keeps invented labels absent and runtime status truthful |
+| Architecture drift is manual | MEDIUM | Docs may silently diverge from routes/files/migrations | documentation tests | manifest + objective drift checker |
+| SQLite/in-process coordination scaling ceiling | FUTURE | Multi-instance concurrency/HA requires new guarantees | single-node bounded scope | separate persistence/coordination ADR and load/recovery evidence |

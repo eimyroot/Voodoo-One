@@ -26,6 +26,7 @@ CORE_DOCUMENTS = {
     "docs/governance/ADR0008_R3_EVIDENCE_INDEX.md",
     "docs/governance/DOCUMENTATION_POLICY.md",
     "docs/governance/AUTHORITY_AND_ADOPTION_REGISTER.md",
+    "docs/governance/OWNER_OPERATING_MANDATE.md",
     "docs/adr/ADR-0007-execution-grant-receipt-contract-v1.md",
     "docs/adr/ADR-0008-isolated-runner-boundary-v1.md",
     "docs/security/ISOLATED_RUNNER_THREAT_MODEL_V1.md",

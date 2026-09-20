@@ -116,7 +116,14 @@
           <button data-refresh="runs">Obnovit</button>
         </div>
         <div id="runs-kpis" class="kpi-grid compact"></div>
-        <div class="panel table-panel"><table><thead><tr><th>Status</th><th>Execution</th><th>Request</th><th>Risk</th><th>Environment</th><th>Adapter</th><th>Receipt</th></tr></thead><tbody id="runs-table"></tbody></table></div>
+        <div class="panel table-panel"><table><thead><tr><th>Status</th><th>Execution</th><th>Request</th><th>Risk</th><th>Environment</th><th>Adapter</th><th>Receipt</th><th>Passport</th></tr></thead><tbody id="runs-table"></tbody></table></div>
+        <article id="operation-passport-panel" class="panel passport-panel hidden" aria-live="polite">
+          <div class="panel-heading">
+            <div><p class="eyebrow">Canonical operation</p><h2>Operation Passport</h2><p>Intent → authority → dispatch → runtime → verification, projected read-only from canonical durable state.</p></div>
+            <button id="close-passport-button" class="secondary" type="button">Zavřít</button>
+          </div>
+          <div id="operation-passport-content"></div>
+        </article>
       </section>
 
       <section id="view-plans" class="view">

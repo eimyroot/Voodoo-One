@@ -63,7 +63,12 @@ jobs:
       - name: Checkpoint ProofGraph verification gate
         run: python -m pytest -q tests/system/test_checkpoint_evidence_verifier.py
       - name: Project documentation truth gate
-        run: python -m pytest -q tests/system/test_project_documentation.py
+        run: >-
+          python -m pytest -q
+          tests/system/test_project_documentation.py
+          tests/system/test_architecture_atlas.py
+      - name: Architecture Atlas drift gate
+        run: python scripts/verify_architecture_atlas.py
       - name: VOP terminology and truth drift gate
         run: >-
           python -m pytest -q

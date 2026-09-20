@@ -56,8 +56,10 @@ is evaluated at snapshot creation and revalidated inside the SQLite serialized b
 Grant store and one-time Grant consumption, so a membership removed before consumption fails closed.
 This does not claim retroactive cancellation of an already-consumed/running execution attempt.
 
-SQLite persistence is current through schema 14. `VOODOO_DATABASE_BACKEND=sqlite` remains the only
-current released database mode; selecting unreleased PostgreSQL support fails closed.
+SQLite persistence is current through schema 15. Schema 15 adds one immutable durable
+`VerificationResult/v1` row per execution, bound by SQLite to the canonical target, execution epoch,
+completed Runner observation and existing authorization lineage. `VOODOO_DATABASE_BACKEND=sqlite`
+remains the only current released database mode; selecting unreleased PostgreSQL support fails closed.
 
 ## Canonical public READ API and resume
 

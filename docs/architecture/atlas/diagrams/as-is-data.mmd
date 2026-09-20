@@ -1,0 +1,23 @@
+flowchart LR
+    U[users] --> S[active_sessions]
+    U --> EI[external_identity_bindings]
+    U --> WM[workspace_memberships]
+    W[workspaces] --> WM
+    W --> CR[change_requests]
+    U --> CR
+    CR --> AP[approvals]
+    CR --> EX[executions]
+    EX --> RC[receipts]
+    CR --> AS[authorization_snapshots]
+    AS --> GR[execution_grants_v2]
+    GR --> GC[grant_consumptions_v1]
+    GC --> DO[dispatch_outbox_v1]
+    DO --> DI[dispatch_inbox_v1]
+    DI --> EL[execution_leases_v1]
+    DI --> ES[execution_epoch_state_v1]
+    U --> AU[audit_events]
+
+    VR[VerificationResult/v1\nproduced at runtime] -.->|durable projection NOT PROVEN| EX
+
+    classDef transient stroke-dasharray:5 5;
+    class VR transient;
