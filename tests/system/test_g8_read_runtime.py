@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -611,6 +612,114 @@ def test_g8_builds_only_read_runtime_over_exact_canonical_authority(tmp_path: Pa
             idempotency_key="idem-1234",
             correlation_id="corr-1234",
         )
+
+
+def test_g8_credential_pin_layer_is_extracted_without_changing_runtime_aliases() -> None:
+    pins = importlib.import_module("voodoo_product.g8_credential_pins")
+
+    assert g8_module._CredentialBinding is pins._CredentialBinding
+    assert g8_module._CredentialPin is pins._CredentialPin
+    assert g8_module._ProviderReadEffectPin is pins._ProviderReadEffectPin
+    assert (
+        g8_module._CredentialSourceImplementationPin
+        is pins._CredentialSourceImplementationPin
+    )
+    assert (
+        g8_module._G8IndependentCredentialPairTransport
+        is pins._G8IndependentCredentialPairTransport
+    )
+    assert g8_module._assert_pair_transport_parity is pins._assert_pair_transport_parity
+
+
+def test_g8_assembly_guard_layer_is_extracted_without_changing_runtime_aliases() -> None:
+    guards = importlib.import_module("voodoo_product.g8_assembly_guards")
+
+    assert g8_module._G8AssemblyAnchors is guards._G8AssemblyAnchors
+    assert g8_module._G8ResumeAssemblyBinding is guards._G8ResumeAssemblyBinding
+    assert (
+        g8_module._assert_g8_transport_matches_assembly
+        is guards._assert_g8_transport_matches_assembly
+    )
+
+
+def test_g8_runtime_assembly_preserves_behavioral_topology_contract(tmp_path: Path) -> None:
+    fixture = build_fixture(tmp_path)
+
+    runtime = pack(fixture).build_runtime(
+        service=fixture.service,
+        permission_authority=fixture.permission,
+    )
+
+    terminal = runtime.read_terminal
+    resume = runtime.resume_service
+    assert terminal is not None
+    assert resume is not None
+
+    # Canonical authority stays owned by the caller-supplied product composition.
+    assert runtime.pipeline is fixture.pipeline
+    assert runtime.pipeline.snapshot_creator.permission_authority is fixture.permission
+    assert resume.db is fixture.service.db
+    assert resume.snapshot_store is fixture.pipeline.snapshot_creator.snapshot_store
+    assert resume.permission_authority is fixture.permission
+    assert resume.terminal_profile_registry is fixture.pipeline.terminal_profile_registry
+    assert resume.envelope_revision == fixture.pipeline.envelope_revision
+
+    # READ-only terminal dependencies preserve their exact validated owners.
+    assert terminal.capability_registry is fixture.capability_registry
+    assert terminal.capsule_registry is fixture.capsule_registry
+    assert terminal.runner_adapter.provider is fixture.runner_provider
+    assert terminal.verifier_profile is fixture.verifier_profile
+    assert terminal.verifier_policy is fixture.verifier_policy
+    assert terminal.verifier_clock is fixture.verifier_clock
+    assert terminal.runner_handler.trusted_clock is fixture.runner_clock
+    assert terminal.verifier_handler.trusted_clock is fixture.verifier_clock
+
+    # One fresh execution fence is shared across READ and resume; the source fence is provenance only.
+    runtime_fence = resume.current_fence
+    assert runtime_fence is not fixture.current_fence
+    assert runtime_fence.db is fixture.service.db
+    assert runtime_fence.trusted_clock is fixture.runner_clock
+    assert terminal.runner_adapter.current_fence is runtime_fence
+    assert terminal.runner_handler.current_fence is runtime_fence
+
+    # Runner and Verifier retain distinct role-bound effect transports over the exact source pair.
+    runner_transport = terminal.runner_handler.transport
+    verifier_transport = terminal.verifier_handler.transport
+    assert runner_transport is not verifier_transport
+    assert runner_transport.runner_transport is fixture.runner_transport
+    assert runner_transport.verifier_transport is fixture.verifier_transport
+    assert verifier_transport.runner_transport is fixture.runner_transport
+    assert verifier_transport.verifier_transport is fixture.verifier_transport
+    assert runner_transport.runner_pin.credential_class == RUNNER_CREDENTIAL_CLASS
+    assert verifier_transport.verifier_pin.credential_class == VERIFIER_CREDENTIAL_CLASS
+    assert runner_transport.runner_pin.attested_principal == RUNNER_PRINCIPAL
+    assert verifier_transport.verifier_pin.attested_principal == VERIFIER_PRINCIPAL
+    assert runner_transport.runner_pin.token_fingerprint != verifier_transport.verifier_pin.token_fingerprint
+
+    # G8 remains READ-only regardless of internal assembly implementation.
+    assert runtime.create_ref_preparer is None
+    assert runtime.rollback_preparer is None
+
+
+def test_g8_public_build_runtime_is_pinned_against_module_r2_rebind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = build_fixture(tmp_path)
+    attacker_calls: list[str] = []
+
+    def attacker_build_runtime(*_: object, **__: object) -> CanonicalOperationRuntime:
+        attacker_calls.append("called")
+        raise AssertionError("module-level R2 rebind must not replace the pinned public builder")
+
+    monkeypatch.setattr(g8_module, "_g8_r2_build_runtime", attacker_build_runtime)
+
+    runtime = pack(fixture).build_runtime(
+        service=fixture.service,
+        permission_authority=fixture.permission,
+    )
+
+    assert isinstance(runtime, CanonicalOperationRuntime)
+    assert attacker_calls == []
 
 
 def test_g8_factory_uses_product_composition_arguments_without_hidden_authority(tmp_path: Path) -> None:

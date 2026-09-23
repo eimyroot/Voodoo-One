@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Any
@@ -9,6 +10,7 @@ import pytest
 from voodoo_product.db import SQLiteProductDatabase
 from voodoo_product.evidence_primitives import canonical_json
 from voodoo_product.operation_passport import OperationPassportService
+from voodoo_product.verification_result import VerificationResult
 
 D1 = "1" * 64
 D2 = "2" * 64
@@ -221,7 +223,53 @@ def contract_row(*, epoch_status: str | None = "COMPLETED") -> dict[str, Any]:
         "lease_row_id": lease["lease_id"] if epoch_status is not None else None,
         "lease_row_digest": lease["lease_digest"] if epoch_status is not None else None,
         "lease_json": canonical_json(lease) if epoch_status is not None else None,
+        "verification_execution_id": None,
+        "verification_execution_epoch": None,
+        "verification_target_digest": None,
+        "verification_runner_observation_digest": None,
+        "verification_row_verdict": None,
+        "verification_row_digest": None,
+        "verification_result_json": None,
     }
+
+
+def verification_result(
+    *,
+    target_digest: str = D3,
+    execution_epoch: int = 2,
+    runner_observation_digest: str = D2,
+) -> VerificationResult:
+    return VerificationResult.create(
+        execution_id="exec-1",
+        execution_epoch=execution_epoch,
+        target_digest=target_digest,
+        runner_observation_digest=runner_observation_digest,
+        verifier_observation_digest=D5,
+        observed_post_state_digest=D6,
+        verification_boundary_digest=D7,
+        verifier_id=D8,
+        verifier_identity_digest=D9,
+        verification_strength_digest=DA,
+        verification_strength_class="INDEPENDENT_PROVIDER_READBACK",
+        verdict="VERIFIED",
+        reason="OBSERVED_STATE_MATCH",
+        checked_at="2026-09-17T12:01:01.000+00:00",
+        result_revision="verification-result/passport-test-r1",
+    )
+
+
+def bind_verification(row: dict[str, Any], result: VerificationResult) -> None:
+    row.update(
+        {
+            "verification_execution_id": result.execution_id,
+            "verification_execution_epoch": result.execution_epoch,
+            "verification_target_digest": result.target_digest,
+            "verification_runner_observation_digest": result.runner_observation_digest,
+            "verification_row_verdict": result.verdict,
+            "verification_row_digest": result.result_digest,
+            "verification_result_json": canonical_json(result.to_dict()),
+        }
+    )
 
 
 def test_completed_passport_projects_canonical_lineage_without_inventing_verification() -> None:
@@ -256,6 +304,62 @@ def test_completed_passport_projects_canonical_lineage_without_inventing_verific
     assert database.executed == [
         ("operation_passport.select_by_execution", "read", ("exec-1",))
     ]
+
+
+def test_completed_passport_projects_persisted_independent_verification() -> None:
+    row = contract_row()
+    result = verification_result()
+    bind_verification(row, result)
+
+    passport = OperationPassportService(database=FakeDatabase(row)).get("exec-1").to_dict()  # type: ignore[arg-type]
+
+    assert passport["verification"] == {
+        "status": "PERSISTED",
+        "verdict": "VERIFIED",
+        "result_digest": result.result_digest,
+        "independent_verification_exposed": True,
+        "reason": "OBSERVED_STATE_MATCH",
+        "checked_at": result.checked_at,
+        "verification_strength_class": "INDEPENDENT_PROVIDER_READBACK",
+    }
+    assert passport["integrity"]["independent_verification_validated"] is True
+
+
+def test_passport_rejects_self_valid_verification_bound_to_wrong_target() -> None:
+    row = contract_row()
+    result = verification_result(target_digest="0" * 64)
+    bind_verification(row, result)
+
+    with pytest.raises(RuntimeError, match="verification target binding mismatch"):
+        OperationPassportService(database=FakeDatabase(row)).get("exec-1")  # type: ignore[arg-type]
+
+
+def test_passport_rejects_self_valid_verification_bound_to_wrong_epoch() -> None:
+    row = contract_row()
+    result = verification_result(execution_epoch=3)
+    bind_verification(row, result)
+
+    with pytest.raises(RuntimeError, match="verification epoch binding mismatch"):
+        OperationPassportService(database=FakeDatabase(row)).get("exec-1")  # type: ignore[arg-type]
+
+
+def test_passport_rejects_self_valid_verification_bound_to_wrong_completion() -> None:
+    row = contract_row()
+    result = verification_result(runner_observation_digest="0" * 64)
+    bind_verification(row, result)
+
+    with pytest.raises(RuntimeError, match="verification completion binding mismatch"):
+        OperationPassportService(database=FakeDatabase(row)).get("exec-1")  # type: ignore[arg-type]
+
+
+def test_passport_rejects_noncanonical_persisted_verification_json() -> None:
+    row = contract_row()
+    result = verification_result()
+    bind_verification(row, result)
+    row["verification_result_json"] = json.dumps(result.to_dict(), indent=2)
+
+    with pytest.raises(RuntimeError, match="verification_result_json is not canonical JSON"):
+        OperationPassportService(database=FakeDatabase(row)).get("exec-1")  # type: ignore[arg-type]
 
 
 def test_snapshot_only_passport_reports_partial_lifecycle_truthfully() -> None:
@@ -315,3 +419,22 @@ def test_passport_select_executes_against_current_sqlite_schema(tmp_path: Path) 
 
     with pytest.raises(LookupError, match="canonical operation passport not found"):
         service.get("exec-not-present")
+
+def test_recent_passport_selection_is_read_only() -> None:
+    database = FakeDatabase(None)
+    service = OperationPassportService(database=database)  # type: ignore[arg-type]
+
+    assert service.list_recent(limit=5) == []
+    assert database.executed == [
+        ("operation_passport.select_recent_executions", "read", (5,))
+    ]
+
+
+@pytest.mark.parametrize("method_name", ("list_recent", "list_recent_verified"))
+def test_recent_passport_limit_is_bounded(method_name: str) -> None:
+    service = OperationPassportService(database=FakeDatabase(None))  # type: ignore[arg-type]
+    method = getattr(service, method_name)
+
+    for invalid in (0, 101, True, 1.5):
+        with pytest.raises(ValueError, match="limit must be an integer between 1 and 100"):
+            method(limit=invalid)

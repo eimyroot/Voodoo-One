@@ -71,9 +71,9 @@ Current product truth also confirms that the Control Room projection is `IMPLEME
 | Runs | Legacy execution records expose status, request title, risk, environment, adapter and receipt id. | Canonical operation/execution lifecycle with authority lineage, target/capability, current epoch/lease/fence, interruption/resume state, verifier result and evidence links. | `BACKEND_EXISTS_UX_GAP` |
 | Plans / Approvals | Change requests, approval counts and submit/execute actions exist. Approval inbox exposes effective threshold but not policy version/requester binding. | Governed-operation preview with exact target/content digest, policy/permission/risk facts, required approvers, expiry, verification plan and recovery expectation before approval. | `BACKEND_EXISTS_UX_GAP` |
 | Capability Registry | Four current surfaces are projected from a server-side hardcoded list, including `github.read-ref/v1` disabled when canonical runtime is absent. | Registry derived from canonical capability definitions/activations with provider mapping, environments, risk, permissions, verification contract, runtime activation and eligibility. | `BACKEND_EXISTS_UX_GAP` |
-| Evidence Timeline | Audit events, legacy receipts, executions and plans are merged into a small chronological projection. | Operation passport/evidence graph that correlates reviewed content, authority, dispatch/runtime lineage, observed post-state and profile-correct terminal evidence, with drill-down/export. | `BACKEND_EXISTS_UX_GAP` |
+| Evidence Timeline | Timestamped canonical Operation Passport lifecycle facts are now correlated with legacy audit/receipt/run/plan evidence in one bounded timeline; canonical entries retain execution correlation and Passport drill-down, while missing verification is not fabricated as an event. | Extend toward richer observed-state/export views while retaining source identity and profile-correct terminal semantics. | `PARTIALLY_CONVERGED` |
 | Policy Gates | Truth invariants, production effects, emergency stop, evidence-chain integrity and canonical-runtime activation are surfaced. | Current deterministic policy/permission decision facts, revision/bundle identity, reason codes, obligations, approval requirements, freshness and denial explanation. | `BACKEND_EXISTS_UX_GAP` |
-| Verifier Center | Separation rule is visible, but every receipt-derived check intentionally reports `verification_status = UNKNOWN`; canonical independent verification is not exposed. | Real `VerificationResult/v1`, verification strength, expected vs observed post-state, verifier identity/path and truthful failed/indeterminate outcomes. | `BACKEND_EXISTS_UX_GAP` |
+| Verifier Center | Durable canonical `VerificationResult/v1` entries are now exposed through validated Operation Passports with verdict, strength, result digest and checked-at provenance; legacy receipt-only checks remain explicit `UNKNOWN`. | Add expected vs observed post-state and richer verifier identity/path drill-down without creating a second evidence owner. | `PARTIALLY_CONVERGED` |
 | Runtime Health | API, database, evidence liveness, identity provider and canonical-runtime enabled/disabled state are shown. | Operational health for canonical runtime, outbox/inbox, execution epoch/lease/fence, Runner/Verifier boundaries, provider connection/configuration, recovery state and relevant SLO signals. | `BACKEND_EXISTS_UX_GAP` |
 | Learning Intelligence | Simple execution success/failure and approval-queue signals exist; scoring router is explicitly `NOT_EXPOSED`. | Safe intelligence/reconciliation signals from observed outcomes and optional CyberCore/learning sources without any authorization power. | `IMPLEMENTATION_REQUIRED` beyond basic observed metrics |
 | Governance & Settings | Environment, trusted hosts, CORS, identity provider, production-effects flag and approval-compatibility metadata are projected read-only. | Role/workspace governance, policy profiles, capability activation, exceptions, evidence retention, release gates and auditable administrative workflows according to separately accepted contracts. | `BACKEND_EXISTS_UX_GAP` plus `IMPLEMENTATION_REQUIRED` for still-proposed enterprise/org controls |
@@ -170,13 +170,14 @@ canonical durable objects through `GET /api/v1/operations/{execution_id}/passpor
 ProductService database, validates canonical stored JSON and cross-row lineage, creates no authority,
 performs no provider effect and introduces no second persistence owner.
 
-Current verification truth remains deliberately incomplete: READ `VerificationResult/v1` is not yet
-durably stored, so the passport reports `UNKNOWN / NOT_PERSISTED` instead of promoting execution or
-evidence integrity to independent verification.
+Current verification truth is evidence-conditional: schema v15 can durably store one immutable READ
+`VerificationResult/v1` and Operation Passport exposes it only after validating canonical JSON plus
+execution/epoch/target/completion bindings. Executions without such a row still report
+`UNKNOWN / NOT_PERSISTED`; execution or evidence integrity is never promoted to independent verification.
 
 ### CR-2 — G8 live READ acceptance
 
-Status: explicit non-production activation path is `IMPLEMENTED / TARGETED TESTED`; live acceptance remains open.
+Status: `VERIFIED_ALT_EXTERNAL_LINUX` for the owner-authorized exact-main G8 READ acceptance; default activation remains off, official GitHub Actions parity remains pending, and the repeated ADR-0019 READ-before-WRITE evidence gate remains open.
 
 Target: prove the backend path that the product experience is meant to represent.
 
@@ -189,6 +190,8 @@ Target: prove the backend path that the product experience is meant to represent
 This slice is constrained by `G8_READ_RUNTIME_GATE.md` and ADR-0019.
 
 ### CR-3 — Operation Passport UX
+
+Status: `IMPLEMENTED` for the read-only Runs → canonical Operation Passport drill-down, including a Passport-local canonical evidence timeline and verifier provenance derived only from validated Passport facts. The UI preserves `UNKNOWN / NOT_PERSISTED` when durable independent `VerificationResult/v1` is unavailable and distinguishes a missing passport from canonical read/integrity failure.
 
 Target: one drill-down from intent to independently observed outcome.
 
@@ -210,6 +213,8 @@ recovery / next safe action
 Low-level identifiers remain inspectable, but the primary UX explains their operational meaning.
 
 ### CR-4 — Registry, Policy and Verifier convergence
+
+Status: `IN PROGRESS`. Verifier Center projects durable canonical `VerificationResult/v1` through the validated Operation Passport read model, and the global Evidence Timeline now mixes timestamped validated Passport lifecycle facts with retained legacy evidence using explicit source/correlation metadata. Receipt-only legacy checks remain `UNKNOWN`; Registry and Policy still require convergence.
 
 Replace hardcoded or receipt-derived projections only after a canonical read model exists:
 

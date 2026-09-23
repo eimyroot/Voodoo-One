@@ -145,12 +145,19 @@ class RecordingPipeline(CanonicalOperationPipeline):
         )
 
 
+class RecordingVerificationResultStore:
+    db = None
+
+    def store(self, *, result: object) -> object:
+        return result
+
+
 class RecordingReadTerminal(CanonicalGitHubReadTerminal):
     def __init__(self) -> None:
         pass
 
     def run(self, *, prepared: object) -> object:
-        return SimpleNamespace(prepared=prepared)
+        return SimpleNamespace(prepared=prepared, verification_result="VERIFIED")
 
 
 def test_runtime_supplies_read_constraints_internally() -> None:
@@ -158,6 +165,7 @@ def test_runtime_supplies_read_constraints_internally() -> None:
     runtime = CanonicalOperationRuntime(
         pipeline=route_pipeline,
         read_terminal=RecordingReadTerminal(),
+        verification_result_store=RecordingVerificationResultStore(),
     )
 
     runtime.run_read_only(

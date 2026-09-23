@@ -102,6 +102,35 @@ EVIDENCE_ROOT               = /Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNA
 EVIDENCE_MANIFEST_SHA256    = b4ced161adc99c98243b523c3bf15a1055e92a5096e0839755d2a2f86f889d92
 ```
 
+## Fresh schema-v15 live READ evidence
+
+A second retained live acceptance was executed on 2026-09-20 from exact runtime source
+`f417d78060304f0d427794641b72692b063efbde` against provider target
+`refs/heads/main@9933fe65a5f8ff68703ccb434b4ec0ba31fb4592`.
+
+```text
+SCHEMA15_LIVE_READ_ACCEPTANCE = VERIFIED
+RUNTIME_SOURCE_SHA            = f417d78060304f0d427794641b72692b063efbde
+PROVIDER_TARGET_SHA           = 9933fe65a5f8ff68703ccb434b4ec0ba31fb4592
+SQLITE_SCHEMA_VERSION         = 15
+HTTP_DURABLE_RESULT_COUNT     = 1 / VERIFIED
+RESUME_DURABLE_RESULT_COUNT   = 1 / VERIFIED
+HTTP_PASSPORT_AFTER_PROCESS   = PERSISTED / VERIFIED
+RESUME_PASSPORT_AFTER_PROCESS = PERSISTED / VERIFIED
+ACTIVE_INTERRUPTION_RESUME    = VERIFIED
+DUPLICATE_LINEAGE_COUNT       = 0
+PROVIDER_WRITE                = NOT_PERFORMED
+RELEASE                       = NOT_PERFORMED
+DEPLOYMENT                    = NOT_PERFORMED
+PRODUCTION_EFFECTS            = NOT_PERFORMED
+EVIDENCE_ROOT                 = /Users/eimyna/0_EVIDENCE/Voodoo-One/G8_SCHEMA15_LIVE_20260920_f417d78
+ACCEPTANCE_SUMMARY_SHA256     = d01ae75a7fdaf584417cb2ff7c915960b79d32c6708428b774c4434214758722
+```
+
+This closes the previous fresh schema-v15 live-provider evidence gap. It does not by itself close the
+full/repeated ADR-0019 gate, does not establish GitHub Actions parity, and does not authorize provider
+WRITE or any production effect.
+
 ## Non-scope
 
 - no CREATE_REF provider call;
@@ -120,9 +149,10 @@ G8 R1 may only claim:
 
 ```text
 DEFAULT_READ_PROVIDER_RUNTIME = IMPLEMENTED / VERIFIED
-REAL_CANONICAL_READ_E2E       = VERIFIED_ALT_EXTERNAL_LINUX
+REAL_CANONICAL_READ_E2E       = VERIFIED_SCHEMA15_LIVE_READ
+HISTORICAL_EXACT_MAIN_READ    = VERIFIED_ALT_EXTERNAL_LINUX
 GITHUB_ACTIONS_PARITY         = PENDING_ACCOUNT_ACTIONS_POLICY
-WRITE_RUNTIME_GATE            = BLOCKED or ELIGIBLE per ADR-0019 evidence
+WRITE_RUNTIME_GATE            = BLOCKED_REPEATED_GATE_OPEN
 ```
 
 It must not claim release, deployment, unrestricted provider authority, or production WRITE.

@@ -17,8 +17,18 @@ from voodoo_product.github_read_provider import (
     GITHUB_READ_REF_REQUEST_ADAPTER,
     GitHubReadRefTargetBinder,
 )
+from voodoo_product.operation_passport import OperationPassportService
 from voodoo_product.service import ProductService
 from voodoo_product.terminal_profile import READ_ONLY_TERMINAL_PROFILE
+from voodoo_product.verification_result import (
+    NOT_VERIFIED,
+    OBSERVED_STATE_MISMATCH,
+    VerificationResult,
+)
+from voodoo_product.verification_result_persistence import (
+    VerificationResultPersistenceConflict,
+    VerificationResultPersistenceDenied,
+)
 
 
 def config(tmp_path: Path, *, environment: str = "staging", backend: str = "sqlite") -> ProductConfig:
@@ -252,6 +262,31 @@ def test_g8_product_assembly_prepares_one_canonical_read_lineage_without_provide
     assert prepared.lease.execution_id == prepared.execution_id
     assert service.list_receipts() == []
 
+    store = runtime.verification_result_store
+    assert store is not None
+    premature = VerificationResult.create(
+        execution_id=prepared.execution_id,
+        execution_epoch=prepared.execution_epoch,
+        target_digest=prepared.target_digest,
+        runner_observation_digest="a" * 64,
+        verifier_observation_digest="b" * 64,
+        observed_post_state_digest="c" * 64,
+        verification_boundary_digest="d" * 64,
+        verifier_id="e" * 64,
+        verifier_identity_digest="f" * 64,
+        verification_strength_digest="1" * 64,
+        verification_strength_class="INDEPENDENT_PROVIDER_READBACK",
+        verdict=NOT_VERIFIED,
+        reason=OBSERVED_STATE_MISMATCH,
+        checked_at="2026-09-19T18:00:00.000+00:00",
+        result_revision="verification-result/g02-binding-test-r1",
+    )
+    with pytest.raises(
+        VerificationResultPersistenceDenied,
+        match="VERIFICATION_RESULT_PERSISTENCE_DENIED",
+    ):
+        store.store(result=premature)
+
 
 def test_g8_product_read_terminal_runs_through_activation_binding(
     tmp_path: Path,
@@ -329,10 +364,199 @@ def test_g8_product_read_terminal_runs_through_activation_binding(
     assert result.verifier_observation.commit_sha == result.runner_observation.commit_sha
     assert result.verification_result.verdict == "VERIFIED"
     assert result.durable_completion.lease.execution_id == result.prepared.execution_id
+
+    restarted_passport = OperationPassportService(database=service.db).get(
+        result.prepared.execution_id
+    ).to_dict()
+    assert restarted_passport["verification"]["status"] == "PERSISTED"
+    assert restarted_passport["verification"]["verdict"] == result.verification_result.verdict
+    assert (
+        restarted_passport["verification"]["result_digest"]
+        == result.verification_result.result_digest
+    )
+    assert restarted_passport["integrity"]["independent_verification_validated"] is True
+
+    passport_service = OperationPassportService(database=service.db)
+    recent = passport_service.list_recent(limit=3)
+    assert [item.execution_id for item in recent] == [result.prepared.execution_id]
+    recent_verified = passport_service.list_recent_verified(limit=3)
+    assert [item.execution_id for item in recent_verified] == [result.prepared.execution_id]
+    control_room = service.control_room(canonical_runtime_enabled=True)
+    verifier_center = control_room["verifier_center"]
+    assert verifier_center["independent_verification_exposed"] is True
+    assert verifier_center["canonical_result_count"] == 1
+    check = verifier_center["recent_checks"][0]
+    assert check["source"] == "VERIFICATION_RESULT_V1"
+    assert check["execution_id"] == result.prepared.execution_id
+    assert check["verification_status"] == result.verification_result.verdict
+    assert check["verification_strength"] == result.verification_result.verification_strength_class
+    assert check["result_digest"] == result.verification_result.result_digest
+    assert check["checked_at"] == result.verification_result.checked_at
+
+    timeline = control_room["evidence_timeline"]
+    canonical_items = [
+        item for item in timeline if item["source"] == "OPERATION_PASSPORT"
+    ]
+    assert {item["kind"] for item in canonical_items} == {
+        "CANONICAL_AUTHORIZATION",
+        "CANONICAL_GRANT",
+        "CANONICAL_GRANT_CONSUMPTION",
+        "CANONICAL_DISPATCH",
+        "CANONICAL_RUNTIME",
+        "CANONICAL_VERIFICATION",
+    }
+    assert all(
+        item["execution_id"] == result.prepared.execution_id
+        for item in canonical_items
+    )
+    verification_item = next(
+        item for item in canonical_items if item["kind"] == "CANONICAL_VERIFICATION"
+    )
+    assert verification_item["status"] == result.verification_result.verdict
+    assert verification_item["reference"] == result.verification_result.result_digest
+    assert any(item["source"] != "OPERATION_PASSPORT" for item in timeline)
+
+    store = runtime.verification_result_store
+    assert store is not None
+    assert store.store(result=result.verification_result) == result.verification_result
+
+    conflicting = VerificationResult.create(
+        execution_id=result.verification_result.execution_id,
+        execution_epoch=result.verification_result.execution_epoch,
+        target_digest=result.verification_result.target_digest,
+        runner_observation_digest=result.verification_result.runner_observation_digest,
+        verifier_observation_digest="0" * 64,
+        observed_post_state_digest="1" * 64,
+        verification_boundary_digest=result.verification_result.verification_boundary_digest,
+        verifier_id=result.verification_result.verifier_id,
+        verifier_identity_digest=result.verification_result.verifier_identity_digest,
+        verification_strength_digest=result.verification_result.verification_strength_digest,
+        verification_strength_class=result.verification_result.verification_strength_class,
+        verdict=NOT_VERIFIED,
+        reason=OBSERVED_STATE_MISMATCH,
+        checked_at=result.verification_result.checked_at,
+        result_revision=result.verification_result.result_revision,
+    )
+    with pytest.raises(
+        VerificationResultPersistenceConflict,
+        match="VERIFICATION_RESULT_CONFLICT",
+    ):
+        store.store(result=conflicting)
+
     assert observed_reads == [
         ("eimyroot/Voodoo-One", "refs/heads/main"),
         ("eimyroot/Voodoo-One", "refs/heads/main"),
     ]
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    ("target_digest", "execution_epoch", "runner_observation_digest"),
+)
+def test_verification_result_store_rejects_durable_binding_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mismatch: str,
+) -> None:
+    enable_settings(monkeypatch)
+    fake_principal_observation(monkeypatch)
+
+    def provider_read(
+        *,
+        pin: object,
+        token: str,
+        repository: str,
+        ref: str,
+    ) -> str:
+        del pin, token, repository, ref
+        return "a" * 40
+
+    monkeypatch.setattr(g8_module, "_provider_read_with_pin", provider_read)
+
+    subject = config(tmp_path)
+    factory = resolve_g8_read_runtime_factory(subject)
+    assert factory is not None
+    composition = install_composed_product_platform(
+        FastAPI(),
+        config=subject,
+        repository_root=tmp_path,
+        canonical_runtime_factory=factory,
+    )
+    service = composition.service
+    runtime = composition.canonical_operation_runtime
+    assert runtime is not None
+    assert runtime.read_terminal is not None
+    assert runtime.verification_result_store is not None
+
+    bootstrap = service.bootstrap_admin(
+        username="admin",
+        password="VeryStrongAdminPassword1!",
+        token="b" * 48,
+    )
+    reviewer = service.create_user(
+        actor_id=bootstrap["user_id"],
+        username="reviewer",
+        password="VeryStrongReviewerPassword1!",
+        role="operator",
+    )
+    request = service.create_change_request(
+        actor_id=bootstrap["user_id"],
+        workspace_id=bootstrap["workspace_id"],
+        title="Verification result durable binding",
+        description="exercise fail-closed persistence bindings",
+        risk="R0",
+        environment="staging",
+        adapter=GITHUB_READ_REF_REQUEST_ADAPTER,
+        payload={"repository": "eimyroot/Voodoo-One", "ref": "refs/heads/main"},
+    )
+    service.submit_change_request(actor_id=bootstrap["user_id"], request_id=request["id"])
+    service.approve_change_request(
+        actor_id=reviewer["id"],
+        request_id=request["id"],
+        decision="APPROVED",
+        reason="bounded persistence binding regression",
+    )
+
+    prepared = runtime.pipeline.prepare(
+        actor_id=bootstrap["user_id"],
+        request_id=request["id"],
+        idempotency_key=f"g02-binding-{mismatch}",
+        correlation_id=f"corr-g02-binding-{mismatch}",
+        required_terminal_profile=READ_ONLY_TERMINAL_PROFILE,
+        required_capability=GITHUB_READ_REF_CAPABILITY,
+    )
+    terminal_result = runtime.read_terminal.run(prepared=prepared)
+    valid = terminal_result.verification_result
+
+    invalid = VerificationResult.create(
+        execution_id=valid.execution_id,
+        execution_epoch=(valid.execution_epoch + 1 if mismatch == "execution_epoch" else valid.execution_epoch),
+        target_digest=("0" * 64 if mismatch == "target_digest" else valid.target_digest),
+        runner_observation_digest=(
+            "0" * 64
+            if mismatch == "runner_observation_digest"
+            else valid.runner_observation_digest
+        ),
+        verifier_observation_digest=valid.verifier_observation_digest,
+        observed_post_state_digest=valid.observed_post_state_digest,
+        verification_boundary_digest=valid.verification_boundary_digest,
+        verifier_id=valid.verifier_id,
+        verifier_identity_digest=valid.verifier_identity_digest,
+        verification_strength_digest=valid.verification_strength_digest,
+        verification_strength_class=valid.verification_strength_class,
+        verdict=valid.verdict,
+        reason=valid.reason,
+        checked_at=valid.checked_at,
+        result_revision=valid.result_revision,
+    )
+
+    with pytest.raises(
+        VerificationResultPersistenceDenied,
+        match="VERIFICATION_RESULT_PERSISTENCE_DENIED",
+    ):
+        runtime.verification_result_store.store(result=invalid)
+
+    assert runtime.verification_result_store.get(valid.execution_id) is None
 
 
 def test_github_read_ref_target_binder_is_exact_and_read_only() -> None:

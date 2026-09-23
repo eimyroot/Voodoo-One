@@ -1,0 +1,28 @@
+sequenceDiagram
+  actor Req as Requester
+  actor Rev as Reviewer/Operator
+  participant API as Product API
+  participant CR as ChangeRequest Service
+  participant EX as Execution Service
+  participant DB as SQLite
+  participant AD as Allowlisted Adapter
+
+  Req->>API: create + submit change request
+  API->>CR: persist reviewed request
+  CR->>DB: request + review digest
+  Rev->>API: approval decision
+  API->>CR: bind decision to reviewed content
+  CR->>DB: approval + status
+  Rev->>API: POST execute + optional Idempotency-Key
+  API->>EX: execute_change_request
+  EX->>DB: check stop/approval/env/idempotency; create RUNNING + lease
+  EX->>AD: execute bounded adapter
+  alt adapter succeeds
+    AD-->>EX: bounded output
+    EX->>DB: SUCCEEDED + request COMPLETED + receipt + audit
+  else adapter fails
+    AD-->>EX: exception/non-zero result
+    EX->>DB: FAILED + request FAILED + receipt + audit
+  end
+  EX-->>API: durable execution projection
+  API-->>Rev: result

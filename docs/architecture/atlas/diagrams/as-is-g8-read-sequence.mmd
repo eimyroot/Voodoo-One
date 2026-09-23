@@ -1,0 +1,25 @@
+sequenceDiagram
+    actor O as Operator
+    participant API as Canonical Operations API
+    participant A as Authority/Pipeline
+    participant DB as SQLite
+    participant R as Runner
+    participant GH as GitHub API
+    participant V as Independent Verifier
+
+    O->>API: POST /operations/{request_id}/read + Idempotency-Key
+    API->>A: authorize and prepare READ
+    A->>DB: snapshot + grant + consumption + outbox/inbox + lease
+    DB-->>A: durable admission
+    A->>R: activate bounded READ
+    R->>GH: provider READ with Runner credential
+    GH-->>R: observed provider state
+    R->>DB: durable execution/completion evidence
+    R-->>V: expected/runner observation context
+    V->>GH: independent READ with Verifier credential
+    GH-->>V: authoritative readback
+    V-->>API: VerificationResult/v1
+    API-->>O: READ response + verification result
+
+    Note over API,DB: Durable VerificationResult projection is not currently proven/stored by passport.
+    Note over O,V: Live default-pack HTTP E2E has workflow code but no observed acceptance run.

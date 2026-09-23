@@ -11,6 +11,9 @@ normative authority remains governed separately by adopted records and repositor
 | What is the exact current evidence snapshot? | [`../CURRENT_PRODUCT_STATE.md`](../CURRENT_PRODUCT_STATE.md) |
 | What is VOODOO One? | [`../VISION.md`](../VISION.md) |
 | How is it built today? | [`../ARCHITECTURE.md`](../ARCHITECTURE.md) |
+| What standing owner mandate governs Rook / VOODOO_SUBADMIN and concurrent workstreams? | [`governance/OWNER_OPERATING_MANDATE.md`](governance/OWNER_OPERATING_MANDATE.md) |
+| Where is the Living Architecture / Project Architecture Atlas? | [`architecture/atlas/README.md`](architecture/atlas/README.md) |
+| What is the adopted Core Kernel + fractal capability target model? | [`architecture/VONE_PRODUCT_ARCHITECTURE_THESIS_R3.md`](architecture/VONE_PRODUCT_ARCHITECTURE_THESIS_R3.md) — embedded `PROPOSED / REVIEW REQUIRED`; effective `ADOPTED` via exact-content authority register |
 | What works now? | [`product/CURRENT_CAPABILITIES.md`](product/CURRENT_CAPABILITIES.md) |
 | What is the post-G7 canonical checkpoint? | [`product/POST_G7_CANONICAL_STATE.md`](product/POST_G7_CANONICAL_STATE.md) |
 | What is the next READ runtime gate? | [`product/G8_READ_RUNTIME_GATE.md`](product/G8_READ_RUNTIME_GATE.md) |
@@ -28,6 +31,8 @@ normative authority remains governed separately by adopted records and repositor
 | What is the READ-before-WRITE proposal? | [`adr/ADR-0019-read-e2e-before-write.md`](adr/ADR-0019-read-e2e-before-write.md) — PROPOSED |
 | How will organization roles and approval profiles work? | [`adr/ADR-0003-organization-roles-and-configurable-approval-policy.md`](adr/ADR-0003-organization-roles-and-configurable-approval-policy.md) — still PROPOSED |
 | What is the read-only Policy Decision Graph v1 boundary? | [`adr/ADR-0006-read-only-policy-decision-graph-v1.md`](adr/ADR-0006-read-only-policy-decision-graph-v1.md) |
+| What decision governs the adopted Core Kernel + fractal capability framing? | [`adr/ADR-0021-core-kernel-fractal-capability-architecture.md`](adr/ADR-0021-core-kernel-fractal-capability-architecture.md) — embedded `PROPOSED / REVIEW REQUIRED`; effective `ADOPTED` via exact-content authority register |
+| What decision governs durable `VerificationResult/v1` persistence? | [`adr/ADR-0022-durable-verification-result-v1.md`](adr/ADR-0022-durable-verification-result-v1.md) — embedded `PROPOSED`; effective `ADOPTED` via authority register |
 | What is the historical pure execution-contract v1 boundary? | [`adr/ADR-0007-execution-grant-receipt-contract-v1.md`](adr/ADR-0007-execution-grant-receipt-contract-v1.md) |
 | What is the owner-adopted isolated Runner design boundary? | [`adr/ADR-0008-isolated-runner-boundary-v1.md`](adr/ADR-0008-isolated-runner-boundary-v1.md) — historical design authority retained; later bounded pilot implementation/evidence is tracked separately |
 | What threat model is bound to ADR-0008? | [`security/ISOLATED_RUNNER_THREAT_MODEL_V1.md`](security/ISOLATED_RUNNER_THREAT_MODEL_V1.md) — exact reviewed artifact remains immutable; later implementation does not rewrite it |
@@ -59,7 +64,7 @@ CANONICAL PUBLIC READ OPERATION API = IMPLEMENTED / MERGED
 G7 DURABLE RESUME + RUNTIME WIRING = IMPLEMENTED / MERGED
 G0 GITHUB GOVERNANCE = UNKNOWN current / historical VERIFIED evidence retained
 DEFAULT PROVIDER RUNTIME PACK = DISABLED / FAIL-CLOSED
-REAL CANONICAL HTTP READ E2E WITH DEFAULT PACK = NOT VERIFIED
+REAL CANONICAL HTTP READ E2E = VERIFIED_SCHEMA15_LIVE_READ on runtime source f417d780...; historical exact-main acceptance retained; official Actions parity pending
 READ_ONLY_VERIFIED TERMINAL = VerificationResult/v1
 BOUNDED_MUTATION_VERIFIED TERMINAL = OperationCell/v1 after effect + independent verification
 PROVIDER WRITE ACTIVATION = BLOCKED

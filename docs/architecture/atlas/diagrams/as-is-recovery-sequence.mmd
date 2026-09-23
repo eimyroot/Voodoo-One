@@ -1,0 +1,22 @@
+sequenceDiagram
+  actor Sec as Security Reviewer
+  participant API as Product API
+  participant Safe as Operational Safety
+  participant EX as Execution Service
+  participant DB as SQLite
+
+  Sec->>API: activate emergency stop + reason
+  API->>Safe: set_emergency_stop(true)
+  Safe->>DB: runtime flag + audit event
+  Sec->>API: POST /executions/{id}/recover + reason
+  API->>EX: recover_execution
+  EX->>DB: require emergency stop + RUNNING execution
+  EX->>DB: require expired lease + unchanged fence
+  alt recovery admissible
+    EX->>DB: mark INTERRUPTED / outcome INDETERMINATE
+    EX->>DB: mark request FAILED + append receipt + audit
+    EX-->>API: recovered execution projection
+  else state changed / lease active / stop inactive
+    EX-->>API: fail closed
+  end
+  Note over Sec,DB: Recovery records uncertainty; it does not claim provider rollback.

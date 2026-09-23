@@ -275,9 +275,12 @@ replacement belongs in `schema_supersessions`.
 
 ## Persistence
 
-Current released backend remains SQLite schema 14 with immutable/checksum-verified migrations, central
-statements, audit/receipt ledgers, snapshots, grants, outbox/inbox, execution epoch/lease state and
-explicit workspace membership scope. PostgreSQL remains fail-closed/unreleased.
+Current bounded backend is SQLite schema 15 with immutable/checksum-verified migrations, central
+statements, audit/receipt ledgers, snapshots, grants, outbox/inbox, execution epoch/lease state,
+explicit workspace membership scope and one immutable durable `VerificationResult/v1` per execution
+when independent READ verification completes. PostgreSQL remains fail-closed/unreleased. The schema-v15
+verification persistence is locally verified and was exercised by a fresh live-provider READ acceptance
+on exact runtime source `f417d78060304f0d427794641b72692b063efbde`; provider WRITE remains separately blocked.
 
 ## Historical verified mutation atom
 
@@ -364,6 +367,15 @@ production-effect authority. It performs no archive parsing, persistence, API or
 CyberCore mutation/runtime integration remains blocked while parser, publisher trust, runtime and
 release-governance hardening are incomplete. CyberCore cannot be used to bypass G8, READ E2E, WRITE,
 release, or deployment gates.
+
+## Adopted target architecture framing
+
+The exact-content R3 target describes the current V-One trust model as one logical Core Kernel
+with fractal Capability Cells. Its source bytes retain the embedded **PROPOSED / REVIEW REQUIRED** label,
+while `docs/governance/AUTHORITY_AND_ADOPTION_REGISTER.md` records those exact bytes as effectively **ADOPTED**.
+That governance adoption does not itself authorize a new runtime service, provider WRITE, release, deployment or production effect. See
+[`docs/architecture/VONE_PRODUCT_ARCHITECTURE_THESIS_R3.md`](docs/architecture/VONE_PRODUCT_ARCHITECTURE_THESIS_R3.md)
+and [`ADR-0021`](docs/adr/ADR-0021-core-kernel-fractal-capability-architecture.md).
 
 ## Related documents
 
