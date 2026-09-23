@@ -43,6 +43,16 @@ class StubResumeService(CanonicalOperationResumeService):
         return self.prepared
 
 
+class StubVerificationResultStore:
+    def __init__(self, *, db: object) -> None:
+        self.db = db
+        self.results: list[object] = []
+
+    def store(self, *, result: object) -> object:
+        self.results.append(result)
+        return result
+
+
 class StubReadTerminal(CanonicalGitHubReadTerminal):
     def __init__(self, *, current_fence: object) -> None:
         self.runner_adapter = SimpleNamespace(current_fence=current_fence)
@@ -50,7 +60,7 @@ class StubReadTerminal(CanonicalGitHubReadTerminal):
 
     def run(self, *, prepared: object) -> object:
         self.calls.append(prepared)
-        return SimpleNamespace(prepared=prepared)
+        return SimpleNamespace(prepared=prepared, verification_result="VERIFIED")
 
 
 def _unexpected_prepare(**_: object) -> object:
@@ -143,6 +153,7 @@ def _runtime(
     runtime = CanonicalOperationRuntime(
         pipeline=pipeline,
         read_terminal=terminal,
+        verification_result_store=StubVerificationResultStore(db=db),
         resume_service=resume_service,
     )
     return runtime, resume_service, terminal, prepared

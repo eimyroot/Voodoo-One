@@ -1,0 +1,19 @@
+flowchart LR
+  client[Browser / API Client]
+  app[Uvicorn + FastAPI\nVOODOO One process]
+  db[(SQLite product DB)]
+  sandbox[(Governed sandbox filesystem)]
+  github[GitHub API]
+  gha[GitHub Actions / isolated provider context]
+
+  client -->|HTTPS/HTTP API| app
+  app -->|SQL transactions| db
+  app -->|legacy bounded artifact writes| sandbox
+  app -. G8 opt-in only .-> gha
+  gha -. Runner READ .-> github
+  gha -. separate Verifier READ .-> github
+
+  classDef implemented fill:#e8eef8,stroke:#405a7a,color:#111;
+  classDef external fill:#f5f5f5,stroke:#777,color:#111;
+  class app,db,sandbox implemented;
+  class client,github,gha external;

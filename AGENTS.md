@@ -17,6 +17,11 @@ Before every technical task:
    releases, or destructive operations, read the entire file.
 5. For product or delivery decisions, also inspect
    `VOODOO_PRODUCT_DECISION_DELIVERY_CONSTITUTION.md`.
+6. Before material work, read `docs/governance/OWNER_OPERATING_MANDATE.md`.
+7. When more than one material workstream is active, classify each relevant worktree/branch as
+   `PRIMARY`, `PARALLEL_SAFE`, `DEPENDENT`, `PAUSED`, `SUPERSEDED`, or `BLOCKED`, refresh or verify
+   `/Users/eimyna/0_EVIDENCE/Voodoo-One/WORKSTREAM_COORDINATION/CURRENT.md`, and state any
+   `PAUSED` / `SUPERSEDED` / `BLOCKED` decision in the affected chat when that chat is next addressed.
 
 Stop as `BLOCKED` without modifying files if the engineering constitution is
 missing, unreadable, incomplete, or has a different digest.

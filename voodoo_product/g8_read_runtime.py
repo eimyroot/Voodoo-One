@@ -6,7 +6,7 @@ import json
 import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import ClassVar, Final, NamedTuple
+from typing import ClassVar, Final
 from weakref import WeakKeyDictionary
 
 from .canonical_operation_resume import CanonicalOperationResumeService
@@ -22,6 +22,19 @@ from .credential_broker import CredentialBrokerPolicy, ImmutableCredentialBroker
 from .durable_current_fence import DurableCurrentExecutionFence
 from .execution_capsule import ImmutableExecutionCapsuleRegistry
 from .execution_contract import ExecutionTarget
+from .g8_assembly_guards import (
+    _assert_g8_transport_matches_assembly,
+    _G8AssemblyAnchors,
+    _G8ResumeAssemblyBinding,
+)
+from .g8_credential_pins import (
+    _assert_pair_transport_parity,
+    _CredentialBinding,
+    _CredentialPin,
+    _CredentialSourceImplementationPin,
+    _G8IndependentCredentialPairTransport,
+    _ProviderReadEffectPin,
+)
 from .github_actions_runtime import (
     GITHUB_API_SOURCE_IDENTITY,
     GitHubActionsIsolatedRuntimeProvider,
@@ -42,6 +55,7 @@ from .permission_authority import DatabasePermissionAuthority
 from .runner_identity import READ_ONLY_EFFECT_CLASS
 from .service import ProductService
 from .trusted_clock import TrustedClockAuthority
+from .verification_result_persistence import DurableVerificationResultStore
 from .verifier_credential import VerifierCredentialDecision, VerifierCredentialPolicy
 from .verifier_identity import IndependentVerificationBoundary, VerifierIdentity
 from .verifier_observation import (
@@ -145,27 +159,6 @@ def _assert_pristine_durable_fence(fence: object) -> DurableCurrentExecutionFenc
     if getattr(bound_assert_current, "__func__", None) is not _DURABLE_FENCE_ASSERT_CURRENT:
         raise ValueError("current_fence assert_current implementation is not canonical")
     return fence
-
-
-@dataclass(frozen=True, slots=True)
-class _CredentialBinding:
-    token: str
-    token_fingerprint: str
-    credential_class: str
-    attested_principal: str
-
-
-class _CredentialPin(NamedTuple):
-    token_fingerprint: str
-    credential_class: str
-    attested_principal: str
-
-
-class _ProviderReadEffectPin(NamedTuple):
-    transport_type: type
-    init_method: Callable[..., None]
-    read_ref_method: Callable[..., str]
-    source_identity: str
 
 
 _IMPORT_PROVIDER_READ_EFFECT_PIN: Final = _ProviderReadEffectPin(
@@ -350,12 +343,6 @@ _G8_SOURCE_PIN_SNAPSHOT: Final = G8BoundGitHubReadTransport._pin_snapshot
 _G8_SOURCE_READ_REF_WITH_PIN: Final = G8BoundGitHubReadTransport._read_ref_with_pin
 
 
-class _CredentialSourceImplementationPin(NamedTuple):
-    transport_type: type
-    pin_snapshot_method: Callable[..., _CredentialPin]
-    read_ref_with_pin_method: Callable[..., str]
-
-
 def _current_credential_source_implementation_pin() -> _CredentialSourceImplementationPin:
     if G8BoundGitHubReadTransport._pin_snapshot is not _G8_SOURCE_PIN_SNAPSHOT:
         raise PermissionError("G8 credential source pin implementation changed")
@@ -366,233 +353,6 @@ def _current_credential_source_implementation_pin() -> _CredentialSourceImplemen
         pin_snapshot_method=_G8_SOURCE_PIN_SNAPSHOT,
         read_ref_with_pin_method=_G8_SOURCE_READ_REF_WITH_PIN,
     )
-
-
-class _G8IndependentCredentialPairTransport(NamedTuple):
-    """Immutable use-time guard over both independently pinned credential sources."""
-
-    runner_transport: object
-    verifier_transport: object
-    role: str
-    runner_pin: _CredentialPin
-    verifier_pin: _CredentialPin
-    source_implementation_pin: _CredentialSourceImplementationPin
-    provider_effect_pin: _ProviderReadEffectPin
-
-    @property
-    def source_identity(self) -> str:
-        return self.provider_effect_pin.source_identity
-
-    def read_ref(self, *, repository: str, ref: str) -> str:
-        runner_transport = self.runner_transport
-        verifier_transport = self.verifier_transport
-        source_implementation_pin = self.source_implementation_pin
-        provider_effect_pin = self.provider_effect_pin
-        if type(source_implementation_pin) is not _CredentialSourceImplementationPin:
-            raise PermissionError("G8 credential source implementation pin is invalid")
-        if type(provider_effect_pin) is not _ProviderReadEffectPin:
-            raise PermissionError("G8 provider effect pin is invalid")
-        if type(runner_transport) is not source_implementation_pin.transport_type:
-            raise PermissionError("G8 Runner credential source type changed")
-        if type(verifier_transport) is not source_implementation_pin.transport_type:
-            raise PermissionError("G8 Verifier credential source type changed")
-        if self.role not in {"runner", "verifier"}:
-            raise PermissionError("G8 credential pair role is invalid")
-
-        runner_now = source_implementation_pin.pin_snapshot_method(runner_transport)
-        verifier_now = source_implementation_pin.pin_snapshot_method(verifier_transport)
-        if runner_now != self.runner_pin:
-            raise PermissionError("G8 Runner credential changed after runtime pinning")
-        if verifier_now != self.verifier_pin:
-            raise PermissionError("G8 Verifier credential changed after runtime pinning")
-        if secrets.compare_digest(
-            runner_now.token_fingerprint,
-            verifier_now.token_fingerprint,
-        ):
-            raise PermissionError("G8 Runner and Verifier credential material collapsed")
-        if runner_now.attested_principal == verifier_now.attested_principal:
-            raise PermissionError("G8 Runner and Verifier provider principals collapsed")
-        if runner_now.credential_class == verifier_now.credential_class:
-            raise PermissionError("G8 Runner and Verifier credential classes collapsed")
-
-        if self.role == "runner":
-            return source_implementation_pin.read_ref_with_pin_method(
-                runner_transport,
-                pin=self.runner_pin,
-                provider_effect_pin=provider_effect_pin,
-                repository=repository,
-                ref=ref,
-            )
-        return source_implementation_pin.read_ref_with_pin_method(
-            verifier_transport,
-            pin=self.verifier_pin,
-            provider_effect_pin=provider_effect_pin,
-            repository=repository,
-            ref=ref,
-        )
-
-
-def _assert_pair_transport_parity(
-    runner_transport: object,
-    verifier_transport: object,
-) -> tuple[_G8IndependentCredentialPairTransport, _G8IndependentCredentialPairTransport]:
-    if type(runner_transport) is not _G8IndependentCredentialPairTransport:
-        raise PermissionError("G8 Runner handler transport is not canonical")
-    if type(verifier_transport) is not _G8IndependentCredentialPairTransport:
-        raise PermissionError("G8 Verifier handler transport is not canonical")
-    if runner_transport.role != "runner":
-        raise PermissionError("G8 Runner handler credential role mismatch")
-    if verifier_transport.role != "verifier":
-        raise PermissionError("G8 Verifier handler credential role mismatch")
-    if runner_transport.runner_transport is not verifier_transport.runner_transport:
-        raise PermissionError("G8 credential-pair Runner source mismatch")
-    if runner_transport.verifier_transport is not verifier_transport.verifier_transport:
-        raise PermissionError("G8 credential-pair Verifier source mismatch")
-    if runner_transport.runner_pin != verifier_transport.runner_pin:
-        raise PermissionError("G8 credential-pair Runner pin mismatch")
-    if runner_transport.verifier_pin != verifier_transport.verifier_pin:
-        raise PermissionError("G8 credential-pair Verifier pin mismatch")
-    if runner_transport.source_implementation_pin != verifier_transport.source_implementation_pin:
-        raise PermissionError("G8 credential-pair source implementation mismatch")
-    if runner_transport.provider_effect_pin != verifier_transport.provider_effect_pin:
-        raise PermissionError("G8 credential-pair provider effect mismatch")
-    return runner_transport, verifier_transport
-
-
-class _G8RoleBoundRunnerReadHandler(GitHubRefReadHandler):
-    """Runner handler that re-attests the selected credential role immediately before READ."""
-
-    _CRITICAL_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {"transport", "current_fence", "trusted_clock", "observation_revision"}
-    )
-
-    def __setattr__(self, name: str, value: object) -> None:
-        if name in self._CRITICAL_FIELDS and hasattr(self, name):
-            raise AttributeError(f"G8 Runner handler {name} binding is immutable")
-        super().__setattr__(name, value)
-
-    def observe_ref(
-        self,
-        *,
-        prepared: PreparedIsolatedRuntime,
-        activation: ReadOnlyRuntimeActivation,
-        target: ExecutionTarget,
-    ) -> GitHubRefObservation:
-        transport = self.transport
-        if type(transport) is not _G8IndependentCredentialPairTransport:
-            raise PermissionError("G8 Runner handler transport is not canonical")
-        if transport.role != "runner":
-            raise PermissionError("G8 Runner handler credential role mismatch")
-        fence = _assert_pristine_durable_fence(self.current_fence)
-        if type(self.trusted_clock) is not TrustedClockAuthority:
-            raise PermissionError("G8 Runner handler trusted clock is not canonical")
-        if fence.trusted_clock is not self.trusted_clock:
-            raise PermissionError("G8 Runner handler fence/clock binding mismatch")
-        if prepared.decision.credential_class != transport.runner_pin.credential_class:
-            raise PermissionError("G8 Runner handler credential decision mismatch")
-        return super().observe_ref(
-            prepared=prepared,
-            activation=activation,
-            target=target,
-        )
-
-
-class _G8RoleBoundVerifierReadHandler(VerifierGitHubRefReadHandler):
-    """Verifier handler that re-attests its independently selected role before READ."""
-
-    _CRITICAL_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {"transport", "trusted_clock", "observation_revision"}
-    )
-
-    def __setattr__(self, name: str, value: object) -> None:
-        if name in self._CRITICAL_FIELDS and hasattr(self, name):
-            raise AttributeError(f"G8 Verifier handler {name} binding is immutable")
-        super().__setattr__(name, value)
-
-    def observe_ref(
-        self,
-        *,
-        verifier: VerifierIdentity,
-        boundary: IndependentVerificationBoundary,
-        decision: VerifierCredentialDecision,
-        target: ExecutionTarget,
-    ) -> VerifierGitHubRefObservation:
-        transport = self.transport
-        if type(transport) is not _G8IndependentCredentialPairTransport:
-            raise PermissionError("G8 Verifier handler transport is not canonical")
-        if transport.role != "verifier":
-            raise PermissionError("G8 Verifier handler credential role mismatch")
-        if type(self.trusted_clock) is not TrustedClockAuthority:
-            raise PermissionError("G8 Verifier handler trusted clock is not canonical")
-        if verifier.credential_class != transport.verifier_pin.credential_class:
-            raise PermissionError("G8 Verifier handler identity credential class mismatch")
-        if decision.credential_class != transport.verifier_pin.credential_class:
-            raise PermissionError("G8 Verifier handler credential decision mismatch")
-        return super().observe_ref(
-            verifier=verifier,
-            boundary=boundary,
-            decision=decision,
-            target=target,
-        )
-
-
-class _G8RoleBoundReadTerminal(CanonicalGitHubReadTerminal):
-    """Canonical READ terminal with use-time G8 role and trust-graph invariants."""
-
-    _CRITICAL_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "capability_registry",
-            "capsule_registry",
-            "runner_adapter",
-            "runner_handler",
-            "completion_coordinator",
-            "verifier_profile",
-            "verifier_policy",
-            "verifier_handler",
-            "verifier_clock",
-            "observed_post_state_revision",
-            "strength_revision",
-            "result_revision",
-        }
-    )
-
-    def __setattr__(self, name: str, value: object) -> None:
-        if name in self._CRITICAL_FIELDS and hasattr(self, name):
-            raise AttributeError(f"G8 READ terminal {name} binding is immutable")
-        super().__setattr__(name, value)
-
-    def run(self, *, prepared: CanonicalPreparedExecution) -> CanonicalReadTerminalResult:
-        if type(self.runner_adapter) is not IsolatedRunnerAdapter:
-            raise PermissionError("G8 READ terminal Runner adapter is not canonical")
-        if type(self.runner_handler) is not _G8RoleBoundRunnerReadHandler:
-            raise PermissionError("G8 READ terminal Runner handler is not role-bound")
-        if type(self.verifier_handler) is not _G8RoleBoundVerifierReadHandler:
-            raise PermissionError("G8 READ terminal Verifier handler is not role-bound")
-        if type(self.verifier_profile) is not VerifierRuntimeProfile:
-            raise PermissionError("G8 READ terminal Verifier profile is not canonical")
-        if type(self.verifier_policy) is not VerifierCredentialPolicy:
-            raise PermissionError("G8 READ terminal Verifier policy is not canonical")
-        if type(self.verifier_clock) is not TrustedClockAuthority:
-            raise PermissionError("G8 READ terminal Verifier clock is not canonical")
-
-        runner_transport, verifier_transport = _assert_pair_transport_parity(
-            self.runner_handler.transport,
-            self.verifier_handler.transport,
-        )
-        runner_fence = _assert_pristine_durable_fence(self.runner_handler.current_fence)
-        if self.runner_adapter.current_fence is not runner_fence:
-            raise PermissionError("G8 READ terminal Runner fence binding mismatch")
-        if self.runner_handler.trusted_clock is not runner_fence.trusted_clock:
-            raise PermissionError("G8 READ terminal Runner clock binding mismatch")
-        if self.verifier_handler.trusted_clock is not self.verifier_clock:
-            raise PermissionError("G8 READ terminal Verifier clock binding mismatch")
-        if self.verifier_profile.credential_class != verifier_transport.verifier_pin.credential_class:
-            raise PermissionError("G8 READ terminal Verifier profile credential mismatch")
-        if self.verifier_policy.credential_class != verifier_transport.verifier_pin.credential_class:
-            raise PermissionError("G8 READ terminal Verifier policy credential mismatch")
-        if runner_transport.runner_pin.credential_class == verifier_transport.verifier_pin.credential_class:
-            raise PermissionError("G8 READ terminal credential roles collapsed")
-        return super().run(prepared=prepared)
 
 
 @dataclass(frozen=True, slots=True)
@@ -848,9 +608,11 @@ class G8ReadRuntimePack:
             envelope_revision=pipeline.envelope_revision,
         )
 
+        verification_result_store = DurableVerificationResultStore(db=service.db)
         return CanonicalOperationRuntime(
             pipeline=pipeline,
             read_terminal=read_terminal,
+            verification_result_store=verification_result_store,
             resume_service=resume_service,
         )
 
@@ -929,11 +691,10 @@ def create_g8_read_runtime_factory(
     return factory
 
 
-# Final G8 R1 execution hardening. These final definitions intentionally replace the earlier
-# validation-only wrappers above: build_runtime resolves these names at call time. The wrappers
-# snapshot validated execution-critical references into fresh, non-exported canonical objects so
-# subsequent mutation of the retained public runtime graph cannot change the provider effect used
-# by the in-flight call.
+# G8 R1 execution hardening. The runtime builder resolves these module-level handler/terminal
+# types when invoked after module initialization. The wrappers snapshot validated execution-critical
+# references into fresh, non-exported canonical objects so subsequent mutation of the retained
+# public runtime graph cannot change the provider effect used by the in-flight call.
 _G8_BASE_RUNNER_HANDLER_TYPE: Final = GitHubRefReadHandler
 _G8_BASE_RUNNER_HANDLER_INIT: Final = GitHubRefReadHandler.__init__
 _G8_BASE_RUNNER_HANDLER_OBSERVE: Final = GitHubRefReadHandler.observe_ref
@@ -972,7 +733,7 @@ def _assert_g8_base_execution_implementations() -> None:
         raise PermissionError("G8 canonical Runner adapter initializer changed")
 
 
-class _G8RoleBoundRunnerReadHandler(GitHubRefReadHandler):  # noqa: F811
+class _G8RoleBoundRunnerReadHandler(GitHubRefReadHandler):
     """Runner READ handler with check/use continuity over a local canonical snapshot."""
 
     _CRITICAL_FIELDS: ClassVar[frozenset[str]] = frozenset(
@@ -1031,7 +792,7 @@ class _G8RoleBoundRunnerReadHandler(GitHubRefReadHandler):  # noqa: F811
 _G8_HARDENED_RUNNER_HANDLER_TYPE: Final = _G8RoleBoundRunnerReadHandler
 
 
-class _G8RoleBoundVerifierReadHandler(VerifierGitHubRefReadHandler):  # noqa: F811
+class _G8RoleBoundVerifierReadHandler(VerifierGitHubRefReadHandler):
     """Verifier READ handler with check/use continuity over a local canonical snapshot."""
 
     _CRITICAL_FIELDS: ClassVar[frozenset[str]] = frozenset(
@@ -1085,7 +846,7 @@ class _G8RoleBoundVerifierReadHandler(VerifierGitHubRefReadHandler):  # noqa: F8
 _G8_HARDENED_VERIFIER_HANDLER_TYPE: Final = _G8RoleBoundVerifierReadHandler
 
 
-class _G8RoleBoundReadTerminal(CanonicalGitHubReadTerminal):  # noqa: F811
+class _G8RoleBoundReadTerminal(CanonicalGitHubReadTerminal):
     """READ terminal that executes a one-call local snapshot of the validated G8 graph."""
 
     _CRITICAL_FIELDS: ClassVar[frozenset[str]] = frozenset(
@@ -1228,55 +989,6 @@ _G8_R1_FINAL_READ_TERMINAL_TYPE: Final = _G8RoleBoundReadTerminal
 _G8_BASE_RESUME_SERVICE_TYPE: Final = CanonicalOperationResumeService
 _G8_BASE_RESUME_SERVICE_INIT: Final = CanonicalOperationResumeService.__init__
 _G8_BASE_RESUME_SERVICE_RESUME: Final = CanonicalOperationResumeService.resume
-
-
-class _G8AssemblyAnchors(NamedTuple):
-    """Immutable assembly-time roots that execution must never reconstruct."""
-
-    canonical_db: object
-    runner_clock: TrustedClockAuthority
-    runner_source: object
-    verifier_source: object
-    runner_pin: _CredentialPin
-    verifier_pin: _CredentialPin
-    source_implementation_pin: _CredentialSourceImplementationPin
-    provider_effect_pin: _ProviderReadEffectPin
-
-
-class _G8ResumeAssemblyBinding(NamedTuple):
-    snapshot_store: object
-    permission_authority: DatabasePermissionAuthority
-    terminal_profile_registry: object
-    envelope_revision: str
-
-
-def _assert_g8_transport_matches_assembly(
-    transport: object,
-    *,
-    role: str,
-    anchors: _G8AssemblyAnchors,
-) -> _G8IndependentCredentialPairTransport:
-    """Require current transport parity *and* independent assembly-time provenance."""
-
-    if type(anchors) is not _G8AssemblyAnchors:
-        raise PermissionError("G8 assembly anchors are invalid")
-    if type(transport) is not _G8IndependentCredentialPairTransport:
-        raise PermissionError(f"G8 {role.title()} handler transport is not canonical")
-    if transport.role != role:
-        raise PermissionError(f"G8 {role.title()} handler credential role mismatch")
-    if transport.runner_transport is not anchors.runner_source:
-        raise PermissionError("G8 Runner credential source is not assembly-bound")
-    if transport.verifier_transport is not anchors.verifier_source:
-        raise PermissionError("G8 Verifier credential source is not assembly-bound")
-    if transport.runner_pin != anchors.runner_pin:
-        raise PermissionError("G8 Runner credential pin is not assembly-bound")
-    if transport.verifier_pin != anchors.verifier_pin:
-        raise PermissionError("G8 Verifier credential pin is not assembly-bound")
-    if transport.source_implementation_pin != anchors.source_implementation_pin:
-        raise PermissionError("G8 credential source implementation is not assembly-bound")
-    if transport.provider_effect_pin != anchors.provider_effect_pin:
-        raise PermissionError("G8 provider READ effect is not assembly-bound")
-    return transport
 
 
 def _assert_g8_r2_base_implementations() -> None:
@@ -2006,12 +1718,21 @@ def _g8_r2_build_runtime(
         current_fence=runtime_fence,
         envelope_revision=resume_binding.envelope_revision,
     )
+    verification_result_store = r1_runtime.verification_result_store
+    if type(verification_result_store) is not DurableVerificationResultStore:
+        raise PermissionError("G8 R1 verification result store type changed")
+    if verification_result_store.db is not canonical_db:
+        raise PermissionError("G8 R1 verification result store escaped assembly canonical database")
     return CanonicalOperationRuntime(
         pipeline=r1_runtime.pipeline,
         read_terminal=r2_terminal,
+        verification_result_store=verification_result_store,
         resume_service=r2_resume,
     )
 
 
+# Pin the accepted R2 assembly function onto the public pack API after module assembly. Keeping the
+# function object here prevents a later module-level `_g8_r2_build_runtime` rebind from silently
+# replacing the execution builder. The adversarial runtime tests lock this security property.
 _G8_R2_BUILD_RUNTIME: Final = _g8_r2_build_runtime
 G8ReadRuntimePack.build_runtime = _G8_R2_BUILD_RUNTIME  # type: ignore[method-assign]

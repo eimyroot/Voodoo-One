@@ -1,0 +1,28 @@
+flowchart LR
+  HTTP[API routers + middleware]
+  COMP[ProductComposition]
+  ID[Identity / Session]
+  GOV[Workspace + Change Governance]
+  LEG[Legacy Execution Service]
+  CAN[Canonical Authority Pipeline]
+  COORD[Durable Dispatch / Fence]
+  RT[Canonical Runtime Router]
+  G8[G8 READ Assembly]
+  TERM[Canonical READ Terminal]
+  EVID[Receipt / Audit / Passport / Status]
+  DB[(SQLite)]
+
+  HTTP --> COMP
+  COMP --> ID
+  COMP --> GOV
+  COMP --> LEG
+  COMP --> CAN --> COORD --> RT
+  RT -. explicit G8 activation .-> G8 --> TERM
+  ID --> DB
+  GOV --> DB
+  LEG --> DB
+  CAN --> DB
+  COORD --> DB
+  TERM --> DB
+  EVID --> DB
+  HTTP --> EVID

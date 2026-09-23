@@ -1,0 +1,23 @@
+flowchart LR
+  U[Untrusted client / agent]
+  H[HTTP security + authentication]
+  A[Current DB-backed permission authority]
+  P[Approval + canonical authority pipeline]
+  R[Bounded Runner]
+  V[Independent Verifier]
+  G[GitHub API]
+  D[(SQLite durable truth)]
+
+  U --> H --> A --> P
+  A <--> D
+  P <--> D
+  P -->|bounded execution only| R
+  R -->|Runner credential| G
+  R -->|observation + boundary| V
+  V -->|separate credential| G
+  V -->|VerificationResult/v1| P
+
+  classDef trust fill:#e8eef8,stroke:#405a7a,color:#111;
+  classDef untrusted fill:#fff0f0,stroke:#9a4444,color:#111;
+  class U,G untrusted;
+  class H,A,P,R,V,D trust;

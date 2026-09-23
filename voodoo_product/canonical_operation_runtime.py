@@ -17,6 +17,12 @@ from .terminal_profile import (
 )
 
 
+class _VerificationResultStore(Protocol):
+    db: object
+
+    def store(self, *, result: object) -> object: ...
+
+
 class _Pipeline(Protocol):
     def prepare(
         self,
@@ -45,6 +51,7 @@ class CanonicalOperationRuntime:
 
     pipeline: CanonicalOperationPipeline
     read_terminal: CanonicalGitHubReadTerminal | None = None
+    verification_result_store: _VerificationResultStore | None = None
     create_ref_preparer: A09CreateRefPreparer | None = None
     rollback_preparer: A09RollbackPreparer | None = None
     resume_service: CanonicalOperationResumeService | None = None
@@ -56,6 +63,10 @@ class CanonicalOperationRuntime:
             self.read_terminal, CanonicalGitHubReadTerminal
         ):
             raise ValueError("read_terminal is invalid")
+        if self.verification_result_store is not None and not callable(
+            getattr(self.verification_result_store, "store", None)
+        ):
+            raise ValueError("verification_result_store is invalid")
         if self.create_ref_preparer is not None and not isinstance(
             self.create_ref_preparer, A09CreateRefPreparer
         ):
@@ -96,6 +107,21 @@ class CanonicalOperationRuntime:
             and resume_service.current_fence is not self.read_terminal.runner_adapter.current_fence
         ):
             raise ValueError("resume service and READ terminal must share current execution fence")
+
+    def _persist_read_result(
+        self, result: CanonicalReadTerminalResult
+    ) -> CanonicalReadTerminalResult:
+        store = self.verification_result_store
+        if store is None:
+            raise RuntimeError("CANONICAL_VERIFICATION_RESULT_STORE_NOT_CONFIGURED")
+        snapshot_creator = getattr(self.pipeline, "snapshot_creator", None)
+        canonical_db = getattr(snapshot_creator, "db", None)
+        if getattr(store, "db", None) is not canonical_db:
+            raise PermissionError("CANONICAL_VERIFICATION_RESULT_STORE_DB_MISMATCH")
+        persisted = store.store(result=result.verification_result)
+        if persisted != result.verification_result:
+            raise RuntimeError("CANONICAL_VERIFICATION_RESULT_STORE_MISMATCH")
+        return result
 
     def _prepare(
         self,
@@ -151,7 +177,7 @@ class CanonicalOperationRuntime:
             raise PermissionError("CANONICAL_RUNTIME_READ_PROFILE_MISMATCH")
         if prepared.capability != GITHUB_READ_REF_CAPABILITY:
             raise PermissionError("CANONICAL_RUNTIME_READ_CAPABILITY_MISMATCH")
-        return self.read_terminal.run(prepared=prepared)
+        return self._persist_read_result(self.read_terminal.run(prepared=prepared))
 
     def run_resumed_read_only(
         self,
@@ -169,7 +195,7 @@ class CanonicalOperationRuntime:
             raise PermissionError("CANONICAL_RUNTIME_READ_PROFILE_MISMATCH")
         if prepared.capability != GITHUB_READ_REF_CAPABILITY:
             raise PermissionError("CANONICAL_RUNTIME_READ_CAPABILITY_MISMATCH")
-        return self.read_terminal.run(prepared=prepared)
+        return self._persist_read_result(self.read_terminal.run(prepared=prepared))
 
     def prepare_create_ref(
         self,

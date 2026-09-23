@@ -57,6 +57,7 @@ jobs:
           python -m ruff check .
           python -m compileall -q voodoo_product scripts tests
           node --check voodoo_product/static/app.js
+          python scripts/verify_architecture_atlas.py
           python -m pytest -q
           python scripts/product_readiness_gate.py
           python -m pip_audit --disable-pip --strict -r requirements-product.lock --require-hashes

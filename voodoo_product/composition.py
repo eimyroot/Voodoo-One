@@ -88,6 +88,12 @@ def _validate_canonical_runtime(
         raise ValueError(
             "canonical runtime snapshot creator must use product database permission authority"
         )
+    if runtime.read_terminal is not None:
+        verification_result_store = runtime.verification_result_store
+        if verification_result_store is None:
+            raise ValueError("canonical READ runtime must configure verification result store")
+        if getattr(verification_result_store, "db", None) is not service.db:
+            raise ValueError("canonical verification result store must use product database")
     resume_service = runtime.resume_service
     if resume_service is not None:
         runtime._validate_resume_service_binding()

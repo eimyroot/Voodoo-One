@@ -33,9 +33,12 @@ canonical public READ API             = IMPLEMENTED / MERGED
 restart-safe durable resume           = IMPLEMENTED / MERGED
 ```
 
-The merged G8 provider runtime pack is still OFF by default, real product HTTP READ E2E is NOT VERIFIED, and
-provider WRITE/release/deployment remain BLOCKED. Historical implementation does not silently rewrite
-the exact design scope of older ADRs.
+The merged G8 provider runtime pack is still OFF by default. Owner-authorized alternative external
+Linux evidence VERIFIED authenticated product HTTP READ E2E and restart-safe resume for exact historical
+`main@2f9ab7f...`; a fresh schema-v15 live READ acceptance also PASSED on exact runtime source
+`f417d780...` against current remote `main@9933fe65...`. Official GitHub Actions parity and the full/repeated
+ADR-0019 evidence gate remain pending. Provider WRITE/release/deployment remain BLOCKED. Historical
+implementation or acceptance does not silently rewrite the exact design scope of older ADRs.
 
 ## T1 — Policy Decision Graph
 

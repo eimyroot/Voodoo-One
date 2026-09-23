@@ -31,6 +31,13 @@ class FakePipeline(CanonicalOperationPipeline):
         return self.prepared
 
 
+class FakeVerificationResultStore:
+    db = None
+
+    def store(self, *, result: object) -> object:
+        return result
+
+
 class FakeReadTerminal(CanonicalGitHubReadTerminal):
     def __init__(self, events: list[str]) -> None:
         self.events = events
@@ -87,6 +94,7 @@ def test_canonical_runtime_routes_read_without_caller_profile() -> None:
             )
         ),
         read_terminal=FakeReadTerminal(events),
+        verification_result_store=FakeVerificationResultStore(),
     )
 
     result = runtime.run_read_only(

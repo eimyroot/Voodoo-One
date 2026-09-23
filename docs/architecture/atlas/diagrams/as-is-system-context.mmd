@@ -1,0 +1,17 @@
+flowchart LR
+    H[Human operator / reviewer / auditor]
+    AI[External AI or proposal source\nUNTRUSTED FOR AUTHORITY]
+    V[VOODOO One\nGoverned Operations Control Plane]
+    GH[GitHub API\nExternal provider]
+    GA[GitHub Actions\nCI / live acceptance]
+
+    H -->|console/API intent, approvals| V
+    AI -.->|proposal only; no current CyberCore runtime API| V
+    V -->|bounded READ when G8 enabled| GH
+    V -->|receipts, audit, passport, status| H
+    GA -->|build/test/live acceptance| V
+
+    classDef verified stroke-width:2px;
+    classDef external stroke-dasharray:5 5;
+    class V verified;
+    class AI,GH,GA external;

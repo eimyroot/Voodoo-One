@@ -243,12 +243,12 @@ a new provider mutation is authorized.
 - one-time grant consumption in control plane;
 - exact current user/global-role/workspace/environment/membership permission revalidation before durable grant store/consume;
 - exact target/capsule/dispatch/epoch/fence bindings in current contracts;
-- SQLite migrations through schema 14;
+- SQLite migrations through schema 15, including immutable durable `VerificationResult/v1` persistence;
 - bounded isolated pilot runtimes;
 - separate independent verifier path;
 - receipt/verification semantics separate;
 - canonical public READ API and restart-safe resume are merged;
-- default G8 provider runtime and real product HTTP READ E2E remain blocked/unverified;
+- default G8 provider runtime remains OFF; historical exact-main alternative acceptance and fresh schema-v15 live READ acceptance on runtime source `f417d780...` are VERIFIED, while official GitHub Actions parity and the full/repeated ADR-0019 gate remain pending;
 - provider WRITE remains blocked behind READ-before-WRITE evidence and separate effect authorization;
 - no release/deployment inferred from CI, merge, Proof or Cell;
 - historical G0 VERIFIED evidence is retained, while current post-rename GitHub governance remains UNKNOWN until fresh exact-main verification.
@@ -261,6 +261,7 @@ a new provider mutation is authorized.
 | [`CHANGELOG.md`](CHANGELOG.md) | Product/history changes |
 | [`VISION.md`](VISION.md) | Product purpose and direction |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Current architecture and composition target |
+| [`docs/architecture/atlas/README.md`](docs/architecture/atlas/README.md) | Living Architecture / evidence-first AS-IS, target and migration Atlas |
 | [`ROADMAP.md`](ROADMAP.md) | Ordered delivery/gate plan |
 | [`SECURITY.md`](SECURITY.md) | Security policy/supported-state boundary |
 | [`foundation/FOUNDATIONS.md`](foundation/FOUNDATIONS.md) | Stable engineering foundations |

@@ -4,7 +4,7 @@
 |---|---|
 | Document class | Governance authority and adoption register |
 | Candidate preparation date | `2026-08-06` |
-| Latest recorded owner adoption date | `2026-08-24` |
+| Latest recorded owner adoption date | `2026-09-20` |
 | Scope | VOODOO One governance documents, accepted ADRs, and technical operating-standard succession |
 | Live repository authority | None; live Git, tests, CI, artifacts and runtime remain separate evidence sources |
 | Owner adoption effect | An explicit owner decision over an exact content SHA-256 and candidate commit creates adoption when recorded here without modifying the adopted content |
@@ -270,3 +270,121 @@ The adopted bytes are exactly those in candidate commit
 merged those bytes without modifying the ADR. This external record establishes effective adoption and
 does not itself authorize G8 implementation beyond the separately recorded owner instruction, any
 provider mutation, release, deployment, or production effect.
+
+## 13. ADR-0021 + Product & Architecture Thesis R3 owner adoption record
+
+```text
+ARCHITECTURE_PACKAGE: docs/adr/ADR-0021-core-kernel-fractal-capability-architecture.md + docs/architecture/VONE_PRODUCT_ARCHITECTURE_THESIS_R3.md
+VERSION_OR_CANDIDATE_VERSION: VOODOO One Core Kernel + Fractal Capability Architecture R3
+DECLARED_STATUS: PROPOSED / REVIEW REQUIRED
+EFFECTIVE_STATUS: ADOPTED
+OWNER: project owner VOODOO — ENGINEERING
+ADOPTION_METHOD: explicit owner decision over exact candidate commit 33a82f3ecbb930154e415dc4e8325ad9670ae6f9 and exact bound ADR-0021 / R3 Thesis SHA-256 identities
+ADOPTION_DATE: 2026-09-19
+ADOPTED_CONTENT_COMMIT: 33a82f3ecbb930154e415dc4e8325ad9670ae6f9
+ADR_0021_CONTENT_SHA256: 7e49c7b65223e3ee04f758b3c8f963520b7d92412d84a6be84ab9aabf2f44493
+R3_THESIS_CONTENT_SHA256: 5107b552a9a691508ca883fc05c41351383b128e55b362337eca1bfb29f8f543
+SUPERSEDES: none; establishes effective R3 target framing while preserving the owner-adopted R2 baseline and current runtime truth except where an explicit later adopted decision says otherwise
+CONFLICTS_RESOLVED: Core Kernel is a logical provider-neutral trust/authority boundary, not a mandatory new service or microservice; fractal architecture means semantic self-similarity of governed capability contracts, not recursive self-authorization or autonomous recursive execution; child operations receive no implicit authority from parent operations; downstream authority may only preserve or narrow authority; Capability Cell remains distinct from canonical OperationCell/v1; control-plane ExecutionGrant consumption, Runner authority ceiling, Runner/Verifier separation and profile-specific evidence semantics remain unchanged; CyberCore remains intelligence/context/proposal input and does not become execution authority; adoption does not upgrade implementation, provider, capability, release, deployment or production-effect state
+NEXT_REVIEW: before any material change to Core Kernel authority ownership, before a machine-readable Capability Cell contract redefines existing VOP primitives, before hierarchical authority semantics are widened, before Operation Graph execution, or after contradictory runtime/security evidence
+IMPLEMENTATION_AUTHORIZATION: NOT_CREATED_BY_THIS_RECORD
+PROVIDER_WRITE: NOT_AUTHORIZED
+RELEASE: NOT_AUTHORIZED
+DEPLOYMENT: NOT_AUTHORIZED
+PRODUCTION_EFFECTS: NOT_AUTHORIZED
+```
+
+The adopted ADR-0021 and R3 Thesis bytes are exactly those in candidate commit
+`33a82f3ecbb930154e415dc4e8325ad9670ae6f9` with the recorded SHA-256 identities. Their embedded
+`PROPOSED / REVIEW REQUIRED` labels remain unchanged; this external record establishes effective
+`ADOPTED` status.
+This adoption does not itself authorize implementation of a new Core Kernel service, Capability Cell
+runtime/schema, Operation Graph, provider mutation, release, deployment or production effect. Those
+remain separate governed decisions and evidence gates.
+
+## 14. ADR-0022 owner adoption record — durable VerificationResult/v1 persistence
+
+```text
+DOCUMENT: docs/adr/ADR-0022-durable-verification-result-v1.md
+VERSION_OR_CANDIDATE_VERSION: ADR-0022 — Durable VerificationResult/v1 projection
+DECLARED_STATUS: PROPOSED
+EFFECTIVE_STATUS: ADOPTED
+OWNER: project owner VOODOO — ENGINEERING
+ADOPTION_METHOD: explicit owner decision over exact content SHA-256 605ebb456cca780dab8315f6eb1af8923b030587fa8627e9dbd772ed7409091f and exact content commit 9490e3bda15a47c088a73c62f349d21eec58aaee
+ADOPTION_DATE: 2026-09-20
+ADOPTED_CONTENT_COMMIT: 9490e3bda15a47c088a73c62f349d21eec58aaee
+CONTENT_SHA256: 605ebb456cca780dab8315f6eb1af8923b030587fa8627e9dbd772ed7409091f
+SUPERSEDES: none; establishes effective adoption of the durable final VerificationResult/v1 persistence boundary
+CONFLICTS_RESOLVED: exact ADR bytes remain immutable with embedded PROPOSED status while this external record establishes effective adoption; one immutable canonical VerificationResult/v1 may be persisted per execution after durable Runner completion; persistence must bind execution, epoch, target and Runner observation to canonical durable state; missing final verification remains NOT_PERSISTED / UNKNOWN; execution success never implies verification; the residual crash window between Runner completion and verifier readback remains explicit and unrecovered; provider WRITE eligibility and effect authorization remain separate from durable verification persistence
+NEXT_REVIEW: before changing VerificationResult/v1 persistence ownership, relaxing immutable/binding constraints, adding verifier crash recovery/reverification semantics, changing retention/deletion behavior, or using this evidence boundary to justify provider WRITE
+IMPLEMENTATION_AUTHORIZATION: ALREADY_SEPARATELY_EXECUTED_AND_LOCALLY_VERIFIED; adoption does not itself widen implementation scope
+PROVIDER_WRITE: NOT_AUTHORIZED_BY_THIS_RECORD
+RELEASE: NOT_AUTHORIZED
+DEPLOYMENT: NOT_AUTHORIZED
+PRODUCTION_EFFECTS: NOT_AUTHORIZED
+```
+
+The adopted ADR-0022 bytes are exactly those in content commit
+`9490e3bda15a47c088a73c62f349d21eec58aaee` with the recorded SHA-256. The embedded `PROPOSED`
+label remains unchanged; this external record establishes effective `ADOPTED` status. The adoption
+record does not alter the ADR bytes and does not authorize provider mutation, release, deployment,
+production effects, or recovery/reverification beyond the separately reviewed implementation scope.
+
+## 15. VOODOO Owner Operating Mandate / VOODOO_SUBADMIN delegation
+
+```text
+DOCUMENT: docs/governance/OWNER_OPERATING_MANDATE.md
+DOCUMENT_ID: VOM-001
+DECLARED_STATUS: OWNER DIRECTIVE RECORD
+EFFECTIVE_STATUS: ADOPTED / STANDING OWNER MANDATE
+OWNER: project owner VOODOO — ENGINEERING
+ADOPTION_METHOD: explicit owner instructions on 2026-09-19 delegating VOODOO_SUBADMIN engineering authority, product/architecture stewardship and cross-chat/multi-branch arbitration; the delegated operator transcribed that instruction into exact repository bytes and this register binds the resulting immutable content identity
+ADOPTION_DATE: 2026-09-19
+ADOPTED_CONTENT_COMMIT: e216e64e4e61e3b475f0437c610369d23f69307d
+CONTENT_SHA256: d3d280c593c511ef0629e2c16149ad55c10b96131219663aaad8ca14f06f162f
+PRODUCT_DIRECTION: Verifiable Operations Trust Plane / governed operations control plane; one canonical operation language; small provider-neutral Core Kernel; monotonic authority; fractal Capability Cells; provider modules outside the kernel; profile-correct isolated execution; independent post-state verification; reconstructable evidence
+ARCHITECTURE_EVOLUTION: R3 is the current adopted target direction, not an immutable dogma; VOODOO_SUBADMIN is expected to propose and drive a superior evidence-backed architecture when it improves simplicity, safety, coherence, scalability or product leverage, subject to ADR/security/migration/verification/rollback gates
+WORKSTREAM_COORDINATION: mandatory classification of material concurrent work as PRIMARY, PARALLEL_SAFE, DEPENDENT, PAUSED, SUPERSEDED or BLOCKED; overlapping ownership/contracts require one PRIMARY unless an explicit safe integration plan exists; affected chats must be informed when next addressed
+DELEGATED_ENGINEERING: repository/evidence inspection; isolated worktrees/branches; governed edits; tests/audits; commits; review-branch publication; PR creation/update; reversible non-production operations; workstream pause/supersession/reconciliation; evidence-backed architecture improvement
+EFFECT_ELIGIBILITY: merge/release/deploy/provider WRITE/production effects/secret rotation may be executed by VOODOO_SUBADMIN only when the active higher-priority policy for that exact effect permits it and all effect-specific gates are satisfied
+HARD_LIMITS: no self-expansion; no secret exposure; no conversion of DENY to ALLOW; no bypass of failed/missing gates; no destructive repository operation or security/governance weakening without separate attributable owner authorization
+SUPERSEDES: no adopted product/architecture decision; this record adds standing delegated operating authority and coordination rules around existing adopted decisions
+NEXT_REVIEW: after any owner change to delegated authority, after a material authority/security incident, or before weakening the hard limits in this mandate
+RELEASE: NOT_AUTHORIZED_BY_THIS_RECORD
+DEPLOYMENT: NOT_AUTHORIZED_BY_THIS_RECORD
+PROVIDER_WRITE: NOT_AUTHORIZED_BY_THIS_RECORD
+PRODUCTION_EFFECTS: NOT_AUTHORIZED_BY_THIS_RECORD
+```
+
+This record makes the owner's standing delegation durable without turning the delegated operator into a
+self-authorizing root. The mandate governs how work is coordinated and how architecture is challenged;
+it does not override higher-priority platform policy, current runtime truth, effect-specific gates or
+existing adopted security/authority invariants.
+
+## 16. VOODOO_SUBADMIN Rook identity / mandate refresh
+
+```text
+DOCUMENT: docs/governance/OWNER_OPERATING_MANDATE.md
+DOCUMENT_ID: VOM-001
+DECLARED_STATUS: OWNER DIRECTIVE RECORD
+EFFECTIVE_STATUS: ADOPTED / STANDING OWNER MANDATE
+OWNER: project owner VOODOO — ENGINEERING
+DELEGATED_OPERATOR_NAME: ROOK
+DELEGATED_ROLE: VOODOO_SUBADMIN
+ADOPTION_METHOD: explicit owner instruction on 2026-09-19 to choose a durable operator name and immediately test the delegated operating model; exact mandate bytes bind Rook to VOODOO_SUBADMIN without widening the previously adopted authority scope
+ADOPTION_DATE: 2026-09-19
+ADOPTED_CONTENT_COMMIT: 80caca3e883c03afe55d2e36a9d725c662b2e788
+CONTENT_SHA256: 404666d419f8e4bd9e9fcae0c0781446682c5259d140d93ef9dc59d556ce9f5b
+SUPERSEDES_CONTENT_IDENTITY: section 15 mandate content identity d3d280c593c511ef0629e2c16149ad55c10b96131219663aaad8ca14f06f162f; authority scope and hard limits are unchanged
+WORKSTREAM_COORDINATION: unchanged and mandatory; PRIMARY, PARALLEL_SAFE, DEPENDENT, PAUSED, SUPERSEDED and BLOCKED remain the exact material-workstream classifications
+HARD_LIMITS: unchanged; no self-expansion, no secret exposure, no DENY-to-ALLOW conversion, no bypass of failed/missing gates, no unauthorized destructive action or security/governance weakening
+ARCHITECTURE_EVOLUTION: unchanged; Rook must actively challenge weaker architecture and drive superior evidence-backed designs through ADR, security, migration, verification and rollback gates
+RELEASE: NOT_AUTHORIZED_BY_THIS_RECORD
+DEPLOYMENT: NOT_AUTHORIZED_BY_THIS_RECORD
+PROVIDER_WRITE: NOT_AUTHORIZED_BY_THIS_RECORD
+PRODUCTION_EFFECTS: NOT_AUTHORIZED_BY_THIS_RECORD
+```
+
+Section 15 remains the historical first adoption of `VOM-001`. This section adopts the amended exact
+bytes that add the durable delegated operator name `ROOK` and test discoverability. It does not expand
+or weaken the standing mandate.
