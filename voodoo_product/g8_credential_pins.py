@@ -12,6 +12,9 @@ class _CredentialBinding:
     token_fingerprint: str
     credential_class: str
     attested_principal: str
+    attestation_kind: str
+    installation_id: int | None
+    repository_scope: str | None
 
 
 class _CredentialPin(NamedTuple):

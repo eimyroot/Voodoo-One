@@ -42,7 +42,11 @@ from .execution_conformance import (
 )
 from .execution_contract import ExecutionTarget
 from .execution_lease_persistence import DurableExecutionLeaseService
-from .g8_read_runtime import G8BoundGitHubReadTransport, G8ReadRuntimePack
+from .g8_read_runtime import (
+    G8_GITHUB_APP_INSTALLATION_ATTESTATION,
+    G8BoundGitHubReadTransport,
+    G8ReadRuntimePack,
+)
 from .github_actions_runtime import GitHubActionsIsolatedRuntimeProvider
 from .github_read_provider import (
     GITHUB_READ_REF_BINDER_ID,
@@ -80,7 +84,7 @@ G8_ENABLED: Final = "enabled"
 G8_ALLOWED_ENVIRONMENTS: Final = frozenset({"local", "development", "staging"})
 G8_RUNNER_CLASS: Final = "github-actions.docker-isolated/v1"
 G8_RUNNER_CREDENTIAL_CLASS: Final = "github.runner-read/scoped-v1"
-G8_VERIFIER_CREDENTIAL_CLASS: Final = "github.verifier-read/scoped-v1"
+G8_VERIFIER_CREDENTIAL_CLASS: Final = "github.verifier-app-installation-read/scoped-v1"
 G8_PRECONDITION_STATE_SCHEMA: Final = "vone.github-read-target-binding/v1"
 G8_PRECONDITION_BINDER_ID: Final = "github-read-target-expectation/g8-r1"
 G8_PRECONDITION_OBSERVER_ID: Final = "github-read-target-observer/g8-r1"
@@ -134,11 +138,20 @@ def _required_nonnegative_int_env(name: str) -> int:
     return value
 
 
+def _required_positive_int_env(name: str) -> int:
+    value = _required_nonnegative_int_env(name)
+    if value < 1:
+        raise RuntimeError(f"{name} must be a positive integer")
+    return value
+
+
 @dataclass(frozen=True, slots=True, repr=False)
 class _G8ActivationSettings:
     environment: str
     runner_token: str
     verifier_token: str
+    verifier_installation_id: int
+    verifier_repository_scope: str
     runner_provider_instance_id: str
     verifier_provider_instance_id: str
     runner_rootfs_digest: str
@@ -232,11 +245,21 @@ def _load_settings(config: ProductConfig) -> _G8ActivationSettings | None:
     verifier_instance = _required_env("VOODOO_G8_VERIFIER_PROVIDER_INSTANCE_ID")
     if runner_instance == verifier_instance:
         raise PermissionError("G8 Runner and Verifier provider instances must be distinct")
+    verifier_installation_id = _required_positive_int_env(
+        "VOODOO_G8_VERIFIER_GITHUB_INSTALLATION_ID"
+    )
+    verifier_repository_scope = _required_env(
+        "VOODOO_G8_VERIFIER_GITHUB_REPOSITORY_SCOPE"
+    )
+    if verifier_repository_scope.count("/") != 1:
+        raise RuntimeError("VOODOO_G8_VERIFIER_GITHUB_REPOSITORY_SCOPE must be owner/repository")
 
     return _G8ActivationSettings(
         environment=config.environment,
         runner_token=runner_token,
         verifier_token=verifier_token,
+        verifier_installation_id=verifier_installation_id,
+        verifier_repository_scope=verifier_repository_scope,
         runner_provider_instance_id=runner_instance,
         verifier_provider_instance_id=verifier_instance,
         runner_rootfs_digest=_required_digest_env("VOODOO_G8_RUNNER_ROOTFS_DIGEST"),
@@ -549,6 +572,9 @@ def _build_runtime(
         verifier_transport=G8BoundGitHubReadTransport(
             token=settings.verifier_token,
             credential_class=G8_VERIFIER_CREDENTIAL_CLASS,
+            attestation_kind=G8_GITHUB_APP_INSTALLATION_ATTESTATION,
+            installation_id=settings.verifier_installation_id,
+            repository_scope=settings.verifier_repository_scope,
         ),
         verifier_clock=TrustedClockAuthority(
             source_identity="system-utc/g8-verifier-product-r1",

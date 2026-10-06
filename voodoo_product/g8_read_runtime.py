@@ -69,6 +69,9 @@ _GITHUB_API_VERSION: Final = "2022-11-28"
 _DURABLE_FENCE_ASSERT_CURRENT: Final = DurableCurrentExecutionFence.assert_current
 _EXPECTED_DURABLE_FENCE_INSTANCE_FIELDS: Final = frozenset({"db", "trusted_clock"})
 
+G8_GITHUB_USER_ATTESTATION: Final = "github-user/v1"
+G8_GITHUB_APP_INSTALLATION_ATTESTATION: Final = "github-app-installation/v1"
+
 
 def _require_text(value: object, *, field: str) -> str:
     if (
@@ -144,6 +147,72 @@ def _observe_github_credential_principal(token: str) -> str:
     ):
         raise RuntimeError("G8 GitHub credential principal type is invalid")
     return f"github-principal/{principal_type.casefold()}/{principal_id}"
+
+
+def _observe_github_app_installation_principal(
+    token: str,
+    *,
+    installation_id: int,
+    repository_scope: str,
+) -> str:
+    """Attest a repository-scoped GitHub App installation credential.
+
+    The installation id is supplied by the trusted token issuer. Provider observation proves that
+    the exact credential is an installation-shaped token whose effective repository scope is exactly
+    the configured repository. The raw token and provider response are never serialized into V-One
+    evidence.
+    """
+
+    if not token.startswith("ghs_"):
+        raise RuntimeError("G8 Verifier credential is not a GitHub App installation token")
+    if isinstance(installation_id, bool) or not isinstance(installation_id, int) or installation_id < 1:
+        raise RuntimeError("G8 Verifier GitHub App installation id is invalid")
+    repository_scope = _require_text(repository_scope, field="repository_scope")
+    if repository_scope.count("/") != 1 or any(not part for part in repository_scope.split("/")):
+        raise RuntimeError("G8 Verifier GitHub App repository scope is invalid")
+
+    connection = http.client.HTTPSConnection(_GITHUB_API_HOST, 443, timeout=15)
+    try:
+        connection.request(
+            "GET",
+            "/installation/repositories?per_page=100&page=1",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": f"Bearer {token}",
+                "User-Agent": "v-one-g8-app-installation-principal",
+                "X-GitHub-Api-Version": _GITHUB_API_VERSION,
+            },
+        )
+        response = connection.getresponse()
+        if response.status != 200:
+            raise RuntimeError(
+                "G8 Verifier GitHub App installation observation "
+                f"failed with HTTP {response.status}"
+            )
+        try:
+            payload = json.loads(response.read().decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise RuntimeError(
+                "G8 Verifier GitHub App installation response is invalid"
+            ) from exc
+    except (OSError, http.client.HTTPException) as exc:
+        raise RuntimeError("G8 Verifier GitHub App installation observation failed") from exc
+    finally:
+        connection.close()
+
+    if not isinstance(payload, dict):
+        raise RuntimeError("G8 Verifier GitHub App installation response is invalid")
+    total_count = payload.get("total_count")
+    repositories = payload.get("repositories")
+    if total_count != 1 or not isinstance(repositories, list) or len(repositories) != 1:
+        raise PermissionError(
+            "G8 Verifier GitHub App credential must be scoped to exactly one repository"
+        )
+    repository = repositories[0]
+    if not isinstance(repository, dict) or repository.get("full_name") != repository_scope:
+        raise PermissionError("G8 Verifier GitHub App repository scope mismatch")
+
+    return f"github-principal/app-installation/{installation_id}"
 
 
 def _assert_pristine_durable_fence(fence: object) -> DurableCurrentExecutionFence:
@@ -230,7 +299,18 @@ def _build_g8_bound_github_read_transport_type() -> type:
         current_fingerprint = _token_fingerprint(token)
         if not secrets.compare_digest(current_fingerprint, binding.token_fingerprint):
             raise PermissionError("G8 credential material changed after attestation")
-        current_principal = _observe_github_credential_principal(token)
+        if binding.attestation_kind == G8_GITHUB_USER_ATTESTATION:
+            current_principal = _observe_github_credential_principal(token)
+        elif binding.attestation_kind == G8_GITHUB_APP_INSTALLATION_ATTESTATION:
+            if binding.installation_id is None or binding.repository_scope is None:
+                raise PermissionError("G8 Verifier GitHub App attestation binding is incomplete")
+            current_principal = _observe_github_app_installation_principal(
+                token,
+                installation_id=binding.installation_id,
+                repository_scope=binding.repository_scope,
+            )
+        else:
+            raise PermissionError("G8 credential attestation kind is invalid")
         if current_principal != binding.attested_principal:
             raise PermissionError("G8 credential principal changed after attestation")
         return binding
@@ -252,6 +332,9 @@ def _build_g8_bound_github_read_transport_type() -> type:
             *,
             token: str,
             credential_class: str,
+            attestation_kind: str = G8_GITHUB_USER_ATTESTATION,
+            installation_id: int | None = None,
+            repository_scope: str | None = None,
         ) -> None:
             if self in bindings:
                 raise RuntimeError("G8 credential source is already initialized")
@@ -264,12 +347,32 @@ def _build_g8_bound_github_read_transport_type() -> type:
                     credential_class,
                     field="credential_class",
                 )
-                principal = _observe_github_credential_principal(token)
+                attestation_kind = _require_text(
+                    attestation_kind,
+                    field="attestation_kind",
+                )
+                if attestation_kind == G8_GITHUB_USER_ATTESTATION:
+                    if installation_id is not None or repository_scope is not None:
+                        raise ValueError("G8 user credential cannot carry App installation binding")
+                    principal = _observe_github_credential_principal(token)
+                elif attestation_kind == G8_GITHUB_APP_INSTALLATION_ATTESTATION:
+                    if installation_id is None or repository_scope is None:
+                        raise ValueError("G8 App installation credential binding is incomplete")
+                    principal = _observe_github_app_installation_principal(
+                        token,
+                        installation_id=installation_id,
+                        repository_scope=repository_scope,
+                    )
+                else:
+                    raise ValueError("G8 credential attestation kind is invalid")
                 binding = _CredentialBinding(
                     token=token,
                     token_fingerprint=_token_fingerprint(token),
                     credential_class=credential_class,
                     attested_principal=principal,
+                    attestation_kind=attestation_kind,
+                    installation_id=installation_id,
+                    repository_scope=repository_scope,
                 )
             except Exception:
                 bindings.pop(self, None)
@@ -287,6 +390,14 @@ def _build_g8_bound_github_read_transport_type() -> type:
         @property
         def credential_fingerprint(self) -> str:
             return validated_binding(self).token_fingerprint
+
+        @property
+        def credential_attestation_kind(self) -> str:
+            return validated_binding(self).attestation_kind
+
+        @property
+        def credential_repository_scope(self) -> str | None:
+            return validated_binding(self).repository_scope
 
         def _pin_snapshot(self) -> _CredentialPin:
             binding = validated_binding(self)
@@ -316,6 +427,11 @@ def _build_g8_bound_github_read_transport_type() -> type:
             )
             if current_pin != pin:
                 raise PermissionError("G8 credential binding changed after runtime pinning")
+            if (
+                binding.attestation_kind == G8_GITHUB_APP_INSTALLATION_ATTESTATION
+                and repository != binding.repository_scope
+            ):
+                raise PermissionError("G8 Verifier GitHub App repository target is outside credential scope")
             token = binding.token
             return _provider_read_with_pin(
                 pin=provider_effect_pin,
@@ -535,6 +651,17 @@ class G8ReadRuntimePack:
             raise PermissionError("G8 Runner runtime pin credential class mismatch")
         if verifier_pin.credential_class != self.verifier_policy.credential_class:
             raise PermissionError("G8 Verifier runtime pin credential class mismatch")
+        if self.runner_transport.credential_attestation_kind != G8_GITHUB_USER_ATTESTATION:
+            raise PermissionError("G8 Runner credential must use GitHub user attestation")
+        if (
+            self.verifier_transport.credential_attestation_kind
+            != G8_GITHUB_APP_INSTALLATION_ATTESTATION
+        ):
+            raise PermissionError(
+                "G8 Verifier credential must use GitHub App installation attestation"
+            )
+        if self.verifier_transport.credential_repository_scope is None:
+            raise PermissionError("G8 Verifier GitHub App repository scope is missing")
         if secrets.compare_digest(
             runner_pin.token_fingerprint,
             verifier_pin.token_fingerprint,

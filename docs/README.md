@@ -17,6 +17,7 @@ normative authority remains governed separately by adopted records and repositor
 | What works now? | [`product/CURRENT_CAPABILITIES.md`](product/CURRENT_CAPABILITIES.md) |
 | What is the post-G7 canonical checkpoint? | [`product/POST_G7_CANONICAL_STATE.md`](product/POST_G7_CANONICAL_STATE.md) |
 | What is the next READ runtime gate? | [`product/G8_READ_RUNTIME_GATE.md`](product/G8_READ_RUNTIME_GATE.md) |
+| What redesign replaces the second-user G8 Verifier with owner-controlled machine identity? | [`adr/ADR-0026-g8-owner-controlled-machine-verifier.md`](adr/ADR-0026-g8-owner-controlled-machine-verifier.md) — PROPOSED candidate |
 | What should it support later? | [`product/TARGET_CAPABILITIES.md`](product/TARGET_CAPABILITIES.md) |
 | What is the Control Room CURRENT → TARGET gap? | [`product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md`](product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md) |
 | What is the security overview? | [`product/SECURITY_OVERVIEW.md`](product/SECURITY_OVERVIEW.md) |
