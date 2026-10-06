@@ -29,21 +29,47 @@ def test_g8_live_gate_requires_exact_sha_and_explicit_confirmation() -> None:
     assert "RUN_G8_LIVE_READ" in text
 
 
-def test_g8_live_gate_separates_runner_and_verifier_credentials() -> None:
+def test_g8_live_gate_separates_runner_and_machine_verifier_credentials() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "RUNNER_GITHUB_TOKEN: ${{ secrets.VONE_G8_RUNNER_GITHUB_TOKEN }}" in text
     assert "github.token" not in text
-    assert "VERIFIER_GITHUB_TOKEN: ${{ secrets.VONE_G8_VERIFIER_GITHUB_TOKEN }}" in text
+    assert "VONE_G8_VERIFIER_GITHUB_TOKEN" not in text
     assert "VONE_GITHUB_GOVERNANCE_TOKEN" not in text
+
+    assert (
+        "actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1"
+        in text
+    )
+    assert "client-id: ${{ vars.VONE_G8_VERIFIER_GITHUB_APP_CLIENT_ID }}" in text
+    assert (
+        "private-key: ${{ secrets.VONE_G8_VERIFIER_GITHUB_APP_PRIVATE_KEY }}"
+        in text
+    )
+    assert "permission-contents: read" in text
+    assert "permission-contents: write" not in text
+    assert "VERIFIER_GITHUB_TOKEN: ${{ steps.verifier_app.outputs.token }}" in text
+    assert (
+        "VERIFIER_INSTALLATION_ID: ${{ steps.verifier_app.outputs.installation-id }}"
+        in text
+    )
     assert "VOODOO_G8_RUNNER_GITHUB_TOKEN=$RUNNER_GITHUB_TOKEN" in text
     assert "VOODOO_G8_VERIFIER_GITHUB_TOKEN=$VERIFIER_GITHUB_TOKEN" in text
+    assert (
+        "VOODOO_G8_VERIFIER_GITHUB_INSTALLATION_ID=$VERIFIER_INSTALLATION_ID"
+        in text
+    )
+    assert (
+        "VOODOO_G8_VERIFIER_GITHUB_REPOSITORY_SCOPE=$VONE_G8_TARGET_REPOSITORY"
+        in text
+    )
     assert 'test -n "$RUNNER_GITHUB_TOKEN"' in text
     assert 'test -n "$VERIFIER_GITHUB_TOKEN"' in text
+    assert "https://api.github.com/installation/repositories?per_page=100&page=1" in text
+    assert "github-principal/app-installation/" in text
     assert text.count("--ctstate ESTABLISHED,RELATED -j ACCEPT") == 3
     assert "id: sanitize_evidence" in text
     assert "if: always() && steps.sanitize_evidence.outcome == 'success'" in text
     assert "secret material found in evidence file" in text
-    assert 'test "$runner_id" != "$verifier_id"' in text
 
 
 def test_g8_live_gate_preserves_default_deny_runtime_boundary() -> None:

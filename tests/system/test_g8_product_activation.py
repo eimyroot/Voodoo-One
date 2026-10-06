@@ -46,7 +46,9 @@ def enable_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     values = {
         G8_ACTIVATION_ENV: "enabled",
         "VOODOO_G8_RUNNER_GITHUB_TOKEN": "runner-g8-product-test-token",
-        "VOODOO_G8_VERIFIER_GITHUB_TOKEN": "verifier-g8-product-test-token",
+        "VOODOO_G8_VERIFIER_GITHUB_TOKEN": "ghs_verifier-g8-product-test-token",
+        "VOODOO_G8_VERIFIER_GITHUB_INSTALLATION_ID": "202",
+        "VOODOO_G8_VERIFIER_GITHUB_REPOSITORY_SCOPE": "eimyroot/Voodoo-One",
         "VOODOO_G8_RUNNER_PROVIDER_INSTANCE_ID": "gha:g8:runner:test",
         "VOODOO_G8_VERIFIER_PROVIDER_INSTANCE_ID": "gha:g8:verifier:test",
         "VOODOO_G8_RUNNER_ROOTFS_DIGEST": "1" * 64,
@@ -64,14 +66,28 @@ def enable_settings(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def fake_principal_observation(monkeypatch: pytest.MonkeyPatch) -> None:
-    def observe(token: str) -> str:
+    def observe_user(token: str) -> str:
         if token.startswith("runner-"):
             return "github-principal/user/101"
-        if token.startswith("verifier-"):
-            return "github-principal/user/202"
-        raise AssertionError("unexpected credential")
+        raise AssertionError("unexpected user credential")
 
-    monkeypatch.setattr(g8_module, "_observe_github_credential_principal", observe)
+    def observe_app(
+        token: str,
+        *,
+        installation_id: int,
+        repository_scope: str,
+    ) -> str:
+        assert token.startswith("ghs_verifier-")
+        assert installation_id == 202
+        assert repository_scope == "eimyroot/Voodoo-One"
+        return "github-principal/app-installation/202"
+
+    monkeypatch.setattr(g8_module, "_observe_github_credential_principal", observe_user)
+    monkeypatch.setattr(
+        g8_module,
+        "_observe_github_app_installation_principal",
+        observe_app,
+    )
 
 
 def test_g8_is_disabled_by_default_without_reading_credentials(

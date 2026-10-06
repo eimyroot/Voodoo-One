@@ -32,14 +32,17 @@ ROOTFS_DIGEST = "1" * 64
 RESOURCE_DIGEST = "2" * 64
 NETWORK_DIGEST = "3" * 64
 RUNNER_CREDENTIAL_CLASS = "github.runner-read/scoped-v1"
-VERIFIER_CREDENTIAL_CLASS = "github.verifier-read/scoped-v1"
+VERIFIER_CREDENTIAL_CLASS = "github.verifier-app-installation-read/scoped-v1"
 RUNNER_CLASS = "github-actions.docker-isolated/v1"
 RUNNER_TOKEN = "runner-g8-test-token"
 VERIFIER_TOKEN = "verifier-g8-test-token"
 RUNNER_PRINCIPAL = "github-principal/user/101"
-VERIFIER_PRINCIPAL = "github-principal/user/202"
+VERIFIER_PRINCIPAL = "github-principal/app-installation/202"
+VERIFIER_INSTALLATION_ID = 202
+VERIFIER_REPOSITORY_SCOPE = "nulleimy/V-One"
 
 _REAL_PRINCIPAL_OBSERVER = g8_module._observe_github_credential_principal
+_REAL_APP_PRINCIPAL_OBSERVER = g8_module._observe_github_app_installation_principal
 
 
 class FixedClockSource:
@@ -165,15 +168,27 @@ class ProfileRegistry:
 
 @pytest.fixture(autouse=True)
 def provider_principal_stub(monkeypatch: pytest.MonkeyPatch) -> None:
-    def observe(token: str) -> str:
+    def observe_user(token: str) -> str:
         if token == RUNNER_TOKEN:
             return RUNNER_PRINCIPAL
-        if token == VERIFIER_TOKEN:
-            return VERIFIER_PRINCIPAL
         principal_id = sum((index + 1) * ord(character) for index, character in enumerate(token))
         return f"github-principal/user/{principal_id}"
 
-    monkeypatch.setattr(g8_module, "_observe_github_credential_principal", observe)
+    def observe_app(
+        token: str,
+        *,
+        installation_id: int,
+        repository_scope: str,
+    ) -> str:
+        assert repository_scope == VERIFIER_REPOSITORY_SCOPE
+        return f"github-principal/app-installation/{installation_id}"
+
+    monkeypatch.setattr(g8_module, "_observe_github_credential_principal", observe_user)
+    monkeypatch.setattr(
+        g8_module,
+        "_observe_github_app_installation_principal",
+        observe_app,
+    )
 
 
 def config(tmp_path: Path, *, environment: str = "staging") -> ProductConfig:
@@ -196,10 +211,17 @@ def clock(name: str) -> TrustedClockAuthority:
 
 
 def bound_transport(*, token: str, credential_class: str) -> G8BoundGitHubReadTransport:
-    return G8BoundGitHubReadTransport(
-        token=token,
-        credential_class=credential_class,
-    )
+    kwargs: dict[str, object] = {
+        "token": token,
+        "credential_class": credential_class,
+    }
+    if credential_class == VERIFIER_CREDENTIAL_CLASS:
+        kwargs.update(
+            attestation_kind=g8_module.G8_GITHUB_APP_INSTALLATION_ATTESTATION,
+            installation_id=VERIFIER_INSTALLATION_ID,
+            repository_scope=VERIFIER_REPOSITORY_SCOPE,
+        )
+    return G8BoundGitHubReadTransport(**kwargs)  # type: ignore[arg-type]
 
 
 def build_fixture(tmp_path: Path) -> SimpleNamespace:
@@ -431,15 +453,25 @@ def test_g8_runtime_pair_uses_pinned_get_only_provider_after_module_rebind(
     )
     runner_effect_transport = runtime.read_terminal.runner_handler.transport
     observed_tokens: list[str] = []
+    observed_app_tokens: list[str] = []
     requests: list[tuple[str, str, dict[str, str]]] = []
 
     def observe(candidate: str) -> str:
         observed_tokens.append(candidate)
         if candidate == RUNNER_TOKEN:
             return RUNNER_PRINCIPAL
-        if candidate == VERIFIER_TOKEN:
-            return VERIFIER_PRINCIPAL
-        raise AssertionError("unexpected credential")
+        raise AssertionError("unexpected user credential")
+
+    def observe_app(
+        candidate: str,
+        *,
+        installation_id: int,
+        repository_scope: str,
+    ) -> str:
+        observed_app_tokens.append(candidate)
+        assert installation_id == VERIFIER_INSTALLATION_ID
+        assert repository_scope == VERIFIER_REPOSITORY_SCOPE
+        return VERIFIER_PRINCIPAL
 
     class Response:
         status = 200
@@ -472,6 +504,11 @@ def test_g8_runtime_pair_uses_pinned_get_only_provider_after_module_rebind(
             raise AssertionError(f"replacement must not read {repository}:{ref}")
 
     monkeypatch.setattr(g8_module, "_observe_github_credential_principal", observe)
+    monkeypatch.setattr(
+        g8_module,
+        "_observe_github_app_installation_principal",
+        observe_app,
+    )
     monkeypatch.setattr(g8_module.http.client, "HTTPSConnection", Connection)
     monkeypatch.setattr(g8_module, "GitHubApiRefReadTransport", ReplacementTransport)
 
@@ -481,7 +518,8 @@ def test_g8_runtime_pair_uses_pinned_get_only_provider_after_module_rebind(
     )
 
     assert result == "a" * 40
-    assert observed_tokens == [RUNNER_TOKEN, VERIFIER_TOKEN, RUNNER_TOKEN]
+    assert observed_tokens == [RUNNER_TOKEN, RUNNER_TOKEN]
+    assert observed_app_tokens == [VERIFIER_TOKEN]
     assert len(requests) == 1
     method, path, headers = requests[0]
     assert method == "GET"
@@ -504,7 +542,10 @@ def test_g8_runtime_pair_rejects_introspective_closure_registry_rewrite(
         token=RUNNER_TOKEN,
         token_fingerprint=g8_module._token_fingerprint(RUNNER_TOKEN),
         credential_class=VERIFIER_CREDENTIAL_CLASS,
-        attested_principal=RUNNER_PRINCIPAL,
+        attested_principal=VERIFIER_PRINCIPAL,
+        attestation_kind=g8_module.G8_GITHUB_APP_INSTALLATION_ATTESTATION,
+        installation_id=VERIFIER_INSTALLATION_ID,
+        repository_scope=VERIFIER_REPOSITORY_SCOPE,
     )
 
     class ForbiddenProviderTransport:
@@ -557,6 +598,135 @@ def test_real_principal_observer_uses_authenticated_github_user_read(
     assert method == "GET"
     assert path == "/user"
     assert headers["Authorization"] == "Bearer exact-provider-token"
+
+
+def test_real_app_installation_observer_attests_exact_repository_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requests: list[tuple[str, str, dict[str, str]]] = []
+
+    class Response:
+        status = 200
+
+        @staticmethod
+        def read() -> bytes:
+            return b'{"total_count":1,"repositories":[{"full_name":"nulleimy/V-One"}]}'
+
+    class Connection:
+        def __init__(self, host: str, port: int, timeout: int) -> None:
+            assert (host, port, timeout) == ("api.github.com", 443, 15)
+
+        def request(self, method: str, path: str, *, headers: dict[str, str]) -> None:
+            requests.append((method, path, headers))
+
+        @staticmethod
+        def getresponse() -> Response:
+            return Response()
+
+        @staticmethod
+        def close() -> None:
+            return None
+
+    monkeypatch.setattr(g8_module.http.client, "HTTPSConnection", Connection)
+
+    principal = _REAL_APP_PRINCIPAL_OBSERVER(
+        "ghs_exact-installation-token",
+        installation_id=4242,
+        repository_scope="nulleimy/V-One",
+    )
+
+    assert principal == "github-principal/app-installation/4242"
+    assert len(requests) == 1
+    method, path, headers = requests[0]
+    assert method == "GET"
+    assert path == "/installation/repositories?per_page=100&page=1"
+    assert headers["Authorization"] == "Bearer ghs_exact-installation-token"
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected"),
+    (
+        (
+            b'{"total_count":2,"repositories":[{"full_name":"nulleimy/V-One"},{"full_name":"nulleimy/Other"}]}',
+            "must be scoped to exactly one repository",
+        ),
+        (
+            b'{"total_count":1,"repositories":[{"full_name":"nulleimy/Other"}]}',
+            "repository scope mismatch",
+        ),
+    ),
+)
+def test_real_app_installation_observer_fails_closed_on_scope_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+    payload: bytes,
+    expected: str,
+) -> None:
+    class Response:
+        status = 200
+
+        @staticmethod
+        def read() -> bytes:
+            return payload
+
+    class Connection:
+        def __init__(self, host: str, port: int, timeout: int) -> None:
+            del host, port, timeout
+
+        @staticmethod
+        def request(method: str, path: str, *, headers: dict[str, str]) -> None:
+            del method, path, headers
+
+        @staticmethod
+        def getresponse() -> Response:
+            return Response()
+
+        @staticmethod
+        def close() -> None:
+            return None
+
+    monkeypatch.setattr(g8_module.http.client, "HTTPSConnection", Connection)
+
+    with pytest.raises((PermissionError, RuntimeError), match=expected):
+        _REAL_APP_PRINCIPAL_OBSERVER(
+            "ghs_scope-test",
+            installation_id=4242,
+            repository_scope="nulleimy/V-One",
+        )
+
+
+def test_real_app_installation_observer_rejects_non_installation_token() -> None:
+    with pytest.raises(RuntimeError, match="not a GitHub App installation token"):
+        _REAL_APP_PRINCIPAL_OBSERVER(
+            "github_pat_not-an-installation-token",
+            installation_id=4242,
+            repository_scope="nulleimy/V-One",
+        )
+
+
+def test_g8_app_verifier_refuses_repository_outside_attested_scope(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = build_fixture(tmp_path)
+    runtime = pack(fixture).build_runtime(
+        service=fixture.service,
+        permission_authority=fixture.permission,
+    )
+    verifier_effect_transport = runtime.read_terminal.verifier_handler.transport
+
+    def forbidden_provider_read(**_: object) -> str:
+        raise AssertionError("provider READ must not be reached outside App repository scope")
+
+    monkeypatch.setattr(g8_module, "_provider_read_with_pin", forbidden_provider_read)
+
+    with pytest.raises(
+        PermissionError,
+        match="repository target is outside credential scope",
+    ):
+        verifier_effect_transport.read_ref(
+            repository="nulleimy/Other",
+            ref="refs/heads/main",
+        )
 
 
 def test_g8_builds_only_read_runtime_over_exact_canonical_authority(tmp_path: Path) -> None:
@@ -806,8 +976,8 @@ def test_g8_rejects_distinct_tokens_for_same_provider_principal(
     fixture = build_fixture(tmp_path)
     monkeypatch.setattr(
         g8_module,
-        "_observe_github_credential_principal",
-        lambda token: RUNNER_PRINCIPAL,
+        "_observe_github_app_installation_principal",
+        lambda token, *, installation_id, repository_scope: RUNNER_PRINCIPAL,
     )
     verifier = bound_transport(
         token="different-token-same-provider-principal",

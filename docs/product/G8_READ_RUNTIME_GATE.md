@@ -1,6 +1,6 @@
 # G8 — Explicit READ-Only Provider Runtime Gate
 
-Current source state: **G8 READ runtime pack IMPLEMENTED / MERGED; explicit non-production activation path IMPLEMENTED; owner-authorized alternative external Linux READ acceptance VERIFIED for `main@2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`; default remains OFF and official GitHub Actions parity remains pending due account-level Actions policy.**
+Current source state: **G8 READ runtime pack IMPLEMENTED / MERGED; default remains OFF. Historical alternative and schema-v15 live READ evidence remain retained. Official GitHub Actions execution is now available, but the fresh 2026-10-06 exact-main parity attempt failed closed on Runner credential HTTP 401 before live provider READ. ADR-0026 is an IMPLEMENTED-IN-CANDIDATE machine-Verifier redesign and is not yet merged, adopted, provisioned or live-verified.**
 
 ## Purpose
 
@@ -33,9 +33,18 @@ Any parallel database, permission authority, profile registry, fence, execution 
 
 Runner and independent Verifier must have distinct identities and distinct credential decisions. Credential bytes are never serialized into V-One evidence objects.
 
+The ADR-0026 candidate makes that separation explicit by credential class:
+
+```text
+Runner   = GitHub user principal + explicit READ credential + /user attestation
+Verifier = GitHub App installation principal + ephemeral repository-scoped READ token
+```
+
+For the machine Verifier candidate, the product runtime requires an installation ID and exact repository scope in addition to the ephemeral token. The token is revalidated through `/installation/repositories`, which must expose exactly the configured target repository. The Verifier transport refuses a READ outside that repository scope.
+
 The runtime must not fall back to ambient shell credentials, developer-local Git state, legacy `ExecutionService`, or a generic provider client with mutation permission.
 
-Missing/ambiguous configuration fails closed.
+Missing, ambiguous, expired, wrong-scope or principal-collapsed configuration fails closed.
 
 ## Authority ceiling
 
@@ -50,11 +59,11 @@ The default runtime pack must contain no provider mutation transport and no call
 
 ## Acceptance automation
 
-The repository includes `g8-live-product-read-acceptance`, a manual main-only GitHub Actions gate. It requires separately provisioned fine-grained READ credentials `VONE_G8_RUNNER_GITHUB_TOKEN` and `VONE_G8_VERIFIER_GITHUB_TOKEN` bound to distinct GitHub user principals. The workflow-level `contents: read` permission remains only the Actions checkout ceiling; the installation-scoped `github.token` is not used as a G8 user credential because it cannot satisfy the released `/user` principal attestation contract. The workflow performs no provider mutation, release or deployment.
+The repository includes `g8-live-product-read-acceptance`, a manual main-only GitHub Actions gate. The Runner uses the separately provisioned fine-grained READ credential `VONE_G8_RUNNER_GITHUB_TOKEN` bound to a GitHub user principal. The candidate ADR-0026 machine-Verifier flow mints an ephemeral GitHub App installation token for the exact current repository using a commit-SHA-pinned token issuer, requests only `contents: read`, provider-observes the exact repository scope through `/installation/repositories`, and binds the issuer-supplied installation id as the distinct Verifier principal identity. The workflow-level `contents: read` permission remains only the Actions job ceiling. The workflow performs no provider mutation, release or deployment.
 
 The workflow is the official parity path. On 2026-09-19 GitHub returned HTTP 422 before run creation because Actions were disabled by account-level policy for the user, so the owner authorized a one-time alternative external Linux run using the existing G8 acceptance semantics as the evidence standard. That alternative run verified exact `main` SHA `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f` with separate Runner and Verifier credentials, GitHub-only egress, no provider write, no release, no deployment and durable sanitized evidence under `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNAL_LINUX_20260919_2f9ab7f`.
 
-Missing Runner or Verifier credentials, inability to attest either credential through GitHub `/user`, identical Runner/Verifier principals, target-SHA drift, duplicate durable lineage or a non-`VERIFIED` result all fail closed.
+Missing Runner credentials, failed GitHub App credential issuance, inability to attest the Runner through GitHub `/user`, invalid or ambiguous Verifier installation repository scope, collapsed Runner/Verifier principal identity, target-SHA drift, duplicate durable lineage or a non-`VERIFIED` result all fail closed.
 
 The R3 decision record is `docs/governance/G8_LIVE_ACCEPTANCE_R3_DECISION_CARD.md`.
 
@@ -151,7 +160,8 @@ G8 R1 may only claim:
 DEFAULT_READ_PROVIDER_RUNTIME = IMPLEMENTED / VERIFIED
 REAL_CANONICAL_READ_E2E       = VERIFIED_SCHEMA15_LIVE_READ
 HISTORICAL_EXACT_MAIN_READ    = VERIFIED_ALT_EXTERNAL_LINUX
-GITHUB_ACTIONS_PARITY         = PENDING_ACCOUNT_ACTIONS_POLICY
+GITHUB_ACTIONS_PARITY         = ATTEMPTED / BLOCKED_RUNNER_CREDENTIAL_HTTP_401
+MACHINE_VERIFIER_CANDIDATE    = IMPLEMENTED_IN_CANDIDATE / NOT_LIVE_PROVISIONED
 WRITE_RUNTIME_GATE            = BLOCKED_REPEATED_GATE_OPEN
 ```
 
