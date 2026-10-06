@@ -4,7 +4,7 @@
 |---|---|
 | Document class | Governance authority and adoption register |
 | Candidate preparation date | `2026-08-06` |
-| Latest recorded owner adoption date | `2026-09-20` |
+| Latest recorded owner adoption date | `2026-10-06` |
 | Scope | VOODOO One governance documents, accepted ADRs, and technical operating-standard succession |
 | Live repository authority | None; live Git, tests, CI, artifacts and runtime remain separate evidence sources |
 | Owner adoption effect | An explicit owner decision over an exact content SHA-256 and candidate commit creates adoption when recorded here without modifying the adopted content |
@@ -388,3 +388,38 @@ PRODUCTION_EFFECTS: NOT_AUTHORIZED_BY_THIS_RECORD
 Section 15 remains the historical first adoption of `VOM-001`. This section adopts the amended exact
 bytes that add the durable delegated operator name `ROOK` and test discoverability. It does not expand
 or weaken the standing mandate.
+
+## 17. ADR-0026 owner adoption record — G8 owner-controlled machine Verifier identity
+
+```text
+DOCUMENT: docs/adr/ADR-0026-g8-owner-controlled-machine-verifier.md
+VERSION_OR_CANDIDATE_VERSION: ADR-0026 — G8 Owner-Controlled Machine Verifier Identity
+DECLARED_STATUS: PROPOSED
+EFFECTIVE_STATUS: ADOPTED
+OWNER: project owner VOODOO — ENGINEERING
+ADOPTION_METHOD: explicit owner decision on 2026-10-06 over exact candidate commit e725c295580c37b815a35e8ab398b3acb081c35b and exact content SHA-256 6b0c24af7c5bc58ad86ca2811dbe310b506676dd2888187cb7ba96218aa6243d after PR #171 review/merge, exact merged-main Git blob equality confirmation, zero unresolved review threads, exact-head PR CI/CodeQL/live READ verification, and successful post-merge CI on main@c684d298b5365c1d79de47b0a69c7316052d0e18
+ADOPTION_DATE: 2026-10-06
+ADOPTED_CONTENT_COMMIT: e725c295580c37b815a35e8ab398b3acb081c35b
+CONTENT_SHA256: 6b0c24af7c5bc58ad86ca2811dbe310b506676dd2888187cb7ba96218aa6243d
+BOUND_DECISION_CARD: docs/governance/G8_MACHINE_VERIFIER_R3_DECISION_CARD.md
+BOUND_DECISION_CARD_SHA256: 1f43ba0bc1be0b36c1aa33f2a3d94bea328e858fe4f574e8094797c57ba9da42
+SCOPE: G8 Owner-Controlled Machine Verifier Identity
+SUPERSEDES: the unadopted G8 operational assumption that independent verification requires a second GitHub user principal; ADR-0019 Runner/Verifier separation, independent provider readback and READ-before-WRITE safety boundary remain preserved
+CONFLICTS_RESOLVED: independent verifier authority is bound to a distinct owner-controlled GitHub App installation principal rather than a second human or personal account; Runner remains a GitHub user principal; Verifier credential is ephemeral and exact-repository scoped with contents read only; identity independence, execution independence and evidence independence remain distinct requirements; consensus alone is not treated as proof; exact repository scope, installation-shaped credential, principal separation and credential continuity fail closed; merge and implementation do not themselves create provider-WRITE eligibility or effect authorization
+NEXT_REVIEW: before changing the GitHub App installation attestation model, widening Verifier permissions/repository scope, weakening principal or evidence independence, provisioning a materially different machine-identity class, or before any provider-WRITE activation that relies on this boundary
+IMPLEMENTATION_STATUS: ALREADY_SEPARATELY_IMPLEMENTED_AND_MERGED_ON_MAIN
+GITHUB_APP_PROVISIONING: NOT_AUTHORIZED_BY_THIS_RECORD
+LIVE_G8_MACHINE_VERIFIER_ACCEPTANCE: NOT_CREATED_BY_THIS_RECORD
+PROVIDER_WRITE: NOT_AUTHORIZED
+RELEASE: NOT_AUTHORIZED
+DEPLOYMENT: NOT_AUTHORIZED
+PRODUCTION_EFFECTS: BLOCKED
+```
+
+The adopted ADR-0026 bytes are exactly those in candidate commit
+`e725c295580c37b815a35e8ab398b3acb081c35b` with the recorded SHA-256 and Git blob identity
+`8c774ea525371da6c9f517886e934731d025aa5c`. PR #171 merged those bytes unchanged into
+`main@c684d298b5365c1d79de47b0a69c7316052d0e18`. Their embedded `PROPOSED` label remains the
+historical declared status; this external non-self-referential record establishes effective
+`ADOPTED` status. This adoption does not provision the GitHub App, perform live G8 acceptance,
+authorize provider WRITE, release, deployment or production effects.
