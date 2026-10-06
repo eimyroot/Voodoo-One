@@ -32,13 +32,13 @@ VRATNÁ: ANO — workflow/secret can be disabled; provider state is read-only
 DŮKAZNĚ OVĚŘITELNÁ: ANO — sanitized retained artifact with SHA-256 checksums
 ```
 
-Current implementation status is **IMPLEMENTED / OWNER-AUTHORIZED ALTERNATIVE EXTERNAL LINUX READ ACCEPTANCE VERIFIED; OFFICIAL GITHUB ACTIONS PARITY PENDING**.
+Current implementation status is **IMPLEMENTED / OWNER-AUTHORIZED ALTERNATIVE EXTERNAL LINUX READ ACCEPTANCE VERIFIED; FRESH OFFICIAL ACTIONS PARITY BLOCKED FAIL-CLOSED ON RUNNER CREDENTIAL**.
 
 On 2026-09-19 the official `g8-live-product-read-acceptance` workflow could not be dispatched because GitHub returned HTTP 422 before creating a run: account-level Actions policy had disabled Actions for the user. The owner authorized a one-time alternative external Linux acceptance run using the existing G8 acceptance workflow semantics as the evidence standard.
 
 The alternative run verified exact `main` SHA `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f` with distinct Runner and Verifier credentials, GitHub-only egress, authenticated canonical HTTP READ, ACTIVE interruption, same-execution resume, independent verifier readback and `VerificationResult/v1`. It performed no provider write, release, deployment or production effect. Durable sanitized evidence is retained at `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNAL_LINUX_20260919_2f9ab7f`; `SHA256SUMS.txt` has SHA-256 `b4ced161adc99c98243b523c3bf15a1055e92a5096e0839755d2a2f86f889d92`.
 
-The official GitHub Actions gate remains the parity rerun path once the account-level Actions policy blocker is removed. This pending parity item does not downgrade the owner-authorized product READ acceptance evidence and does not authorize provider WRITE, release or deployment.
+The account-level Actions-policy blocker is no longer current. On 2026-10-06 official Actions run `37418550589` started on exact `main@b1c2d51f3f88d0cd9dfd97a87894763ba054ff24`, passed exact-candidate verification and image/profile preparation, then failed closed on the first Runner `GET /user` with HTTP 401 before the Verifier credential was observed and before live provider READ began. A second maturity run was therefore not dispatched. This fresh failure does not downgrade historical READ evidence and does not authorize provider WRITE, release or deployment.
 
 
 ## 2026-10-06 successor candidate — machine Verifier identity

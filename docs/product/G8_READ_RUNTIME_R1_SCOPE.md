@@ -34,7 +34,9 @@ existing CanonicalOperationPipeline
 
 Runner and Verifier credential provenance is not accepted from caller labels.
 
-`G8BoundGitHubReadTransport` does not retain the token, fingerprint, credential class, or provider attestation in caller-mutable instance slots. Those values are retained in a private closure-owned binding registry outside the transport instance. A successfully initialized credential source is write-once: a second `__init__` call is rejected before any replacement credential can be observed or stored. Initial construction derives the non-secret principal identity by performing an authenticated GitHub `GET /user` with the exact credential material; R1 fails closed when that provider observation cannot produce a valid principal identity.
+`G8BoundGitHubReadTransport` does not retain the token, fingerprint, credential class, or provider attestation in caller-mutable instance slots. Those values are retained in a private closure-owned binding registry outside the transport instance. A successfully initialized credential source is write-once: a second `__init__` call is rejected before any replacement credential can be observed or stored.
+
+The original R1 topology derived both non-secret principal identities through authenticated GitHub `GET /user`. The ADR-0026 candidate preserves that exact Runner-user attestation and introduces credential-class-specific Verifier attestation: the Verifier must be a GitHub App installation credential whose installation ID comes from the pinned token issuer and whose effective repository scope is independently observed through authenticated `GET /installation/repositories`. The App path fails closed unless exactly one repository is visible and it equals the configured G8 target repository.
 
 The closure registry is **not** treated as a sufficient trust anchor. The raw credential-source object is intentionally unable to perform a provider READ directly. During canonical runtime construction, G8 revalidates both sources and pins each source's token fingerprint, credential class, and provider-attested principal into an immutable tuple-backed Runner/Verifier pair transport. Both effect transports carry the same independently pinned pair.
 
@@ -45,11 +47,12 @@ The immutable pair transports are retained only behind G8 role-bound Runner and 
 Before every provider READ the immutable pair transport:
 
 1. revalidates the current Runner binding and performs a fresh GitHub `/user` principal observation through the pinned source implementation;
-2. revalidates the current Verifier binding and performs a fresh GitHub `/user` principal observation through the pinned source implementation;
+2. revalidates the current Verifier binding using the GitHub App installation observer, requiring the exact installation principal binding and exact single-repository scope;
 3. requires each current fingerprint/class/principal to equal its independently pinned runtime value;
 4. requires Runner and Verifier fingerprints, credential classes, and provider principals to remain distinct;
-5. invokes only the selected source through the pinned unbound source method with its immutable pin; and
-6. the selected source captures one binding snapshot, re-attests that exact local token, compares it to the runtime pin, and passes that same local token to the pinned GET-only provider implementation.
+5. rejects a Verifier provider READ whose repository differs from the App credential's attested repository scope;
+6. invokes only the selected source through the pinned unbound source method with its immutable pin; and
+7. the selected source captures one binding snapshot, re-attests that exact local token, compares it to the runtime pin, and passes that same local token to the pinned GET-only provider implementation.
 
 Therefore changing an introspectable closure-registry entry after composition cannot silently replace the Verifier with the Runner credential; reinvoking `__init__` cannot replace a successful binding; post-build rebinding of the module-global provider transport cannot widen the effect implementation; post-build handler transport rebinding cannot change the credential role; and validation/provider use cannot diverge through a post-check instance-state change or check/use race.
 
