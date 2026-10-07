@@ -223,10 +223,16 @@ E3 #193 and E4B #189 all SUCCESS.
 
 ## TB-11 — Provider WRITE effect
 
-**Status: historical bounded F4b/F6b evidence only; current provider WRITE = BLOCKED.**
+**Status: ADR-0019 READ prerequisite VERIFIED / WRITE runtime prerequisite ELIGIBLE / current provider WRITE still BLOCKED pending effect-specific authority.**
 
 Current CREATE_REF preparation ends at `WriteEffectPreflight/v1 → STOP`; current rollback preparation
-ends at `RollbackWriteEffectPreflight/v2 → STOP`. No current provider mutation transport is authorized.
+ends at `RollbackWriteEffectPreflight/v2 → STOP`. No current provider mutation transport is composed
+into the canonical product runtime and no current provider mutation is authorized.
+
+ADR-0027 is the PROPOSED first current effect-specific gate for one staging GitHub CREATE_REF canary.
+It requires a dedicated exact-repository Writer GitHub App, fresh exact-SHA G0 + repeated G8, one-shot
+CREATE_ONLY transport, independent read-only verification and separately authorized rollback semantics.
+The Writer App and live activation workflow are not provisioned by the candidate.
 
 Historical F4b/F6b effects remain evidence only, not current effect authority.
 
@@ -297,10 +303,9 @@ Any future active effect must enter the same canonical capability-bound V-One pa
 
 ## TB-17 — READ-before-WRITE boundary
 
-**Status: ADR-0019 exact bytes OWNER-ADOPTED via external register; provider WRITE remains BLOCKED pending evidence and separate effect authorization.**
+**Status: ADR-0019 exact bytes OWNER-ADOPTED; repeated official READ maturity VERIFIED on exact `main@ad66fc2...`; WRITE runtime prerequisite = ELIGIBLE; provider WRITE still requires separate effect authorization.**
 
-Before WRITE may become merely `ELIGIBLE`, repeated real authenticated canonical HTTP READ E2E must
-prove:
+The 2026-10-07 two-run G8 closure proves:
 
 ```text
 READ_E2E             = VERIFIED
@@ -309,22 +314,28 @@ NO_DUPLICATE_EFFECT  = VERIFIED
 AUTHORITY_CONTINUITY = VERIFIED
 INDEPENDENT_VERIFY   = VERIFIED
 FAIL_CLOSED          = VERIFIED
+WRITE_RUNTIME_GATE   = ELIGIBLE
 ```
 
-`ELIGIBLE` is not effect authorization.
+`ELIGIBLE` is not effect authorization. ADR-0027 remains a PROPOSED CREATE_REF gate and does not
+provision credentials, create a live write workflow or authorize a mutation.
 
 ## Production gate
 
 ```text
 VOODOO_ALLOW_PRODUCTION_EFFECTS=false
-G0_GITHUB_GOVERNANCE=UNKNOWN
+POST_RENAME_G0=b1c2d51.../VERIFIED
+G0_FOR_WRITE_ACTIVATION=FRESH_EXACT_SHA_REQUIRED
 G7_CANONICAL_READ_API=MERGED
 G7_RESTART_SAFE_RESUME=MERGED
 G8_DEFAULT_PROVIDER_RUNTIME=OFF
-REAL_CANONICAL_HTTP_READ_E2E=NOT_VERIFIED
+REAL_CANONICAL_HTTP_READ_E2E=VERIFIED_TWO_RUN_EXACT_SHA
+ADR_0019_READ_MATURITY=VERIFIED
+WRITE_RUNTIME_GATE=ELIGIBLE
+ADR_0027_CREATE_REF_GATE=PROPOSED
+CURRENT_WRITER_APP=NOT_PROVISIONED
 NEW_A09_CREATE_REF_EFFECT=NO
 NEW_A09_DELETE_REF_EFFECT=NO
-WRITE_RUNTIME_GATE=BLOCKED
 RELEASE_VERIFIED=NO
 DEPLOYMENT_VERIFIED=NO
 UNRESTRICTED_PRODUCTION=BLOCKED

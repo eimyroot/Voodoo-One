@@ -95,12 +95,14 @@ Is it released/deployed?
 | Security Intelligence R-SI1.2 normalization | IMPLEMENTED | merged PR #135 | descriptive/context-only; no authority/runtime/effect widening |
 | CyberCore read-only intake contract | IMPLEMENTED | deterministic CXP/1 metadata contract + system tests | context/proposal only; no API, persistence, approval, execution or effect authority |
 | CyberCore mutation/runtime integration | BLOCKED | parser/trust/runtime/release-governance hardening | cannot bypass V-One gates |
-| Main GitHub governance policy | UNKNOWN | historical G0 run `32553113424` remains VERIFIED for its original evidence scope | fresh exact-main G0 is required for current `eimyroot/Voodoo-One` identity |
-| Main required latest-head enforcement | UNKNOWN | historical G0 verified PR-only main, required `verify`, latest-head strict checks and no ordinary bypass for its then-current repository identity | current post-rename enforcement must be re-verified live |
-| G8 READ runtime pack implementation | VERIFIED | historical exact-main acceptance plus fresh schema-v15 live READ acceptance on runtime source `f417d780...` | read-only scope; not installed by default; official GitHub Actions parity pending due account-level Actions policy |
-| Explicit non-production G8 activation path | VERIFIED | product-owned opt-in assembler + alternative external Linux evidence | default remains OFF; local/development/staging SQLite only; separate Runner/Verifier credentials; no ambient fallback |
-| Real canonical HTTP READ E2E + restart resume | VERIFIED | historical exact-main acceptance plus fresh schema-v15 live READ: authenticated HTTP→Runner→independent verifier, ACTIVE interruption/resume, zero duplicate lineage, exactly one durable VERIFIED result per tested execution, Passport `PERSISTED / VERIFIED` after a new process | official GitHub Actions parity and full/repeated ADR-0019 closure pending; no WRITE, release, deployment or production effects authorized |
-| Provider WRITE activation | BLOCKED | ADR-0019 is owner-adopted; fresh schema-v15 live READ now passes, but the full/repeated READ-before-WRITE gate is not yet closed | requires repeated/failure-injection closure plus a separate effect-specific authorization |
+| Main GitHub governance policy | VERIFIED | G0 run `37417176630` SUCCESS on `main@b1c2d51...` | verification is exact-SHA scoped; future provider WRITE requires a fresh G0 on the exact activation SHA; G0 does not itself authorize effects |
+| Main required latest-head enforcement | VERIFIED | G0 `37417176630` verified required latest-head controls on its exact SHA | verification is exact-SHA scoped; re-run on exact WRITE activation SHA before live mutation |
+| G8 READ runtime pack implementation | VERIFIED | official two-run GitHub Actions acceptance on exact `main@ad66fc2...` plus retained historical evidence | read-only scope; not installed by default; machine Verifier App is live and exact-repository scoped |
+| Explicit non-production G8 activation path | VERIFIED | product-owned opt-in assembler + official runs `37604010862` / `37622106080` | default remains OFF; local/development/staging SQLite only; separate Runner/Verifier credentials; no ambient fallback |
+| Real canonical HTTP READ E2E + restart resume | VERIFIED | two official exact-SHA runs prove authenticated HTTP→Runner→independent Verifier, ACTIVE interruption/resume, zero duplicate lineage and fail-closed evidence | ADR-0019 READ maturity closed; no WRITE, release, deployment or production effects authorized |
+| Provider WRITE runtime prerequisite | VERIFIED | adopted ADR-0019 + two-run G8 closure on `main@ad66fc2...`; `WRITE_RUNTIME_GATE = ELIGIBLE` | eligibility is not provider-effect authorization |
+| ADR-0027 CREATE_REF effect-specific gate | PROPOSED | exact-content candidate + machine-checkable gate contract | live gate remains BLOCKED; Writer App and live workflow not provisioned; exact-SHA G0/G8 and explicit effect authorization still required |
+| Provider WRITE activation | BLOCKED | CREATE_REF gate not adopted/provisioned and no exact effect authorization exists | one staging canary attempt only after all ADR-0027 live prerequisites pass |
 | Release-candidate build | VERIFIED | fail-closed workflow + historical image/SBOM checks | build candidate != deployment; current RC construction is additionally blocked until fresh current G0 succeeds |
 | Unrestricted production release | BLOCKED | production effects default disabled | G8 + real READ E2E + security/legal/ops/release gates remain |
 | Public commercial distribution | BLOCKED | no distribution authorization | licensing/EULA/privacy/support and production gates remain separate |
@@ -237,10 +239,16 @@ This is historical evidence for one real atom. It does not execute or authorize 
 VOODOO_ALLOW_PRODUCTION_EFFECTS=false
 NEW_G7_PROVIDER_WRITE=NO
 NEW_A09_PROVIDER_MUTATION=NO
-G0_LIVE_ENFORCEMENT_VERIFIED=UNKNOWN_CURRENT
+POST_RENAME_G0=b1c2d51.../VERIFIED
+G0_FOR_WRITE_ACTIVATION=FRESH_EXACT_SHA_REQUIRED
 G8_DEFAULT_PROVIDER_RUNTIME=OFF
-REAL_CANONICAL_READ_E2E_VERIFIED=NO
-WRITE_RUNTIME_GATE=BLOCKED
+REAL_CANONICAL_READ_E2E_VERIFIED=YES_TWO_RUN_EXACT_SHA
+ADR_0019_READ_MATURITY=VERIFIED
+WRITE_RUNTIME_GATE=ELIGIBLE
+ADR_0027_CREATE_REF_GATE=PROPOSED
+WRITER_GITHUB_APP=NOT_PROVISIONED
+CREATE_REF_LIVE_GATE=BLOCKED
+PROVIDER_WRITE=NOT_AUTHORIZED / NOT_PERFORMED
 RELEASE_VERIFIED=NO
 DEPLOYMENT_VERIFIED=NO
 ```

@@ -1,0 +1,117 @@
+{
+  "schema": "VoodooCreateRefWriteActivationGate/v1",
+  "status": "PROPOSED",
+  "effect": {
+    "provider": "github",
+    "repository": "eimyroot/Voodoo-One",
+    "environment": "staging",
+    "capability": "github.create-ref/v1",
+    "operation": "CREATE_REF",
+    "target_kind": "git_ref",
+    "ref_namespace": "refs/heads/vone-canary/*",
+    "create_semantics": "CREATE_ONLY",
+    "max_provider_mutations": 1,
+    "automatic_retry": false,
+    "update_fallback": false,
+    "force_update_fallback": false,
+    "delete_fallback": false,
+    "production_effects": false
+  },
+  "writer_identity": {
+    "required_principal_class": "github-app-installation",
+    "required_owner": "eimyroot",
+    "required_repository_scope": [
+      "eimyroot/Voodoo-One"
+    ],
+    "required_permissions": {
+      "contents": "write",
+      "metadata": "read"
+    },
+    "forbidden_permissions": [
+      "actions",
+      "administration",
+      "checks",
+      "deployments",
+      "issues",
+      "pull_requests",
+      "workflows"
+    ],
+    "token_lifetime": "ephemeral-installation-token",
+    "standing_token_forbidden": true,
+    "workflow_github_token_forbidden": true,
+    "personal_pat_forbidden": true,
+    "ambient_fallback_forbidden": true,
+    "must_differ_from_verifier_principal": true
+  },
+  "verifier_identity": {
+    "required_principal_class": "github-app-installation",
+    "required_app_slug": "voodoo-one-g8-verifier",
+    "required_repository_scope": [
+      "eimyroot/Voodoo-One"
+    ],
+    "required_permissions": {
+      "contents": "read",
+      "metadata": "read"
+    },
+    "permission_widening_forbidden": true
+  },
+  "live_prerequisites": [
+    "ADR_0019_EFFECTIVE_STATUS=ADOPTED",
+    "ADR_0027_EFFECTIVE_STATUS=ADOPTED",
+    "EXACT_ACTIVATION_MAIN_SHA=PINNED",
+    "EXACT_HEAD_CI=SUCCESS",
+    "INDEPENDENT_REVIEW=CLEAN",
+    "BLOCKING_REVIEW_THREADS=0",
+    "G0_ON_EXACT_ACTIVATION_SHA=VERIFIED",
+    "TWO_RUN_G8_ON_EXACT_ACTIVATION_SHA=VERIFIED",
+    "WRITER_APP_EXACT_REPO_SCOPE=VERIFIED",
+    "WRITER_APP_PERMISSION_CEILING=VERIFIED",
+    "WRITER_VERIFIER_PRINCIPALS=DISTINCT",
+    "CANARY_REF_PRE_STATE=ABSENT",
+    "TARGET_SHA=EXACT_AUTHORIZED_SHA",
+    "A09_CURRENT_FENCE_PREFLIGHT=PASS",
+    "DEFAULT_DENY_EGRESS=PASS",
+    "ROLLBACK_READINESS=VERIFIED",
+    "EXACT_EFFECT_AUTHORIZATION=RECORDED"
+  ],
+  "post_effect": [
+    "PROVIDER_MUTATION_COUNT=1",
+    "AUTOMATIC_RETRY=false",
+    "DURABLE_COMPLETION=RECORDED",
+    "EXECUTION_RECEIPT_V2=PERSISTED",
+    "INDEPENDENT_PROVIDER_READBACK=PASS",
+    "OBSERVED_REF_SHA=EXACT_AUTHORIZED_SHA",
+    "VERIFICATION_RESULT_V1=VERIFIED"
+  ],
+  "ambiguity": {
+    "automatic_retry": false,
+    "infer_absence_from_transport_error": false,
+    "automatic_rollback": false,
+    "required_status": "INDETERMINATE",
+    "next_action": "fresh-read-only-provider-reconciliation"
+  },
+  "rollback": {
+    "implied_by_create_authority": false,
+    "separate_authorization_required": true,
+    "strategy": "DELETE_EXACT_CREATED_REF",
+    "temporal_model": "READ_THEN_DELETE_NON_ATOMIC",
+    "exact_predelete_sha_required": true,
+    "max_provider_mutations": 1,
+    "automatic_retry": false,
+    "independent_absence_verification_required": true
+  },
+  "current_readiness": {
+    "adr_0019_read_gate": "VERIFIED",
+    "write_runtime_gate": "ELIGIBLE",
+    "a09_create_ref_preparation": "IMPLEMENTED",
+    "a09_rollback_preparation": "IMPLEMENTED",
+    "historical_f4b_f6b_evidence": "RETAINED",
+    "writer_github_app": "NOT_PROVISIONED",
+    "live_create_ref_workflow": "NOT_CREATED",
+    "create_ref_live_gate": "BLOCKED",
+    "provider_write": "NOT_AUTHORIZED / NOT_PERFORMED",
+    "release": "NOT_AUTHORIZED / NOT_PERFORMED",
+    "deployment": "NOT_AUTHORIZED / NOT_PERFORMED",
+    "production_effects": "BLOCKED / NOT_PERFORMED"
+  }
+}

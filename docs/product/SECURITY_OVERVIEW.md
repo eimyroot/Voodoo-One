@@ -218,17 +218,17 @@ evidence_json_checksum = 11a99765485b63b70186037011d31c105dea8dd75b689e0036a8766
 historical_verdict = VERIFIED
 ```
 
-That historical evidence verified PR-only main, required latest-head `verify`, force-push/delete
-protection, conversation resolution, no ordinary bypass, active rulesets and verifier-source binding
-for its original evidence scope. A fresh exact-main post-rename G0 run is required before current
-repository-governance claims may become VERIFIED again. Historical G0 evidence does not authorize a
-provider runtime, production effect, release or deployment.
+That historical evidence remains retained for its original identity. Fresh post-rename G0 run
+`37417176630` later VERIFIED the renamed repository on exact `main@b1c2d51...`. Because hosted main has
+since advanced, a future provider-WRITE activation still requires a fresh G0 on the exact activation
+SHA. Neither historical nor post-rename G0 evidence authorizes a provider mutation, production effect,
+release or deployment by itself.
 
 ## READ-before-WRITE boundary
 
 ADR-0019 retains its immutable embedded `PROPOSED — governed adoption pending` label, while its exact
-bytes are owner-adopted through the external adoption register. The effective rule keeps provider WRITE
-blocked until repeated real canonical authenticated HTTP READ E2E proves all of:
+bytes are owner-adopted through the external adoption register. The repeated real canonical READ gate
+is now VERIFIED by official two-run acceptance on exact `main@ad66fc2...`:
 
 ```text
 READ_E2E             = VERIFIED
@@ -239,9 +239,11 @@ INDEPENDENT_VERIFY   = VERIFIED
 FAIL_CLOSED          = VERIFIED
 ```
 
-Even after that evidence, WRITE would become only `ELIGIBLE`, not authorized. A provider mutation still
-requires a separate effect-specific decision, credential scope, review, post-state verification,
-rollback semantics, release and deployment gates.
+That evidence makes `WRITE_RUNTIME_GATE = ELIGIBLE`, not authorized. ADR-0027 is the PROPOSED
+CREATE_REF-specific gate and requires a dedicated exact-repository Writer GitHub App, fresh exact-SHA
+G0 and repeated G8 on the final activation SHA, one-shot/no-retry mutation semantics, independent
+post-state verification and separately authorized rollback. The Writer App and live WRITE workflow are
+not provisioned by the candidate.
 
 ## G8 security boundary
 
@@ -259,8 +261,9 @@ Required fail-closed properties include:
 - no CREATE_REF, DELETE_REF, rollback, generic execute or arbitrary mutation transport;
 - missing or ambiguous configuration aborts activation.
 
-Real canonical HTTP READ E2E through the merged pack remains **NOT VERIFIED** until the pack is
-explicitly activated in a non-production product path and exercised with retained restart/verifier evidence.
+Real canonical HTTP READ E2E through the merged pack is **VERIFIED_TWO_RUN_EXACT_SHA** on
+`main@ad66fc2...` by official runs `37604010862` and `37622106080`, including retained restart/resume,
+no-duplicate lineage and independent machine-Verifier evidence. Default G8 activation remains OFF.
 
 ## Supply-chain / release boundary
 
@@ -293,11 +296,11 @@ used as a workaround.
 
 Current remaining release gates include:
 
-- explicit non-production activation and live acceptance of the merged G8 READ-only provider runtime;
-- repeated real canonical authenticated HTTP READ E2E;
-- restart/resume no-duplicate and fail-closed evidence;
-- fresh security/adversarial review for the runtime candidate;
-- provider WRITE only if/after the separately governed READ-before-WRITE and effect-specific gates;
+- keep the verified G8 READ runtime fail-closed and default OFF;
+- fresh security/adversarial review for any final WRITE activation candidate;
+- provider WRITE only if/after ADR-0027 or another separately adopted effect-specific gate is satisfied;
+- fresh exact-activation-SHA G0 and repeated G8 after final WRITE activation code/workflow is present;
+- dedicated least-privilege Writer machine identity and independent read-only Verifier;
 - external penetration test as required for unrestricted/enterprise release;
 - dependency/container scanning and release evidence;
 - released enterprise identity/role mapping where required;
@@ -314,8 +317,13 @@ Until those gates pass:
 ```text
 VOODOO_ALLOW_PRODUCTION_EFFECTS=false
 G8_DEFAULT_PROVIDER_RUNTIME=OFF
-REAL_CANONICAL_HTTP_READ_E2E=NOT_VERIFIED
-WRITE_RUNTIME_GATE=BLOCKED
+REAL_CANONICAL_HTTP_READ_E2E=VERIFIED_TWO_RUN_EXACT_SHA
+ADR_0019_READ_MATURITY=VERIFIED
+WRITE_RUNTIME_GATE=ELIGIBLE
+ADR_0027_CREATE_REF_GATE=PROPOSED
+CREATE_REF_LIVE_GATE=BLOCKED
+WRITER_GITHUB_APP=NOT_PROVISIONED
+PROVIDER_WRITE=NOT_AUTHORIZED / NOT_PERFORMED
 RELEASE_VERIFIED=NO
 DEPLOYMENT_VERIFIED=NO
 UNRESTRICTED_PRODUCTION=BLOCKED
