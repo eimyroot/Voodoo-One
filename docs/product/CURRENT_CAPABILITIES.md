@@ -95,8 +95,8 @@ Is it released/deployed?
 | Security Intelligence R-SI1.2 normalization | IMPLEMENTED | merged PR #135 | descriptive/context-only; no authority/runtime/effect widening |
 | CyberCore read-only intake contract | IMPLEMENTED | deterministic CXP/1 metadata contract + system tests | context/proposal only; no API, persistence, approval, execution or effect authority |
 | CyberCore mutation/runtime integration | BLOCKED | parser/trust/runtime/release-governance hardening | cannot bypass V-One gates |
-| Main GitHub governance policy | VERIFIED | G0 run `37417176630` SUCCESS on `main@b1c2d51...` | verification is exact-SHA scoped; future provider WRITE requires a fresh G0 on the exact activation SHA; G0 does not itself authorize effects |
-| Main required latest-head enforcement | VERIFIED | G0 `37417176630` verified required latest-head controls on its exact SHA | verification is exact-SHA scoped; re-run on exact WRITE activation SHA before live mutation |
+| Main GitHub governance policy | UNKNOWN | post-rename G0 `37417176630` VERIFIED exact `main@b1c2d51...`; current main is `ad66fc2...` | current exact-SHA status is intentionally not promoted; future provider WRITE requires fresh G0 on the exact activation SHA |
+| Main required latest-head enforcement | UNKNOWN | G0 `37417176630` verified latest-head controls on its exact prior SHA | exact-SHA scoped; re-run on exact WRITE activation SHA before live mutation |
 | G8 READ runtime pack implementation | VERIFIED | official two-run GitHub Actions acceptance on exact `main@ad66fc2...` plus retained historical evidence | read-only scope; not installed by default; machine Verifier App is live and exact-repository scoped |
 | Explicit non-production G8 activation path | VERIFIED | product-owned opt-in assembler + official runs `37604010862` / `37622106080` | default remains OFF; local/development/staging SQLite only; separate Runner/Verifier credentials; no ambient fallback |
 | Real canonical HTTP READ E2E + restart resume | VERIFIED | two official exact-SHA runs prove authenticated HTTP→Runner→independent Verifier, ACTIVE interruption/resume, zero duplicate lineage and fail-closed evidence | ADR-0019 READ maturity closed; no WRITE, release, deployment or production effects authorized |
@@ -184,11 +184,12 @@ membership is a scope check, not activation of the separately PROPOSED Solo/Team
 
 ## G0 governance evidence — current vs historical
 
-Current canonical repository identity is `eimyroot/Voodoo-One`. A fresh post-rename G0 observation on
-the exact current `main` SHA has not yet been retained, so current GitHub governance status is
-`UNKNOWN` and must fail closed for release-candidate promotion.
+Current canonical repository identity is `eimyroot/Voodoo-One`. Post-rename G0 run `37417176630`
+VERIFIED exact `main@b1c2d51f3f88d0cd9dfd97a87894763ba054ff24`. Hosted main has since advanced
+to `ad66fc2a6a032a7151055a603aac0fffc5ee2f2b`, so current exact-SHA GitHub governance status is
+`UNKNOWN` and must fail closed for release-candidate or provider-WRITE activation until reverified.
 
-The following retained artifact remains VERIFIED historical evidence for the exact repository identity
+The following older retained artifact remains VERIFIED historical evidence for the repository identity
 and source SHA that existed when it ran:
 
 ```text
@@ -203,11 +204,11 @@ evidence_json_checksum = 11a99765485b63b70186037011d31c105dea8dd75b689e0036a8766
 historical_verdict = VERIFIED
 ```
 
-That historical evidence verified PR-only main, required `verify` from workflow `ci`, latest-head
+That older historical evidence verified PR-only main, required `verify` from workflow `ci`, latest-head
 strict checks, force-push and deletion disabled, conversation resolution, no ordinary bypass, active
-rulesets, and source binding for its exact evidence scope. It is not current post-rename proof. A fresh
-G0 PASS on the exact repaired `main` may promote current GitHub governance back to `VERIFIED`; G0 never
-authorizes release/deploy by itself.
+rulesets, and source binding for its exact evidence scope. The later post-rename G0 result is stronger for
+repository identity but is still bound to `b1c2d51...`. Only a fresh G0 PASS on the exact current/activation
+SHA may promote that SHA to `VERIFIED`; G0 never authorizes release/deploy/provider mutation by itself.
 
 ## Verified historical complete operation atom
 
