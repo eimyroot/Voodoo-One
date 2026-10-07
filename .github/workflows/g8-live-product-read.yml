@@ -222,7 +222,7 @@ jobs:
             --network "$NETWORK" \
             --read-only \
             --tmpfs /tmp:rw,noexec,nosuid,size=64m \
-            --tmpfs /app/storage/product:rw,noexec,nosuid,size=128m \
+            --tmpfs /app/storage/product:rw,noexec,nosuid,size=128m,mode=1777 \
             --memory=512m \
             --cpus=1 \
             --pids-limit=256 \

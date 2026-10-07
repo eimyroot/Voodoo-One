@@ -138,3 +138,17 @@ def test_g8_live_gate_uploads_only_sanitized_evidence() -> None:
     assert "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" in text
     assert "deployment_performed\": False" in text
     assert "provider_write_performed\": False" in text
+
+
+def test_g8_live_gate_product_tmpfs_is_writable_by_unprivileged_runtime() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    dockerfile = (ROOT / "Dockerfile.product").read_text(encoding="utf-8")
+    product_tmpfs_lines = [
+        line.strip()
+        for line in text.splitlines()
+        if "--tmpfs /app/storage/product:" in line
+    ]
+
+    assert "USER voodoo" in dockerfile
+    assert len(product_tmpfs_lines) == 1
+    assert "size=128m,mode=1777" in product_tmpfs_lines[0]
