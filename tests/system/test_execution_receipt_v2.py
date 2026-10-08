@@ -99,6 +99,16 @@ def test_execution_receipt_v2_rejects_completion_substitution(monkeypatch) -> No
         _compose(result)
 
 
+def test_execution_receipt_v2_rejects_automatic_retry_beyond_zero_budget(
+    monkeypatch,
+) -> None:
+    result = deepcopy(_result(monkeypatch))
+    result["automatic_retry_performed"] = True
+
+    with pytest.raises(PermissionError, match="RECEIPT_AUTOMATIC_RETRY_FORBIDDEN"):
+        _compose(result)
+
+
 def test_execution_receipt_v2_cannot_claim_verified(monkeypatch) -> None:
     receipt = _compose(_result(monkeypatch))
     value = receipt.to_dict()
