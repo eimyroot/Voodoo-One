@@ -256,6 +256,8 @@ def test_adr_and_decision_card_do_not_self_authorize_provider_write() -> None:
     assert "Merge, CI, review or adoption of this ADR does not itself authorize a CREATE_REF effect." in adr
     assert "DELETE_REF is not authorized by this CREATE_REF gate" in adr
     assert "Current decision | DESIGN / CANDIDATE ONLY; live effect remains BLOCKED" in card
+    assert "EXACT_EFFECT_AUTHORIZATION_ENVELOPE = VERIFIED" in card
+    assert "EXACT_EFFECT_AUTHORIZATION         = RECORDED" not in card
     assert "PROVIDER_WRITE = NOT_AUTHORIZED / NOT_PERFORMED" in card
 
 

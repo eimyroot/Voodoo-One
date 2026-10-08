@@ -71,7 +71,7 @@ A future live effect requires all of:
     A09_CURRENT_FENCE_PREFLIGHT        = PASS
     DEFAULT_DENY_EGRESS                = PASS
     ROLLBACK_READINESS                 = VERIFIED
-    EXACT_EFFECT_AUTHORIZATION         = RECORDED
+    EXACT_EFFECT_AUTHORIZATION_ENVELOPE = VERIFIED
 
 Only then:
 
