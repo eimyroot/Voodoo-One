@@ -132,12 +132,14 @@ activation SHA:
    `contents:write` plus mandatory `metadata:read`;
 9. Writer and Verifier App installation principals are distinct;
 10. the exact canary ref is provider-observed ABSENT before the effect;
-11. the approved target commit equals the exact authorized SHA;
-12. the A09 preflight is rebuilt immediately before the effect and the current execution fence passes;
-13. runtime egress is default-deny with only the bounded GitHub API path permitted;
-14. sanitized evidence contains no credential bytes;
-15. rollback readiness is VERIFIED as described below;
-16. a separate attributable owner authorization binds the exact activation SHA, repository, canary ref,
+11. the requested ref matches the exact owner-authorized ref byte-for-byte and belongs to the
+    strict `refs/heads/vone-canary/` namespace (not merely the same wildcard pattern);
+12. the approved target commit equals the exact authorized SHA;
+13. the A09 preflight is rebuilt immediately before the effect and the current execution fence passes;
+14. runtime egress is default-deny with only the bounded GitHub API path permitted;
+15. sanitized evidence contains no credential bytes;
+16. rollback readiness is VERIFIED as described below;
+17. a separate attributable owner authorization binds the exact activation SHA, repository, canary ref,
     target commit SHA, single CREATE_REF attempt and explicit no-release/no-deploy/no-production ceiling.
 
 The live gate output is only:

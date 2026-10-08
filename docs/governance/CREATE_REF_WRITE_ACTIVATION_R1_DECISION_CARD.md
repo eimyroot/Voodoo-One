@@ -66,6 +66,8 @@ A future live effect requires all of:
     WRITER_APP_PERMISSION_CEILING      = VERIFIED
     WRITER_VERIFIER_PRINCIPALS         = DISTINCT
     CANARY_REF_PRE_STATE               = ABSENT
+    CANARY_REF_NAMESPACE               = STRICT_PREFIX
+    EXACT_AUTHORIZED_REF               = MATCH_REQUESTED_REF
     A09_CURRENT_FENCE_PREFLIGHT        = PASS
     DEFAULT_DENY_EGRESS                = PASS
     ROLLBACK_READINESS                 = VERIFIED
