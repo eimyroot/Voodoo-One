@@ -17,7 +17,8 @@ normative authority remains governed separately by adopted records and repositor
 | What works now? | [`product/CURRENT_CAPABILITIES.md`](product/CURRENT_CAPABILITIES.md) |
 | What is the post-G7 canonical checkpoint? | [`product/POST_G7_CANONICAL_STATE.md`](product/POST_G7_CANONICAL_STATE.md) |
 | What is the next READ runtime gate? | [`product/G8_READ_RUNTIME_GATE.md`](product/G8_READ_RUNTIME_GATE.md) |
-| What redesign replaces the second-user G8 Verifier with owner-controlled machine identity? | [`adr/ADR-0026-g8-owner-controlled-machine-verifier.md`](adr/ADR-0026-g8-owner-controlled-machine-verifier.md) — PROPOSED candidate |
+| What redesign replaces the second-user G8 Verifier with owner-controlled machine identity? | [`adr/ADR-0026-g8-owner-controlled-machine-verifier.md`](adr/ADR-0026-g8-owner-controlled-machine-verifier.md) — embedded `PROPOSED`; effective `ADOPTED` via authority register; live machine-verifier acceptance VERIFIED |
+| What gate controls the first current bounded GitHub CREATE_REF write canary? | [`adr/ADR-0027-bounded-github-create-ref-write-activation.md`](adr/ADR-0027-bounded-github-create-ref-write-activation.md) — PROPOSED candidate; live effect BLOCKED |
 | What should it support later? | [`product/TARGET_CAPABILITIES.md`](product/TARGET_CAPABILITIES.md) |
 | What is the Control Room CURRENT → TARGET gap? | [`product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md`](product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md) |
 | What is the security overview? | [`product/SECURITY_OVERVIEW.md`](product/SECURITY_OVERVIEW.md) |
@@ -29,7 +30,7 @@ normative authority remains governed separately by adopted records and repositor
 | What are the current trust boundaries? | [`architecture/TRUST_BOUNDARIES.md`](architecture/TRUST_BOUNDARIES.md) |
 | What is the ADR-0008 historical R3 evidence index? | [`governance/ADR0008_R3_EVIDENCE_INDEX.md`](governance/ADR0008_R3_EVIDENCE_INDEX.md) |
 | How must documentation stay truthful? | [`governance/DOCUMENTATION_POLICY.md`](governance/DOCUMENTATION_POLICY.md) |
-| What is the READ-before-WRITE proposal? | [`adr/ADR-0019-read-e2e-before-write.md`](adr/ADR-0019-read-e2e-before-write.md) — PROPOSED |
+| What is the READ-before-WRITE decision? | [`adr/ADR-0019-read-e2e-before-write.md`](adr/ADR-0019-read-e2e-before-write.md) — embedded `PROPOSED`; effective `ADOPTED` via authority register; READ maturity VERIFIED on `main@ad66fc2...` |
 | How will organization roles and approval profiles work? | [`adr/ADR-0003-organization-roles-and-configurable-approval-policy.md`](adr/ADR-0003-organization-roles-and-configurable-approval-policy.md) — still PROPOSED |
 | What is the read-only Policy Decision Graph v1 boundary? | [`adr/ADR-0006-read-only-policy-decision-graph-v1.md`](adr/ADR-0006-read-only-policy-decision-graph-v1.md) |
 | What decision governs the adopted Core Kernel + fractal capability framing? | [`adr/ADR-0021-core-kernel-fractal-capability-architecture.md`](adr/ADR-0021-core-kernel-fractal-capability-architecture.md) — embedded `PROPOSED / REVIEW REQUIRED`; effective `ADOPTED` via exact-content authority register |
@@ -63,12 +64,13 @@ TRUST-PLANE COMPONENT CHAIN = IMPLEMENTED / deeply tested
 CANONICAL FastAPI ProductComposition RUNTIME SEAM = IMPLEMENTED / MERGED
 CANONICAL PUBLIC READ OPERATION API = IMPLEMENTED / MERGED
 G7 DURABLE RESUME + RUNTIME WIRING = IMPLEMENTED / MERGED
-G0 GITHUB GOVERNANCE = UNKNOWN current / historical VERIFIED evidence retained
+G0 GITHUB GOVERNANCE = post-rename VERIFIED on b1c2d51...; fresh exact activation-SHA G0 required for WRITE
 DEFAULT PROVIDER RUNTIME PACK = DISABLED / FAIL-CLOSED
-REAL CANONICAL HTTP READ E2E = VERIFIED_SCHEMA15_LIVE_READ on runtime source f417d780...; historical exact-main acceptance retained; official Actions parity pending
+REAL CANONICAL HTTP READ E2E = VERIFIED_TWO_RUN_EXACT_SHA on main@ad66fc2...
 READ_ONLY_VERIFIED TERMINAL = VerificationResult/v1
 BOUNDED_MUTATION_VERIFIED TERMINAL = OperationCell/v1 after effect + independent verification
-PROVIDER WRITE ACTIVATION = BLOCKED
+WRITE_RUNTIME_GATE = ELIGIBLE by adopted ADR-0019 READ maturity
+CREATE_REF LIVE EFFECT = BLOCKED; ADR-0027 candidate only, Writer App/live workflow not provisioned
 PRODUCTION RELEASE / DEPLOYMENT = NOT PERFORMED
 ```
 

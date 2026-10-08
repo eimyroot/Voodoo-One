@@ -92,10 +92,10 @@ OperationProof != OperationCell
 | Read-only `/api/v1/control-room` dashboard projection | IMPLEMENTED / targeted tested |
 | Canonical Operation Passport `GET /api/v1/operations/{execution_id}/passport` | IMPLEMENTED / targeted tested; same-DB durable lineage, verification `UNKNOWN / NOT_PERSISTED` |
 | Restart-safe durable READ resume | IMPLEMENTED / MERGED via PR #140 |
-| GitHub main governance enforcement | UNKNOWN / fresh post-rename G0 required; historical VERIFIED evidence retained |
-| G8 READ runtime pack + explicit non-production activation | IMPLEMENTED / owner-authorized alternative external Linux READ acceptance verified for `main@2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`; opt-in only, default remains disabled |
-| Real canonical HTTP READ E2E through explicitly activated G8 pack | VERIFIED_ALT_EXTERNAL_LINUX; official GitHub Actions parity pending due account-level Actions policy |
-| Provider WRITE activation | BLOCKED pending repeated READ E2E + restart-safe verification gate |
+| GitHub main governance enforcement | UNKNOWN for current exact `main@ad66fc2...`; post-rename G0 `37417176630` VERIFIED on prior exact `main@b1c2d51...`; fresh exact activation-SHA G0 required before provider WRITE |
+| G8 READ runtime pack + explicit non-production activation | VERIFIED by two official GitHub Actions acceptances on exact `main@ad66fc2...`; opt-in only, default remains disabled |
+| Real canonical HTTP READ E2E through explicitly activated G8 pack | TWO-RUN VERIFIED by runs `37604010862` and `37622106080`, including ACTIVE interruption/resume and independent provider readback |
+| Provider WRITE activation | BLOCKED; ADR-0019 READ prerequisite is satisfied and `WRITE_RUNTIME_GATE=ELIGIBLE`, but effect-specific CREATE_REF authority remains only PROPOSED and unprovisioned |
 | Production effects | BLOCKED / disabled by default |
 | Unrestricted production release | BLOCKED |
 | Public commercial distribution | BLOCKED |
@@ -200,17 +200,20 @@ verdict = VERIFIED
 ```
 
 That artifact remains valid historical evidence only. The canonical repository is now
-`eimyroot/Voodoo-One`; current G0 governance is therefore `UNKNOWN` until a fresh
-`g0-governance-verify` run executes on the exact post-repair `main` SHA and independently verifies the
-current repository identity and live ruleset. Historical G0 PASS never authorizes provider runtime,
-release, or deployment.
+`eimyroot/Voodoo-One`. A later post-rename G0 run `37417176630` successfully verified exact
+`main@b1c2d51f3f88d0cd9dfd97a87894763ba054ff24`. Hosted main has since advanced to
+`ad66fc2a6a032a7151055a603aac0fffc5ee2f2b`, so current exact-SHA G0 status is `UNKNOWN` and a future
+provider-WRITE activation must run G0 again on its exact activation SHA. Neither historical nor prior
+post-rename G0 PASS authorizes provider runtime, release, deployment, or mutation by itself.
 
 ## READ before WRITE
 
-The next governed direction is a READ-only G8 runtime pack followed by repeated real canonical HTTP
-READ E2E and restart/resume verification. Provider WRITE remains blocked unless the adopted safety gate
-is satisfied with evidence for READ E2E, restart continuity, no duplicate authority/effect, independent
-verification, and fail-closed behavior. Even then, `ELIGIBLE` would not itself authorize a WRITE effect.
+The adopted ADR-0019 READ-before-WRITE prerequisite is now satisfied by two official exact-SHA G8
+acceptances with authenticated HTTP READ, restart/resume continuity, zero duplicate lineage, current
+authority continuity, independent verification and fail-closed coverage. Therefore
+`WRITE_RUNTIME_GATE=ELIGIBLE`. Provider WRITE itself remains blocked behind a separately adopted
+effect-specific gate, exact Writer credential scope, post-state verification, rollback readiness and
+attributable exact-effect authorization.
 
 Execution success remains distinct from independent verification:
 
@@ -248,10 +251,10 @@ a new provider mutation is authorized.
 - separate independent verifier path;
 - receipt/verification semantics separate;
 - canonical public READ API and restart-safe resume are merged;
-- default G8 provider runtime remains OFF; historical exact-main alternative acceptance and fresh schema-v15 live READ acceptance on runtime source `f417d780...` are VERIFIED, while official GitHub Actions parity and the full/repeated ADR-0019 gate remain pending;
-- provider WRITE remains blocked behind READ-before-WRITE evidence and separate effect authorization;
+- default G8 provider runtime remains OFF; official two-run GitHub Actions acceptance on exact `main@ad66fc2...` is VERIFIED and closes ADR-0019 READ maturity;
+- `WRITE_RUNTIME_GATE=ELIGIBLE`, while provider WRITE remains blocked behind separate effect-specific adoption, provisioning and exact-effect authorization;
 - no release/deployment inferred from CI, merge, Proof or Cell;
-- historical G0 VERIFIED evidence is retained, while current post-rename GitHub governance remains UNKNOWN until fresh exact-main verification.
+- post-rename G0 `37417176630` is retained as VERIFIED evidence for exact `main@b1c2d51...`; current exact-SHA G0 is UNKNOWN until reverified on the activation SHA.
 
 ## Documentation
 
