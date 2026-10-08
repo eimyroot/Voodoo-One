@@ -588,3 +588,24 @@ def test_timestamp_helper_inputs_are_stable_for_boundary_fixtures() -> None:
     issued = datetime.fromisoformat(ISSUED_AT)
     assert issued.tzinfo == UTC
     assert (issued + timedelta(seconds=300)).isoformat(timespec="milliseconds") == EXPIRES_AT
+
+
+def test_successful_action_with_failed_postcondition_is_not_verified() -> None:
+    result = receipt(
+        status="SUCCEEDED",
+        outcome="EXPECTED_EFFECT_NOT_VERIFIED",
+        postcondition_status="FAILED",
+    )
+    assert result.status == "SUCCEEDED"
+    assert result.outcome == "EXPECTED_EFFECT_NOT_VERIFIED"
+    assert result.postcondition_status == "FAILED"
+
+
+def test_unobservable_postcondition_remains_indeterminate() -> None:
+    result = receipt(
+        status="INTERRUPTED",
+        outcome="INDETERMINATE",
+        postcondition_status="INDETERMINATE",
+    )
+    assert result.outcome == "INDETERMINATE"
+    assert result.postcondition_status == "INDETERMINATE"

@@ -11,9 +11,25 @@ from .operation_proof import OperationProof
 from .operation_semantics import OperationSemantics
 from .skill_orchestration import SkillOrchestrationPlan
 
-SCHEMA_VERSION = 1
-CONTROL_PLANE_DECISION_TYPE = "v-one-control-plane-decision/v1"
+SCHEMA_VERSION = 2
+CONTROL_PLANE_DECISION_TYPE = "v-one-control-plane-decision/v2"
 CONTROL_PLANE_USEFULNESS_GATE = "decision_has_purpose_and_system_benefit"
+
+EVIDENCE_SOURCE_KINDS = (
+    "artifact",
+    "command_output",
+    "file_span",
+    "provider_response",
+    "repository",
+    "state_observation",
+    "tool_invocation",
+)
+
+EVIDENCE_SOURCE_AUTHORITIES = (
+    "AUTHORITATIVE",
+    "SUPPORTING",
+    "INFORMATIONAL",
+)
 
 DECISION_STATUSES = (
     "VERIFIED",
@@ -81,6 +97,10 @@ class ControlPlaneBoundary:
 @dataclass(frozen=True, slots=True)
 class EvidenceReference:
     evidence_type: str
+    operation_id: str
+    source_kind: str
+    source_authority: str
+    source_identity: str
     source: str
     digest: str
     purpose: str
@@ -88,6 +108,12 @@ class EvidenceReference:
 
     def __post_init__(self) -> None:
         _require_text(self.evidence_type, field="evidence_type")
+        _require_text(self.operation_id, field="operation_id")
+        if self.source_kind not in EVIDENCE_SOURCE_KINDS:
+            raise ControlPlaneDecisionError("evidence source_kind is unsupported")
+        if self.source_authority not in EVIDENCE_SOURCE_AUTHORITIES:
+            raise ControlPlaneDecisionError("evidence source_authority is unsupported")
+        _require_text(self.source_identity, field="source_identity")
         _require_text(self.source, field="source")
         _require_digest(self.digest, field="digest")
         _require_text(self.purpose, field="purpose")
@@ -96,6 +122,10 @@ class EvidenceReference:
     def to_dict(self) -> dict[str, str]:
         return {
             "evidence_type": self.evidence_type,
+            "operation_id": self.operation_id,
+            "source_kind": self.source_kind,
+            "source_authority": self.source_authority,
+            "source_identity": self.source_identity,
             "source": self.source,
             "digest": self.digest,
             "purpose": self.purpose,
@@ -108,6 +138,8 @@ class AcceptanceGate:
     gate: str
     status: str
     evidence_digest: str
+    evidence_source_identity: str
+    evidence_source_authority: str
     purpose: str
     system_benefit: str
 
@@ -116,6 +148,9 @@ class AcceptanceGate:
         if self.status not in GATE_STATUSES:
             raise ControlPlaneDecisionError("gate status is unsupported")
         _require_digest(self.evidence_digest, field="evidence_digest")
+        _require_text(self.evidence_source_identity, field="evidence_source_identity")
+        if self.evidence_source_authority not in EVIDENCE_SOURCE_AUTHORITIES:
+            raise ControlPlaneDecisionError("gate evidence_source_authority is unsupported")
         _require_text(self.purpose, field="purpose")
         _require_text(self.system_benefit, field="system_benefit")
 
@@ -124,6 +159,8 @@ class AcceptanceGate:
             "gate": self.gate,
             "status": self.status,
             "evidence_digest": self.evidence_digest,
+            "evidence_source_identity": self.evidence_source_identity,
+            "evidence_source_authority": self.evidence_source_authority,
             "purpose": self.purpose,
             "system_benefit": self.system_benefit,
         }
@@ -171,7 +208,16 @@ class VOneControlPlaneDecision:
         ):
             raise ControlPlaneDecisionError("acceptance_gates are required")
         _require_unique([item.evidence_type for item in self.evidence], field="evidence")
+        _require_unique([item.digest for item in self.evidence], field="evidence digests")
         _require_unique([item.gate for item in self.acceptance_gates], field="acceptance_gates")
+        _require_evidence_operation_binding(
+            operation_id=self.operation_id,
+            evidence=self.evidence,
+        )
+        _require_gate_evidence_bindings(
+            evidence=self.evidence,
+            gates=self.acceptance_gates,
+        )
         _require_usefulness_gate(self.acceptance_gates)
         _require_status_matches_gates(self.status, self.acceptance_gates)
         if self.status == "VERIFIED" and self.proof_digest is None:
@@ -322,6 +368,43 @@ def _require_proof_binding(*, semantics: OperationSemantics, proof: OperationPro
         raise ControlPlaneDecisionError("proof must be VERIFIED for a control-plane decision")
 
 
+def _require_evidence_operation_binding(
+    *,
+    operation_id: str,
+    evidence: tuple[EvidenceReference, ...],
+) -> None:
+    mismatched = sorted(
+        item.evidence_type for item in evidence if item.operation_id != operation_id
+    )
+    if mismatched:
+        raise ControlPlaneDecisionError(
+            "evidence operation_id does not match decision operation_id: "
+            f"{mismatched}"
+        )
+
+
+def _require_gate_evidence_bindings(
+    *,
+    evidence: tuple[EvidenceReference, ...],
+    gates: tuple[AcceptanceGate, ...],
+) -> None:
+    bound = {
+        (item.digest, item.source_identity, item.source_authority): item.evidence_type
+        for item in evidence
+    }
+    for gate in gates:
+        key = (
+            gate.evidence_digest,
+            gate.evidence_source_identity,
+            gate.evidence_source_authority,
+        )
+        if key not in bound:
+            raise ControlPlaneDecisionError(
+                "acceptance gate evidence/source binding is not present in decision evidence: "
+                f"{gate.gate}"
+            )
+
+
 def _require_status_matches_gates(
     status: str,
     gates: tuple[AcceptanceGate, ...],
@@ -374,6 +457,10 @@ def _evidence_from_array(value: object) -> tuple[EvidenceReference, ...]:
 def _evidence_from_dict(value: object) -> EvidenceReference:
     if not isinstance(value, Mapping) or set(value) != {
         "evidence_type",
+        "operation_id",
+        "source_kind",
+        "source_authority",
+        "source_identity",
         "source",
         "digest",
         "purpose",
@@ -382,6 +469,10 @@ def _evidence_from_dict(value: object) -> EvidenceReference:
         raise ControlPlaneDecisionError("evidence fields are invalid")
     return EvidenceReference(
         evidence_type=value["evidence_type"],
+        operation_id=value["operation_id"],
+        source_kind=value["source_kind"],
+        source_authority=value["source_authority"],
+        source_identity=value["source_identity"],
         source=value["source"],
         digest=value["digest"],
         purpose=value["purpose"],
@@ -400,6 +491,8 @@ def _gate_from_dict(value: object) -> AcceptanceGate:
         "gate",
         "status",
         "evidence_digest",
+        "evidence_source_identity",
+        "evidence_source_authority",
         "purpose",
         "system_benefit",
     }:
@@ -408,6 +501,8 @@ def _gate_from_dict(value: object) -> AcceptanceGate:
         gate=value["gate"],
         status=value["status"],
         evidence_digest=value["evidence_digest"],
+        evidence_source_identity=value["evidence_source_identity"],
+        evidence_source_authority=value["evidence_source_authority"],
         purpose=value["purpose"],
         system_benefit=value["system_benefit"],
     )
