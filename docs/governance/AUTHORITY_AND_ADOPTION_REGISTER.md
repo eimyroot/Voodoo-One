@@ -4,7 +4,7 @@
 |---|---|
 | Document class | Governance authority and adoption register |
 | Candidate preparation date | `2026-08-06` |
-| Latest recorded owner adoption date | `2026-10-06` |
+| Latest recorded owner adoption date | `2026-10-08` |
 | Scope | VOODOO One governance documents, accepted ADRs, and technical operating-standard succession |
 | Live repository authority | None; live Git, tests, CI, artifacts and runtime remain separate evidence sources |
 | Owner adoption effect | An explicit owner decision over an exact content SHA-256 and candidate commit creates adoption when recorded here without modifying the adopted content |
@@ -423,3 +423,46 @@ The adopted ADR-0026 bytes are exactly those in candidate commit
 historical declared status; this external non-self-referential record establishes effective
 `ADOPTED` status. This adoption does not provision the GitHub App, perform live G8 acceptance,
 authorize provider WRITE, release, deployment or production effects.
+
+## 18. ADR-0027 owner adoption record — bounded GitHub CREATE_REF Write Activation Gate R1
+
+```text
+DOCUMENT: docs/adr/ADR-0027-bounded-github-create-ref-write-activation.md
+VERSION_OR_CANDIDATE_VERSION: ADR-0027 — Bounded GitHub CREATE_REF Write Activation Gate R1
+DECLARED_STATUS: PROPOSED
+EFFECTIVE_STATUS: ADOPTED
+OWNER: project owner VOODOO — ENGINEERING
+ADOPTION_METHOD: explicit owner decision on 2026-10-08 over exact candidate commit 588ef37f4911c179b08e575bf3d2fb96567d9867, exact ADR SHA-256 9788b4802b6dd0921a1c20e736032121c9ec9439cd94e8d7868500518f5d0cab, exact bound decision-card SHA-256 62a84bd0a4944528f551bbe015f8b4e7bf71d35e09638780be86770fe9affac0, and exact bound machine-gate SHA-256 105343923e7912bf5d18251b1d4b95c67459fd1184871757671fb0e8ea5c0ceb after independent native Codex Security V3 review CLEAN on the exact candidate head with zero reportable findings
+ADOPTION_DATE: 2026-10-08
+ADOPTED_CONTENT_COMMIT: 588ef37f4911c179b08e575bf3d2fb96567d9867
+CONTENT_SHA256: 9788b4802b6dd0921a1c20e736032121c9ec9439cd94e8d7868500518f5d0cab
+BOUND_DECISION_CARD: docs/governance/CREATE_REF_WRITE_ACTIVATION_R1_DECISION_CARD.md
+BOUND_DECISION_CARD_SHA256: 62a84bd0a4944528f551bbe015f8b4e7bf71d35e09638780be86770fe9affac0
+BOUND_MACHINE_GATE: docs/governance/CREATE_REF_WRITE_ACTIVATION_R1_GATE.json
+BOUND_MACHINE_GATE_SHA256: 105343923e7912bf5d18251b1d4b95c67459fd1184871757671fb0e8ea5c0ceb
+SCOPE: Bounded GitHub CREATE_REF Write Activation Gate R1
+SUPERSEDES: none; establishes the first owner-adopted effect-specific activation gate for one bounded staging GitHub CREATE_REF canary while preserving ADR-0019 READ-before-WRITE eligibility as a prerequisite rather than effect authorization
+CONFLICTS_RESOLVED: exact ADR, decision-card and machine-gate identities are bound together; the V1 and V2 review blockers are remediated on the adopted candidate and independent V3 review is CLEAN; effect authorization must use the digest-bound CreateRefEffectAuthorization/v1 envelope; exact repository, staging environment, exact canary ref, exact target SHA, one-mutation ceiling, no automatic retry, immediate pre-effect fence revalidation, least-privilege dedicated Writer identity, independent read-only Verifier, post-effect readback and separate rollback authority remain mandatory; adoption establishes gate semantics only and does not provision credentials, create a live workflow, perform provider mutation, authorize release/deployment, or enable production effects
+NEXT_REVIEW: before Writer App provisioning, before creating or enabling a live CREATE_REF workflow, before any live CREATE_REF attempt, before changing effect-authorization envelope semantics, repository/ref/target bindings, permission ceilings, egress, fencing, verifier independence, ambiguity handling or rollback authority, or after materially contradictory runtime/security evidence
+INDEPENDENT_REVIEW_V3: CLEAN
+INDEPENDENT_REVIEW_V3_SCAN_ID: 9c557cda-977f-4a00-a8bf-ecdb3b1ff5f1
+INDEPENDENT_REVIEW_V3_REPORT_SHA256: 3c2751a324d4e775dd30f361d0c2b0b4830286a4bbe1ca8c2fa7fbbff740c899
+MERGE: NOT_AUTHORIZED_BY_THIS_RECORD
+WRITER_APP_PROVISIONING: NOT_AUTHORIZED_BY_THIS_RECORD
+LIVE_CREATE_REF_EFFECT: NOT_AUTHORIZED_BY_THIS_RECORD
+PROVIDER_WRITE: NOT_AUTHORIZED
+RELEASE: NOT_AUTHORIZED
+DEPLOYMENT: NOT_AUTHORIZED
+PRODUCTION_EFFECTS: BLOCKED
+```
+
+The owner-adopted ADR-0027 bytes are exactly those in candidate commit
+`588ef37f4911c179b08e575bf3d2fb96567d9867` with the recorded SHA-256. The bound decision-card and
+machine-gate bytes are likewise fixed by their recorded SHA-256 identities. Their embedded
+`PROPOSED` / blocked-live-effect language remains historical declared state of those immutable
+candidate bytes; this external non-self-referential record establishes effective `ADOPTED` status
+for the gate semantics only.
+
+This record does not authorize merge, Writer App provisioning, credential or secret creation,
+live CREATE_REF or DELETE_REF effects, release, deployment or production effects. Those remain
+separate governed operations with their own explicit authority and evidence gates.
