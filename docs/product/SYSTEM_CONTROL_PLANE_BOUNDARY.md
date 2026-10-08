@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document status | Current contract boundary |
-| Contract | `v-one-control-plane-decision/v1` |
+| Contract | `v-one-control-plane-decision/v2` |
 | Source | `voodoo_product/control_plane.py` |
 | Test inventory | `tests/system/test_control_plane_contract.py` |
 
@@ -65,12 +65,12 @@ Every control-plane decision must state:
 - allowed effects;
 - prohibited effects;
 - boundary purpose and system benefit;
-- evidence references with purpose and system benefit;
-- acceptance gates with purpose and system benefit;
+- evidence references with exact operation id, source kind, source authority class, stable source identity, locator, digest, purpose and system benefit;
+- acceptance gates bound to the exact evidence digest, source identity, and required source authority class, with purpose and system benefit;
 - `decision_has_purpose_and_system_benefit` as an explicit acceptance gate;
 - deterministic digest.
 
-Missing boundary, evidence, gates, purpose, or system benefit is invalid and fails closed.
+Missing boundary, evidence, exact operation/source binding, gates, purpose, or system benefit is invalid and fails closed. Evidence from another operation or source cannot satisfy a gate by digest alone.
 
 ## Development Rule
 
