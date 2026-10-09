@@ -1,0 +1,300 @@
+name: dependency-graph-refresh
+
+on:
+  push:
+    branches:
+      - main
+
+permissions: {}
+
+concurrency:
+  group: dependency-graph-refresh-main
+  queue: max
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      snapshot_b64: ${{ steps.payload.outputs.snapshot_b64 }}
+      snapshot_sha256: ${{ steps.payload.outputs.snapshot_sha256 }}
+      verification_b64: ${{ steps.payload.outputs.verification_b64 }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.13"
+      - name: Confirm exact accepted main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Capture previous main dependency locks
+        id: previous
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git cat-file -e "$BEFORE_SHA^{commit}"
+          git show "$BEFORE_SHA:requirements-product.lock" > "$RUNNER_TEMP/previous-product.lock"
+          git show "$BEFORE_SHA:requirements-dev.lock" > "$RUNNER_TEMP/previous-dev.lock"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+      - name: Build deterministic dependency snapshot claims
+        id: payload
+        shell: bash
+        env:
+          PREVIOUS_AVAILABLE: ${{ steps.previous.outputs.available }}
+        run: |
+          set -euo pipefail
+          SCANNED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          args=(
+            build
+            --sha "$GITHUB_SHA"
+            --ref "$GITHUB_REF"
+            --scanned "$SCANNED"
+            --product-input requirements-product.txt
+            --product-lock requirements-product.lock
+            --dev-input requirements-dev.in
+            --dev-lock requirements-dev.lock
+            --snapshot-out "$RUNNER_TEMP/dependency-snapshot.json"
+            --verification-out "$RUNNER_TEMP/dependency-verification.json"
+          )
+          if [[ "$PREVIOUS_AVAILABLE" == "true" ]]; then
+            args+=(
+              --previous-product-lock "$RUNNER_TEMP/previous-product.lock"
+              --previous-dev-lock "$RUNNER_TEMP/previous-dev.lock"
+            )
+          fi
+          python scripts/dependency_graph_snapshot.py "${args[@]}"
+          python - "$GITHUB_OUTPUT" "$RUNNER_TEMP/dependency-snapshot.json" "$RUNNER_TEMP/dependency-verification.json" <<'PY'
+          import base64
+          import hashlib
+          import sys
+          from pathlib import Path
+
+          output = Path(sys.argv[1])
+          snapshot = Path(sys.argv[2]).read_bytes()
+          verification = Path(sys.argv[3]).read_bytes()
+          with output.open("a", encoding="utf-8") as stream:
+              stream.write(
+                  "snapshot_b64="
+                  + base64.b64encode(snapshot).decode("ascii")
+                  + "\n"
+              )
+              stream.write(
+                  "snapshot_sha256="
+                  + hashlib.sha256(snapshot).hexdigest()
+                  + "\n"
+              )
+              stream.write(
+                  "verification_b64="
+                  + base64.b64encode(verification).decode("ascii")
+                  + "\n"
+              )
+          PY
+
+  submit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    needs: build
+    permissions:
+      contents: write
+    steps:
+      - name: Submit exact-main dependency snapshot
+        shell: bash
+        env:
+          SNAPSHOT_B64: ${{ needs.build.outputs.snapshot_b64 }}
+          SNAPSHOT_SHA256: ${{ needs.build.outputs.snapshot_sha256 }}
+          EXPECTED_SHA: ${{ github.sha }}
+          EXPECTED_REF: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          token = os.environ["GITHUB_TOKEN"]
+          expected_sha = os.environ["EXPECTED_SHA"]
+          expected_ref = os.environ["EXPECTED_REF"]
+          repository = os.environ["REPOSITORY"]
+          if repository != "eimyroot/Voodoo-One":
+              raise SystemExit("dependency submission repository is not canonical")
+          snapshot = base64.b64decode(
+              os.environ["SNAPSHOT_B64"].encode("ascii"),
+              validate=True,
+          )
+          if hashlib.sha256(snapshot).hexdigest() != os.environ["SNAPSHOT_SHA256"]:
+              raise SystemExit("snapshot digest mismatch")
+          payload = json.loads(snapshot)
+          if payload.get("sha") != expected_sha:
+              raise SystemExit("snapshot SHA does not match workflow SHA")
+          if payload.get("ref") != expected_ref or expected_ref != "refs/heads/main":
+              raise SystemExit("snapshot ref is not exact main")
+          if payload.get("job", {}).get("correlator") != "voodoo-one-provider-reconciliation":
+              raise SystemExit("snapshot correlator is not canonical")
+          if payload.get("detector", {}).get("name") != "voodoo-one-dependency-reconciliation":
+              raise SystemExit("snapshot detector is not canonical")
+          if set(payload.get("manifests", {})) != {
+              "requirements-dev.in",
+              "requirements-product.txt",
+          }:
+              raise SystemExit("snapshot manifest set is not canonical")
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2026-03-10",
+              "User-Agent": "voodoo-one-dependency-refresh",
+          }
+          branch_request = urllib.request.Request(
+              f"https://api.github.com/repos/{repository}/branches/main",
+              headers=headers,
+          )
+          with urllib.request.urlopen(branch_request, timeout=20) as response:
+              current_main = json.load(response)["commit"]["sha"]
+          if current_main != expected_sha:
+              raise SystemExit(
+                  f"refusing stale dependency submission: current main is {current_main}"
+              )
+
+          submit_request = urllib.request.Request(
+              f"https://api.github.com/repos/{repository}/dependency-graph/snapshots",
+              data=snapshot,
+              headers={**headers, "Content-Type": "application/json"},
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(submit_request, timeout=30) as response:
+                  if response.status != 201:
+                      raise SystemExit(
+                          f"dependency submission returned HTTP {response.status}"
+                      )
+                  result = json.load(response)
+          except urllib.error.HTTPError as exc:
+              body = exc.read().decode("utf-8", errors="replace")[:1000]
+              raise SystemExit(
+                  f"dependency submission failed with HTTP {exc.code}: {body}"
+              ) from exc
+          if result.get("result") != "SUCCESS":
+              raise SystemExit("dependency submission did not return SUCCESS")
+          print(f"DEPENDENCY_SNAPSHOT_ID={result.get('id')}")
+          print("DEPENDENCY_SUBMISSION=SUCCESS")
+          PY
+
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    needs:
+      - build
+      - submit
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.13"
+      - name: Decode exact verification contract
+        shell: bash
+        env:
+          VERIFICATION_B64: ${{ needs.build.outputs.verification_b64 }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import os
+          from pathlib import Path
+
+          value = base64.b64decode(
+              os.environ["VERIFICATION_B64"].encode("ascii"),
+              validate=True,
+          )
+          Path(os.environ["RUNNER_TEMP"], "dependency-verification.json").write_bytes(value)
+          PY
+      - name: Verify provider SBOM with bounded propagation retry
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5 6; do
+            set +e
+            python - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.request
+          from pathlib import Path
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+              "X-GitHub-Api-Version": "2026-03-10",
+              "User-Agent": "voodoo-one-dependency-refresh-verifier",
+          }
+          branch_request = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['REPOSITORY']}/branches/main",
+              headers=headers,
+          )
+          with urllib.request.urlopen(branch_request, timeout=20) as response:
+              current_main = json.load(response)["commit"]["sha"]
+          if current_main != os.environ["EXPECTED_SHA"]:
+              print(
+                  "DEPENDENCY_VERIFICATION=SUPERSEDED "
+                  f"current_main={current_main}"
+              )
+              raise SystemExit(3)
+
+          sbom_request = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['REPOSITORY']}/dependency-graph/sbom",
+              headers=headers,
+          )
+          with urllib.request.urlopen(sbom_request, timeout=30) as response:
+              Path(os.environ["RUNNER_TEMP"], "dependency-sbom.json").write_bytes(
+                  response.read()
+              )
+          PY
+            fetch_rc=$?
+            set -e
+            if [[ "$fetch_rc" -eq 3 ]]; then
+              exit 0
+            fi
+            if [[ "$fetch_rc" -ne 0 ]]; then
+              if [[ "$attempt" -eq 6 ]]; then
+                exit "$fetch_rc"
+              fi
+              sleep 10
+              continue
+            fi
+            if python scripts/dependency_graph_snapshot.py verify-sbom               --verification "$RUNNER_TEMP/dependency-verification.json"               --sbom "$RUNNER_TEMP/dependency-sbom.json"; then
+              echo "DEPENDENCY_VERIFICATION=VERIFIED"
+              exit 0
+            fi
+            if [[ "$attempt" -eq 6 ]]; then
+              echo "dependency graph did not converge after bounded verification retries" >&2
+              exit 1
+            fi
+            sleep 10
+          done
