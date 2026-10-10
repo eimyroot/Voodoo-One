@@ -24,8 +24,12 @@ jobs:
           python-version: "3.12.13"
           cache: pip
           cache-dependency-path: requirements-dev.lock
+      - name: Dependency lock drift gate
+        run: python scripts/check_requirements_lock_drift.py
       - name: Install locked dependencies
         run: python -m pip install --require-hashes -r requirements-dev.lock
+      - name: Verify installed dependency consistency
+        run: python -m pip check
       - name: CI diagnostics
         shell: bash
         run: |
@@ -117,8 +121,12 @@ jobs:
         run: python -m pytest -q
       - name: Product readiness gate
         run: python scripts/product_readiness_gate.py
-      - name: Dependency vulnerability audit
-        run: python -m pip_audit --disable-pip --strict -r requirements-product.lock --require-hashes
+      - name: Dependency vulnerability audits
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip_audit --disable-pip --strict -r requirements-product.lock --require-hashes
+          python -m pip_audit --disable-pip --strict -r requirements-dev.lock --require-hashes
       - name: Build product image
         run: docker build --tag voodoo-one:ci --file Dockerfile.product .
       - name: Smoke test product image
