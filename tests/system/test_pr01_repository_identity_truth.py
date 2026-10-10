@@ -119,24 +119,24 @@ def test_operations_runbook_uses_current_repo_and_artifact_derived_schema_truth(
     assert "current expected schema is 14" in runbook
 
 
-def test_current_truth_does_not_promote_historical_g0_after_rename() -> None:
+def test_current_truth_distinguishes_post_rename_g0_from_current_exact_sha() -> None:
     state = _read("CURRENT_PRODUCT_STATE.md")
     capabilities = _read("docs/product/CURRENT_CAPABILITIES.md")
     readme = _read("README.md")
 
     assert "CANONICAL_REPOSITORY: eimyroot/Voodoo-One" in state
-    assert "G0_GITHUB_GOVERNANCE=UNKNOWN" in state
-    assert "G0                              = UNKNOWN" in state
+    assert "POST_RENAME_G0_RUN              = 37417176630 / SUCCESS" in state
+    assert "POST_RENAME_G0_SHA              = b1c2d51f3f88d0cd9dfd97a87894763ba054ff24" in state
+    assert "CURRENT_MAIN_SHA                = ad66fc2a6a032a7151055a603aac0fffc5ee2f2b" in state
+    assert "G0_FOR_CURRENT_WRITE_ACTIVATION = REQUIRED_ON_EXACT_ACTIVATION_SHA" in state
     assert "historical_verdict = VERIFIED" in state
 
     assert "| Canonical repository | `eimyroot/Voodoo-One` |" in capabilities
     assert "| Main GitHub governance policy | UNKNOWN |" in capabilities
-    assert "G0_LIVE_ENFORCEMENT_VERIFIED=UNKNOWN_CURRENT" in capabilities
+    assert "post-rename G0 `37417176630` VERIFIED exact `main@b1c2d51...`" in capabilities
+    assert "current exact-SHA status is intentionally not promoted" in capabilities
     assert "historical_verdict = VERIFIED" in capabilities
 
-    assert (
-        "| GitHub main governance enforcement | UNKNOWN / fresh post-rename G0 required; "
-        "historical VERIFIED evidence retained |"
-    ) in readme
-    assert "current G0 governance is therefore `UNKNOWN`" in readme
-    assert "historical G0 VERIFIED evidence is retained" in readme
+    assert "post-rename G0 `37417176630` VERIFIED on prior exact `main@b1c2d51...`" in readme
+    assert "current exact-SHA G0 status is `UNKNOWN`" in readme
+    assert "fresh exact activation-SHA G0 required before provider WRITE" in readme

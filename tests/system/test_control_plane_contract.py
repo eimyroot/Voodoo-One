@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import replace
 
 import pytest
 
@@ -25,9 +26,14 @@ from voodoo_product.skill_orchestration import (
     select_relevant_skills,
 )
 
-DIGEST_A = "a" * 64
-DIGEST_B = "b" * 64
-DIGEST_C = "c" * 64
+SEMANTICS_SOURCE_IDENTITY = (
+    "repo:eimyroot/Voodoo-One@ad66fc2a6a032a7151055a603aac0fffc5ee2f2b:"
+    "voodoo_product/operation_semantics.py"
+)
+SKILL_PLAN_SOURCE_IDENTITY = (
+    "repo:eimyroot/Voodoo-One@ad66fc2a6a032a7151055a603aac0fffc5ee2f2b:"
+    "voodoo_product/skill_orchestration.py"
+)
 
 
 def digest_without(payload: dict[str, object], digest_field: str) -> str:
@@ -89,9 +95,14 @@ def boundary() -> ControlPlaneBoundary:
 
 
 def evidence() -> tuple[EvidenceReference, ...]:
+    operation_id = semantics().operation_id
     return (
         EvidenceReference(
             evidence_type="operation_semantics",
+            operation_id=operation_id,
+            source_kind="repository",
+            source_authority="AUTHORITATIVE",
+            source_identity=SEMANTICS_SOURCE_IDENTITY,
             source="voodoo_product/operation_semantics.py",
             digest=semantics().semantics_digest,
             purpose="Bind the decision to the shared V-One operation language.",
@@ -99,6 +110,10 @@ def evidence() -> tuple[EvidenceReference, ...]:
         ),
         EvidenceReference(
             evidence_type="skill_orchestration",
+            operation_id=operation_id,
+            source_kind="repository",
+            source_authority="AUTHORITATIVE",
+            source_identity=SKILL_PLAN_SOURCE_IDENTITY,
             source="voodoo_product/skill_orchestration.py",
             digest=skill_plan().plan_digest,
             purpose="Bind the decision to the selected specialist workflow.",
@@ -108,32 +123,42 @@ def evidence() -> tuple[EvidenceReference, ...]:
 
 
 def gates(status: str = "PASS") -> tuple[AcceptanceGate, ...]:
+    semantics_digest = semantics().semantics_digest
+    plan_digest = skill_plan().plan_digest
     return (
         AcceptanceGate(
             gate=CONTROL_PLANE_USEFULNESS_GATE,
             status=status,
-            evidence_digest=DIGEST_A,
+            evidence_digest=semantics_digest,
+            evidence_source_identity=SEMANTICS_SOURCE_IDENTITY,
+            evidence_source_authority="AUTHORITATIVE",
             purpose="Confirm the decision and all decision elements state usefulness.",
             system_benefit="Blocks purposeless changes from entering the control plane.",
         ),
         AcceptanceGate(
             gate="decision_has_boundary",
             status=status,
-            evidence_digest=DIGEST_A,
+            evidence_digest=semantics_digest,
+            evidence_source_identity=SEMANTICS_SOURCE_IDENTITY,
+            evidence_source_authority="AUTHORITATIVE",
             purpose="Confirm the decision has an explicit effect boundary.",
             system_benefit="Stops ambiguous records from becoming implicit authority.",
         ),
         AcceptanceGate(
             gate="decision_has_evidence",
             status=status,
-            evidence_digest=DIGEST_B,
+            evidence_digest=plan_digest,
+            evidence_source_identity=SKILL_PLAN_SOURCE_IDENTITY,
+            evidence_source_authority="AUTHORITATIVE",
             purpose="Confirm the decision is linked to evidence.",
             system_benefit="Keeps every control-plane claim auditable.",
         ),
         AcceptanceGate(
             gate="decision_has_acceptance_gates",
             status=status,
-            evidence_digest=DIGEST_C,
+            evidence_digest=plan_digest,
+            evidence_source_identity=SKILL_PLAN_SOURCE_IDENTITY,
+            evidence_source_authority="AUTHORITATIVE",
             purpose="Confirm acceptance is declared before status is trusted.",
             system_benefit="Prevents status labels from outrunning acceptance criteria.",
         ),
@@ -164,7 +189,12 @@ def test_control_plane_decision_is_deterministic_and_round_trippable() -> None:
     assert first.operation_id == "system_control_plane_contract"
     assert first.capability == "vone.control-plane.decide/v1"
     assert first.decision_digest == digest_without(first.to_dict(), "decision_digest")
-    assert VOneControlPlaneDecision.from_dict(first.to_dict()) == first
+    restored = VOneControlPlaneDecision.from_dict(first.to_dict())
+    assert restored == first
+    assert restored.evidence[0].operation_id == first.operation_id
+    assert restored.evidence[0].source_identity == SEMANTICS_SOURCE_IDENTITY
+    assert restored.evidence[0].source_authority == "AUTHORITATIVE"
+    assert restored.acceptance_gates[0].evidence_source_identity == SEMANTICS_SOURCE_IDENTITY
 
 
 def test_control_plane_decision_requires_boundary_evidence_and_gates() -> None:
@@ -218,6 +248,71 @@ def test_non_final_decision_requires_pending_or_blocked_gate() -> None:
         )
 
 
+def test_control_plane_rejects_cross_operation_evidence() -> None:
+    mismatched_evidence = (
+        replace(evidence()[0], operation_id="other_operation"),
+        evidence()[1],
+    )
+
+    with pytest.raises(ControlPlaneDecisionError, match="operation_id"):
+        VOneControlPlaneDecision.create(
+            decision_id="cpd_cross_operation_evidence",
+            status="IMPLEMENTED",
+            rationale="Evidence from another operation must not satisfy this decision.",
+            purpose="Bind evidence to the exact operation.",
+            system_benefit="Prevents cross-operation evidence conflation.",
+            semantics=semantics(),
+            skill_plan=skill_plan(),
+            boundary=boundary(),
+            evidence=mismatched_evidence,
+            acceptance_gates=gates("PENDING"),
+        )
+
+
+def test_control_plane_rejects_gate_evidence_from_wrong_source() -> None:
+    gate_values = list(gates("PENDING"))
+    gate_values[0] = replace(
+        gate_values[0],
+        evidence_source_identity="repo:eimyroot/other@deadbeef:unrelated",
+    )
+
+    with pytest.raises(ControlPlaneDecisionError, match="evidence/source binding"):
+        VOneControlPlaneDecision.create(
+            decision_id="cpd_wrong_source",
+            status="IMPLEMENTED",
+            rationale="A digest from one source must not silently prove a claim about another source.",
+            purpose="Require exact claim-to-source binding.",
+            system_benefit="Prevents cross-source evidence conflation.",
+            semantics=semantics(),
+            skill_plan=skill_plan(),
+            boundary=boundary(),
+            evidence=evidence(),
+            acceptance_gates=tuple(gate_values),
+        )
+
+
+def test_control_plane_rejects_authority_class_substitution() -> None:
+    evidence_values = list(evidence())
+    evidence_values[0] = replace(
+        evidence_values[0],
+        source_authority="SUPPORTING",
+    )
+
+    with pytest.raises(ControlPlaneDecisionError, match="evidence/source binding"):
+        VOneControlPlaneDecision.create(
+            decision_id="cpd_wrong_authority",
+            status="IMPLEMENTED",
+            rationale="Supporting evidence must not silently satisfy an authoritative-source gate.",
+            purpose="Keep source authority explicit at the decision boundary.",
+            system_benefit="Distinguishes exact supporting evidence from authoritative evidence.",
+            semantics=semantics(),
+            skill_plan=skill_plan(),
+            boundary=boundary(),
+            evidence=tuple(evidence_values),
+            acceptance_gates=gates("PENDING"),
+        )
+
+
 def test_control_plane_decision_rejects_tampering() -> None:
     payload = decision().to_dict()
     payload["status"] = "VERIFIED"
@@ -232,7 +327,9 @@ def test_control_plane_rejects_elements_without_purpose_or_benefit() -> None:
         AcceptanceGate(
             gate="decision_has_usefulness",
             status="PENDING",
-            evidence_digest=DIGEST_A,
+            evidence_digest=semantics().semantics_digest,
+            evidence_source_identity=SEMANTICS_SOURCE_IDENTITY,
+            evidence_source_authority="AUTHORITATIVE",
             purpose="Confirm every element has a stated useful role.",
             system_benefit="",
         )

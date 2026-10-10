@@ -40,6 +40,21 @@ def test_release_promotion_rejects_skipped_transition() -> None:
         )
 
 
+def test_release_promotion_cannot_skip_independent_verification_gate() -> None:
+    with pytest.raises(ReleasePromotionError):
+        ReleasePromotionDecision.create(
+            release_id="release-001",
+            source_state="IMPLEMENTED",
+            target_state="RELEASE_CANDIDATE",
+            purpose="block author output from bypassing verification",
+            system_benefit="keeps verifier authority between implementation and promotion",
+            evidence_digests=(DIGEST_A,),
+            acceptance_gates=("tests_passed", "rollback_defined"),
+            rollback_plan="revert implementation before release candidate promotion",
+            promoted_by="authoring-agent",
+        )
+
+
 def test_release_promotion_requires_production_authorization_for_released() -> None:
     with pytest.raises(ReleasePromotionError):
         ReleasePromotionDecision.create(

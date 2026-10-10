@@ -1,6 +1,6 @@
 # G8 — Explicit READ-Only Provider Runtime Gate
 
-Current source state: **G8 READ runtime pack IMPLEMENTED / MERGED; default remains OFF. Historical alternative and schema-v15 live READ evidence remain retained. Official GitHub Actions execution is now available, but the fresh 2026-10-06 exact-main parity attempt failed closed on Runner credential HTTP 401 before live provider READ. ADR-0026 is an IMPLEMENTED-IN-CANDIDATE machine-Verifier redesign and is not yet merged, adopted, provisioned or live-verified.**
+Current source state: **G8 READ runtime pack IMPLEMENTED / MERGED; default remains OFF. Historical alternative and schema-v15 evidence remain retained. ADR-0026 is effectively ADOPTED, the owner-controlled machine Verifier is provisioned and live-verified, and official GitHub Actions two-run acceptance is VERIFIED on exact `main@ad66fc2a6a032a7151055a603aac0fffc5ee2f2b`. ADR-0019 READ maturity is VERIFIED and `WRITE_RUNTIME_GATE = ELIGIBLE`; provider WRITE itself remains unauthorized.**
 
 ## Purpose
 
@@ -33,14 +33,14 @@ Any parallel database, permission authority, profile registry, fence, execution 
 
 Runner and independent Verifier must have distinct identities and distinct credential decisions. Credential bytes are never serialized into V-One evidence objects.
 
-The ADR-0026 candidate makes that separation explicit by credential class:
+The effectively adopted ADR-0026 design makes that separation explicit by credential class:
 
 ```text
 Runner   = GitHub user principal + explicit READ credential + /user attestation
 Verifier = GitHub App installation principal + ephemeral repository-scoped READ token
 ```
 
-For the machine Verifier candidate, the product runtime requires an installation ID and exact repository scope in addition to the ephemeral token. The token is revalidated through `/installation/repositories`, which must expose exactly the configured target repository. The Verifier transport refuses a READ outside that repository scope.
+For the live machine Verifier, the product runtime requires an installation ID and exact repository scope in addition to the ephemeral token. The token is revalidated through `/installation/repositories`, which must expose exactly the configured target repository. The Verifier transport refuses a READ outside that repository scope.
 
 The runtime must not fall back to ambient shell credentials, developer-local Git state, legacy `ExecutionService`, or a generic provider client with mutation permission.
 
@@ -59,7 +59,7 @@ The default runtime pack must contain no provider mutation transport and no call
 
 ## Acceptance automation
 
-The repository includes `g8-live-product-read-acceptance`, a manual main-only GitHub Actions gate. The Runner uses the separately provisioned fine-grained READ credential `VONE_G8_RUNNER_GITHUB_TOKEN` bound to a GitHub user principal. The candidate ADR-0026 machine-Verifier flow mints an ephemeral GitHub App installation token for the exact current repository using a commit-SHA-pinned token issuer, requests only `contents: read`, provider-observes the exact repository scope through `/installation/repositories`, and binds the issuer-supplied installation id as the distinct Verifier principal identity. The workflow-level `contents: read` permission remains only the Actions job ceiling. The workflow performs no provider mutation, release or deployment.
+The repository includes `g8-live-product-read-acceptance`, a manual main-only GitHub Actions gate. The Runner uses the separately provisioned READ credential `VONE_G8_RUNNER_GITHUB_TOKEN` bound to a GitHub user principal. The adopted machine-Verifier flow mints an ephemeral GitHub App installation token for the exact current repository using a commit-SHA-pinned token issuer, requests only `contents: read`, provider-observes the exact repository scope through `/installation/repositories`, and binds the issuer-supplied installation id as the distinct Verifier principal identity. The workflow-level `contents: read` permission remains only the Actions job ceiling. The workflow performs no provider mutation, release or deployment.
 
 The workflow is the official parity path. On 2026-09-19 GitHub returned HTTP 422 before run creation because Actions were disabled by account-level policy for the user, so the owner authorized a one-time alternative external Linux run using the existing G8 acceptance semantics as the evidence standard. That alternative run verified exact `main` SHA `2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f` with separate Runner and Verifier credentials, GitHub-only egress, no provider write, no release, no deployment and durable sanitized evidence under `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_ALT_EXTERNAL_LINUX_20260919_2f9ab7f`.
 
@@ -92,7 +92,7 @@ A G8 candidate is not product-ready until one exact candidate head demonstrates:
 
 The restart gate explicitly exercises the existing `ACTIVE`-execution resume contract. It does not require or claim resumption of an already `COMPLETED` execution.
 
-Repeated READ E2E evidence must be retained before ADR-0019 can make WRITE runtime merely `ELIGIBLE`.
+Repeated READ E2E evidence is now retained on exact `main@ad66fc2...`; ADR-0019 therefore makes WRITE runtime merely `ELIGIBLE`. This is a prerequisite result only and does not authorize any provider mutation.
 
 ## Retained alternative acceptance evidence
 
@@ -136,9 +136,37 @@ EVIDENCE_ROOT                 = /Users/eimyna/0_EVIDENCE/Voodoo-One/G8_SCHEMA15_
 ACCEPTANCE_SUMMARY_SHA256     = d01ae75a7fdaf584417cb2ff7c915960b79d32c6708428b774c4434214758722
 ```
 
-This closes the previous fresh schema-v15 live-provider evidence gap. It does not by itself close the
-full/repeated ADR-0019 gate, does not establish GitHub Actions parity, and does not authorize provider
-WRITE or any production effect.
+This historical run closed the schema-v15 live-provider evidence gap at the time. The later official
+two-run closure on 2026-10-07 supersedes the previously open parity/maturity status without rewriting
+that historical evidence. Neither result authorizes provider WRITE or any production effect.
+
+## Official two-run closure — 2026-10-07
+
+```text
+G8_RUN_1                    = 37604010862 / SUCCESS
+G8_RUN_2                    = 37622106080 / SUCCESS
+EXACT_MAIN_SHA              = ad66fc2a6a032a7151055a603aac0fffc5ee2f2b
+RUNNER_PRINCIPAL_CLASS      = github-user
+VERIFIER_PRINCIPAL_CLASS    = github-app-installation
+VERIFIER_REPOSITORY_SCOPE   = eimyroot/Voodoo-One
+AUTHENTICATED_HTTP_READ     = VERIFIED
+ACTIVE_INTERRUPTION_RESUME  = VERIFIED
+NO_DUPLICATE_LINEAGE        = VERIFIED
+INDEPENDENT_PROVIDER_READBACK = VERIFIED
+FAIL_CLOSED                 = VERIFIED
+ADR_0019_READ_MATURITY      = VERIFIED
+WRITE_RUNTIME_GATE          = ELIGIBLE
+PROVIDER_WRITE              = NOT_AUTHORIZED / NOT_PERFORMED
+RELEASE                     = NOT_AUTHORIZED / NOT_PERFORMED
+DEPLOYMENT                  = NOT_AUTHORIZED / NOT_PERFORMED
+PRODUCTION_EFFECTS          = BLOCKED / NOT_PERFORMED
+```
+
+Sanitized evidence is retained under
+`/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_TWO_RUN_EVIDENCE_CLOSURE_20261007_ad66fc2/`.
+
+A future WRITE activation must still satisfy a separate effect-specific gate. ADR-0027 is the current
+PROPOSED CREATE_REF candidate and does not itself activate or authorize provider mutation.
 
 ## Non-scope
 
@@ -158,11 +186,13 @@ G8 R1 may only claim:
 
 ```text
 DEFAULT_READ_PROVIDER_RUNTIME = IMPLEMENTED / VERIFIED
-REAL_CANONICAL_READ_E2E       = VERIFIED_SCHEMA15_LIVE_READ
+REAL_CANONICAL_READ_E2E       = VERIFIED_TWO_RUN_EXACT_SHA
 HISTORICAL_EXACT_MAIN_READ    = VERIFIED_ALT_EXTERNAL_LINUX
-GITHUB_ACTIONS_PARITY         = ATTEMPTED / BLOCKED_RUNNER_CREDENTIAL_HTTP_401
-MACHINE_VERIFIER_CANDIDATE    = IMPLEMENTED_IN_CANDIDATE / NOT_LIVE_PROVISIONED
-WRITE_RUNTIME_GATE            = BLOCKED_REPEATED_GATE_OPEN
+GITHUB_ACTIONS_PARITY         = VERIFIED
+MACHINE_VERIFIER              = ADOPTED / PROVISIONED / LIVE_VERIFIED
+ADR_0019_READ_MATURITY        = VERIFIED
+WRITE_RUNTIME_GATE            = ELIGIBLE
+CREATE_REF_LIVE_GATE          = BLOCKED / ADR-0027 PROPOSED
 ```
 
 It must not claim release, deployment, unrestricted provider authority, or production WRITE.

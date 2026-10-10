@@ -58,13 +58,13 @@ RELEASED / DEPLOYED       = separately governed states
 | Canonical Operation Passport read model | **IMPLEMENTED / LIVE VERIFIED for schema-v15 READ scope on runtime source `f417d780...`; durable `VerificationResult/v1` persists exactly once and is reprojected after a new process as `PERSISTED / VERIFIED`** |
 | Restart-safe durable resume | **IMPLEMENTED / MERGED via PR #140** |
 | Runtime resume wiring | **IMPLEMENTED / MERGED via PR #140** |
-| G8 READ runtime pack implementation | **IMPLEMENTED / MERGED; READ acceptance VERIFIED_ALT_EXTERNAL_LINUX for `main@2f9ab7fdfe8793a9b2c977bc620c0f10921f4e3f`; default inactive** |
+| G8 READ runtime pack implementation | **IMPLEMENTED / MERGED; official two-run GitHub Actions acceptance VERIFIED on `main@ad66fc2a6a032a7151055a603aac0fffc5ee2f2b`; default inactive** |
 | Cross-system control-plane R1→R3 foundation | **IMPLEMENTED / MERGED via PR #149/#151/#153/#155** |
 | G7 post-merge verification | **VERIFIED on `main@60bc9c268...` by CI #1015, D4 #202, E3 #193, E4B #189** |
-| GitHub G0 governance | **UNKNOWN / fresh post-rename exact-main verification required** |
-| Explicit non-production G8 activation path | **IMPLEMENTED / LIVE VERIFIED by owner-authorized alternative external Linux evidence; opt-in only, default remains disabled** |
-| Real canonical HTTP READ E2E using explicitly activated G8 pack | **VERIFIED_SCHEMA15_LIVE_READ on runtime source `f417d780...` against remote `main@9933fe65...`; historical exact-main acceptance retained; official GitHub Actions parity pending** |
-| Provider WRITE activation | **BLOCKED** |
+| GitHub G0 governance | **POST-RENAME VERIFIED on `main@b1c2d51...` by run `37417176630`; fresh exact activation-SHA G0 required before provider WRITE** |
+| Explicit non-production G8 activation path | **IMPLEMENTED / OFFICIAL TWO-RUN LIVE VERIFIED; opt-in only, default remains disabled** |
+| Real canonical HTTP READ E2E using explicitly activated G8 pack | **TWO-RUN VERIFIED on exact `main@ad66fc2...` by runs `37604010862` and `37622106080`; ADR-0019 READ maturity closed** |
+| Provider WRITE activation | **BLOCKED — ADR-0019 READ prerequisite is ELIGIBLE, but CREATE_REF effect-specific gate is only PROPOSED and Writer App/live workflow are not provisioned** |
 | Reusable CREATE_REF orchestration | **IMPLEMENTED PRE-EFFECT ONLY; NOT CURRENTLY EXECUTED** |
 | Reusable DELETE_REF rollback orchestration | **IMPLEMENTED PRE-EFFECT ONLY; NOT CURRENTLY EXECUTED** |
 | Production release/effects | **BLOCKED / DISABLED** |
@@ -75,9 +75,11 @@ RELEASED / DEPLOYED       = separately governed states
 
 ## G0 GitHub governance — current vs historical evidence
 
-Current canonical repository identity is `eimyroot/Voodoo-One`. No fresh post-rename G0 run is yet
-retained for the exact current `main` SHA, so current G0 state is deliberately `UNKNOWN` and the
-release-candidate governance gate remains fail-closed until fresh live evidence exists.
+Current canonical repository identity is `eimyroot/Voodoo-One`. Fresh post-rename G0 run
+`37417176630` VERIFIED repository governance on exact `main@b1c2d51f3f88d0cd9dfd97a87894763ba054ff24`.
+The current hosted main has since advanced to `ad66fc2a6a032a7151055a603aac0fffc5ee2f2b`, so any future
+provider-WRITE activation must run a new G0 on the exact activation SHA rather than reusing the older
+source-bound verdict.
 
 The following retained artifact remains valid historical evidence for the repository identity and
 source SHA that existed when it ran:
@@ -102,20 +104,16 @@ must not be reused as proof for the renamed current repository identity.
 
 ```text
 REPO_ENFORCEMENT_CONTRACT       = IMPLEMENTED
-GITHUB_SETTINGS_ENFORCED        = UNKNOWN
-MAIN_PR_ONLY                    = UNKNOWN_CURRENT_G0
-REQUIRED_CI                     = UNKNOWN_CURRENT_G0
-FORCE_PUSH_DISABLED             = UNKNOWN_CURRENT_G0
-BRANCH_DELETE_DISABLED          = UNKNOWN_CURRENT_G0
-CONVERSATION_RESOLUTION         = UNKNOWN_CURRENT_G0
-ORDINARY_ADMIN_BYPASS_DISABLED  = UNKNOWN_CURRENT_G0
-P0_GITHUB_GOVERNANCE            = BLOCKED_PENDING_FRESH_G0
-G0                              = UNKNOWN
+POST_RENAME_G0_RUN              = 37417176630 / SUCCESS
+POST_RENAME_G0_SHA              = b1c2d51f3f88d0cd9dfd97a87894763ba054ff24
+CURRENT_MAIN_SHA                = ad66fc2a6a032a7151055a603aac0fffc5ee2f2b
+G0_FOR_CURRENT_WRITE_ACTIVATION = REQUIRED_ON_EXACT_ACTIVATION_SHA
 ```
 
-A fresh G0 PASS on the exact post-repair `main` SHA may promote these current governance fields back to
-`VERIFIED`; documentation, CI success, or the historical artifact cannot do so by inference. G0 PASS
-does not authorize release or deployment.
+The successful post-rename G0 is retained evidence for its exact SHA and current repository identity.
+It is not silently promoted to a later activation SHA. Documentation, CI success or older G0 evidence
+cannot substitute for the fresh exact-SHA WRITE prerequisite. G0 PASS does not authorize release,
+deployment or provider mutation by itself.
 
 ## Canonical shared authority/execution prefix
 
@@ -302,7 +300,7 @@ Current reusable CREATE_REF and DELETE_REF/rollback orchestration stop at pre-ef
 
 ## Hard READ-before-WRITE boundary
 
-Provider WRITE remains blocked until the same canonical product path repeatedly proves a real authenticated HTTP READ through independent `VerificationResult/v1`, including process restart and durable resume of the same execution.
+The repeated canonical READ prerequisite is now VERIFIED by two official GitHub Actions acceptances on exact `main@ad66fc2a6a032a7151055a603aac0fffc5ee2f2b`. This makes the adopted ADR-0019 runtime prerequisite `ELIGIBLE`; it does not authorize provider WRITE.
 
 Required gate:
 
@@ -327,15 +325,21 @@ On 2026-09-19 the owner authorized a one-time alternative external Linux G8 acce
 
 On 2026-09-20 a fresh schema-v15 live READ acceptance was executed from exact runtime source `f417d78060304f0d427794641b72692b063efbde` against provider target `refs/heads/main@9933fe65a5f8ff68703ccb434b4ec0ba31fb4592`. It verified authenticated HTTP READ, schema version 15, exactly one durable `VerificationResult/v1` for both the direct HTTP execution and the interrupted/resumed execution, restart-safe Operation Passport reprojection as `PERSISTED / VERIFIED`, same-execution resume, zero duplicate canonical lineage, distinct Runner/Verifier principals, GitHub-only egress, and zero provider WRITE/release/deployment/production effects. Durable evidence is retained under `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_SCHEMA15_LIVE_20260920_f417d78`; `acceptance-summary.json` SHA-256 is `d01ae75a7fdaf584417cb2ff7c915960b79d32c6708428b774c4434214758722`.
 
-Official GitHub Actions parity remains pending. The full/repeated ADR-0019 READ-before-WRITE evidence gate also remains open; this fresh run does not by itself make provider WRITE eligible or authorized.
+On 2026-10-07 official GitHub Actions parity and repeated READ maturity closed on exact hosted
+`main@ad66fc2a6a032a7151055a603aac0fffc5ee2f2b`. Sequential workflow-dispatch runs `37604010862` and
+`37622106080` both completed SUCCESS with authenticated HTTP READ, ACTIVE interruption, same-execution
+restart/resume, zero duplicate canonical lineage, distinct Runner user and Verifier GitHub App
+principals, independent exact-SHA provider readback and canonical VERIFIED results. The sealed closure is
+retained under `/Users/eimyna/0_EVIDENCE/Voodoo-One/G8_TWO_RUN_EVIDENCE_CLOSURE_20261007_ad66fc2/`.
 
 ```text
 EXPLICIT_G8_ACTIVATION_PATH = IMPLEMENTED
 DEFAULT_PROVIDER_RUNTIME = OFF
-REAL_CANONICAL_READ_E2E = VERIFIED_SCHEMA15_LIVE_READ
-SCHEMA15_DURABLE_VERIFICATION = VERIFIED_LIVE_READ_SCOPE
-G8_GITHUB_ACTIONS_PARITY = PENDING_ACCOUNT_ACTIONS_POLICY
-WRITE_RUNTIME_GATE = BLOCKED_REPEATED_GATE_OPEN
+REAL_CANONICAL_READ_E2E = VERIFIED_TWO_RUN_EXACT_SHA
+G8_GITHUB_ACTIONS_PARITY = VERIFIED
+ADR_0019_READ_MATURITY = VERIFIED
+WRITE_RUNTIME_GATE = ELIGIBLE
+CREATE_REF_EFFECT_GATE = PROPOSED / BLOCKED_PENDING_ADOPTION_AND_PROVISIONING
 PRODUCTION_EFFECTS = DISABLED
 ```
 
@@ -369,14 +373,17 @@ This historical evidence does not authorize or prove any new provider mutation.
 
 ```text
 VOODOO_ALLOW_PRODUCTION_EFFECTS=false
-G0_GITHUB_GOVERNANCE=UNKNOWN
+POST_RENAME_G0=b1c2d51.../VERIFIED
+G0_FOR_WRITE_ACTIVATION=FRESH_EXACT_SHA_REQUIRED
 G7_CANONICAL_READ_API=MERGED
 G7_RESTART_SAFE_RESUME=MERGED
 G8_DEFAULT_READ_RUNTIME=OFF
-REAL_CANONICAL_READ_E2E=VERIFIED_SCHEMA15_LIVE_READ
-SCHEMA15_DURABLE_VERIFICATION=VERIFIED_LIVE_READ_SCOPE
-G8_GITHUB_ACTIONS_PARITY=PENDING_ACCOUNT_ACTIONS_POLICY
-WRITE_RUNTIME_GATE=BLOCKED_REPEATED_GATE_OPEN
+REAL_CANONICAL_READ_E2E=VERIFIED_TWO_RUN_EXACT_SHA
+G8_GITHUB_ACTIONS_PARITY=VERIFIED
+ADR_0019_READ_MATURITY=VERIFIED
+WRITE_RUNTIME_GATE=ELIGIBLE
+CREATE_REF_LIVE_GATE=BLOCKED
+PROVIDER_WRITE=NOT_AUTHORIZED / NOT_PERFORMED
 RELEASE=NOT_PERFORMED
 DEPLOYMENT=NOT_PERFORMED
 ```
