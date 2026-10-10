@@ -200,8 +200,11 @@ REQUIRED = [
     ".env.product.example",
     "Dockerfile.product",
     "docker-compose.product.yml",
+    "requirements-product.txt",
     "requirements-product.lock",
+    "requirements-dev.in",
     "requirements-dev.lock",
+    "scripts/check_requirements_lock_drift.py",
     ".github/governance/main-branch-baseline.v1.json",
     ".github/workflows/ci.yml",
     ".github/workflows/g0-governance-verify.yml",
@@ -432,6 +435,12 @@ def main() -> int:
                 if pattern.search(text):
                     secret_findings.append(f"{path.relative_to(ROOT)} contains {label}")
     checks["secret_scan"] = {"ok": not secret_findings, "findings": secret_findings}
+
+    lock_drift = run([sys.executable, "scripts/check_requirements_lock_drift.py"])
+    checks["dependency_lock_drift"] = {
+        "ok": lock_drift["returncode"] == 0,
+        **lock_drift,
+    }
 
     atlas = run([sys.executable, "scripts/verify_architecture_atlas.py"])
     checks["architecture_atlas"] = {"ok": atlas["returncode"] == 0, **atlas}
