@@ -608,12 +608,15 @@ class ProductService:
         change_requests: list[dict[str, Any]],
         approvals: list[dict[str, Any]],
     ) -> dict[str, Any]:
+        # The legacy projection used the first matching approval from the input order.
+        # Preserve that precedence while avoiding a full scan for each visible plan.
+        first_approval_by_request: dict[str, dict[str, Any]] = {}
+        for approval in approvals:
+            first_approval_by_request.setdefault(approval["request_id"], approval)
+
         items: list[dict[str, Any]] = []
         for request in change_requests[:CONTROL_ROOM_LIMIT]:
-            approval = next(
-                (item for item in approvals if item["request_id"] == request["id"]),
-                None,
-            )
+            approval = first_approval_by_request.get(request["id"])
             items.append(
                 {
                     "request_id": request["id"],
