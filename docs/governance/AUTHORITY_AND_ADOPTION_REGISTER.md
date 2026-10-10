@@ -466,3 +466,45 @@ for the gate semantics only.
 This record does not authorize merge, Writer App provisioning, credential or secret creation,
 live CREATE_REF or DELETE_REF effects, release, deployment or production effects. Those remain
 separate governed operations with their own explicit authority and evidence gates.
+
+
+## 19. ADR-0028 owner adoption record — durable GitHub dependency graph refresh ownership
+
+```text
+DOCUMENT: docs/adr/ADR-0028-durable-dependency-graph-refresh-ownership.md
+VERSION_OR_CANDIDATE_VERSION: ADR-0028 — Durable GitHub Dependency Graph Refresh Ownership
+DECLARED_STATUS: PROPOSED — exact-content owner adoption required
+EFFECTIVE_STATUS: ADOPTED
+OWNER: project owner VOODOO — ENGINEERING
+ADOPTION_METHOD: explicit exact-content owner decision on 2026-10-10 over candidate commit 32f5295338c84f7a2d29560ca3d94e705bf5b132 and ADR SHA-256 6837908aebd0441efbba76bfedcaf1ecb01a86c5a031ae92133dda10e3217427; candidate ADR Git blob 7129091630673d6a0fb871da71692ba010ec067d was independently confirmed unchanged on protected main@d68db74eec191064ca98952c0c2d8ae7cbb46711 after PR #183 merge, and first automatic dependency-graph-refresh run 38043780878 completed BUILD, SUBMIT, VERIFY successfully
+ADOPTION_DATE: 2026-10-10
+ADOPTED_CONTENT_COMMIT: 32f5295338c84f7a2d29560ca3d94e705bf5b132
+CONTENT_SHA256: 6837908aebd0441efbba76bfedcaf1ecb01a86c5a031ae92133dda10e3217427
+CONTENT_GIT_BLOB_SHA: 7129091630673d6a0fb871da71692ba010ec067d
+SCOPE: Durable GitHub Dependency Graph Refresh Ownership
+SUPERSEDES: manual-only dependency snapshot provider-state refresh ownership; retains canonical voodoo-one-dependency-reconciliation detector and voodoo-one-provider-reconciliation correlator
+CONFLICTS_RESOLVED: exactly one main-push-owned durable dependency snapshot stream supersedes manual-only refresh; BUILD and VERIFY remain contents:read, SUBMIT alone has contents:write with no checkout or repository script execution and only one fixed dependency-snapshot endpoint; exact-main freshness and fail-closed provider SBOM verification remain mandatory; successful GitHub submission is not equivalent to independent verification; delayed Dependabot alert re-evaluation is not a synchronous snapshot-verification gate and no alert dismissal is authorized; the embedded PROPOSED label remains immutable historical candidate text; the external register establishes effective adoption only after separately governed acceptance of this adoption record
+NEXT_REVIEW: before changing snapshot submit permissions, job isolation, main-only trigger, freshness/serialization semantics, provider endpoint, detector/correlator ownership, verification/rollback boundaries, or after contradictory dependency graph/Dependabot evidence
+IMPLEMENTATION_STATUS: MERGED_VIA_PR_183
+FIRST_AUTOMATIC_REFRESH_RUN: 38043780878
+FIRST_AUTOMATIC_SNAPSHOT_ID: 108382168
+FIRST_AUTOMATIC_SBOM_VERIFICATION: VERIFIED
+CURRENT_DEPENDABOT_OPEN_ALERTS: NOT_REVERIFIED_BY_THIS_ADOPTION
+ADDITIONAL_PROVIDER_WRITE: NOT_AUTHORIZED_BY_THIS_RECORD
+DEPENDABOT_DISMISSAL: NOT_AUTHORIZED
+RELEASE: NOT_AUTHORIZED
+DEPLOYMENT: NOT_AUTHORIZED
+PRODUCTION_EFFECTS: NOT_AUTHORIZED
+```
+
+The owner-adopted ADR-0028 bytes are exactly those in candidate commit
+`32f5295338c84f7a2d29560ca3d94e705bf5b132` with the recorded SHA-256 and Git blob.
+PR #183 merged those bytes unchanged into `main@d68db74eec191064ca98952c0c2d8ae7cbb46711`.
+The ADR's embedded `PROPOSED` label is preserved as its historical declared status.
+Only this external governance register records the owner's effective adoption; this
+adoption-record commit does not contain its own Git hash and must not change the ADR.
+
+Adoption establishes ownership and authority boundaries for the already merged dependency
+refresh design. It does not constitute a new authorization for provider mutation, alert
+dismissal, release, deployment, or production effects. Dependabot alert state remains
+a separate live provider observation.
