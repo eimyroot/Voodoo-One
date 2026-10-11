@@ -47,14 +47,32 @@ def summarize_plans(
     *,
     limit: int,
 ) -> dict[str, Any]:
-    # Preserve source-order, first-match precedence for duplicate approvals.
+    # Keep indexed lookup for normal SQLite rows; on malformed internal rows,
+    # preserve the original lazy first-match scan and its error behavior.
     first_approval_by_request: dict[str, dict[str, Any]] = {}
+    indexed = True
     for approval in approvals:
-        first_approval_by_request.setdefault(approval["request_id"], approval)
+        try:
+            first_approval_by_request.setdefault(approval["request_id"], approval)
+        except (KeyError, TypeError):
+            indexed = False
+            break
 
     items: list[dict[str, Any]] = []
     for request in change_requests[:limit]:
-        approval = first_approval_by_request.get(request["id"])
+        if indexed:
+            try:
+                approval = first_approval_by_request.get(request["id"])
+            except TypeError:
+                approval = next(
+                    (item for item in approvals if item["request_id"] == request["id"]),
+                    None,
+                )
+        else:
+            approval = next(
+                (item for item in approvals if item["request_id"] == request["id"]),
+                None,
+            )
         items.append(
             {
                 "request_id": request["id"],

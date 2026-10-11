@@ -4,9 +4,11 @@
 | --- | --- |
 | Review basis | `PROJECT_CONSTITUTION.md`: quarterly and after material incidents |
 | Review date | 2026-10-10 |
-| Review status | IMPLEMENTATION CANDIDATE; integration and independent final acceptance pending |
-| Baseline | `main@3e242bf6e8a7ff5e1e6c416d69314651ddd41e8b` |
-| Isolated branch | `refactor/control-room-approval-index-20261010` |
+| Review status | Code INTEGRATED by PR #185 on 2026-10-11; independent GitHub review not recorded; release/deploy not authorized |
+| Review baseline (historical) | main@3e242bf6e8a7ff5e1e6c416d69314651ddd41e8b |
+| Integrated main (observed) | e56d32dbf306c184d1943c147012215e1d8a4753 |
+| Original isolated branch (historical) | refactor/control-room-approval-index-20261010 |
+| Published review branch (merged) | review/q4-control-room-refactor-388b85d-20261010 |
 | Effects | No provider WRITE, release, deployment, or production authorization |
 
 ## 1. Scope and evidence hierarchy
@@ -116,7 +118,7 @@ of this review.
 
 No automatic promotion or effect authorization results from this document.
 
-## 7. 2026-10-10 exact-main reconciliation
+## 7. 2026-10-10 exact-main reconciliation (historical checkpoint)
 
 During Q4 regression execution, protected GitHub main advanced independently through
 PR #184 to `3e242bf6e8a7ff5e1e6c416d69314651ddd41e8b`. The seven changed
@@ -135,3 +137,20 @@ A third documentation-only commit updates the integration baseline references.
 The current candidate requires fresh exact-HEAD tests and a **new** canonical
 publication plan with its own plan-bound approval. No push, merge, deployment,
 release or production effects have been authorized by this reconciliation.
+
+
+## 8. 2026-10-11 integration observation and post-merge follow-up
+
+GitHub PR #185 was merged by the repository owner on 2026-10-11 at
+00:07:23 UTC. Merge commit e56d32dbf306c184d1943c147012215e1d8a4753
+has parents 3e242bf6e8a7ff5e1e6c416d69314651ddd41e8b and
+388b85d2b475ae753de81223dee09f3a61609df1. The five-file scope
+was preserved. The PR CI reported 1,277 passing tests and post-merge
+GitHub checks succeeded. GitHub did not record an independent approval.
+Integration changes source history, not release or deployment authority.
+
+Follow-up F-01 preserves legacy lazy-scan behavior on malformed or
+unhashable internal approval records while retaining the indexed fast
+path for normal SQLite rows. Follow-up F-02 distinguishes historical
+branch/status metadata from the merged implementation. These scoped
+changes require separate review, and do not authorize production effects.
