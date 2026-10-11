@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from voodoo_product.service import CONTROL_ROOM_LIMIT, ProductService
 
 
@@ -88,3 +90,34 @@ def test_plan_summary_matches_reference_across_deterministic_cases() -> None:
         assert ProductService._summarize_plans(None, requests, approvals) == (
             _reference_summary(requests, approvals)
         )
+
+
+@pytest.mark.parametrize(
+    ("requests", "approvals"),
+    [
+        ([], [{"title": "malformed"}]),
+        ([_request("req-1")], [
+            {"request_id": "req-1", "required_count": 3},
+            {"title": "unrelated malformed"},
+        ]),
+        ([_request("req-1")], [
+            {"request_id": ["other"], "required_count": 5},
+            {"request_id": "req-1", "required_count": 2},
+        ]),
+        ([_request("req-1")], [{"title": "malformed before matching"}]),
+        ([dict(_request("req-1"), id=["req-1"])], [
+            {"request_id": ["req-1"], "required_count": 2}
+        ]),
+    ],
+)
+def test_plan_summary_preserves_reference_for_malformed_internal_rows(
+    requests: list[dict[str, object]], approvals: list[dict[str, object]]
+) -> None:
+    """An indexing optimization cannot add or suppress legacy failures."""
+    try:
+        expected = _reference_summary(requests, approvals)
+    except (KeyError, TypeError) as exc:
+        with pytest.raises(type(exc)):
+            ProductService._summarize_plans(None, requests, approvals)
+    else:
+        assert ProductService._summarize_plans(None, requests, approvals) == expected
