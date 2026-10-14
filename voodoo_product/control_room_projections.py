@@ -10,6 +10,13 @@ from __future__ import annotations
 from typing import Any
 
 
+def execution_presentation_timestamp(execution: dict[str, Any]) -> Any:
+    """Use persisted execution times without changing existing presentation rows."""
+    if "updated_at" in execution:
+        return execution["updated_at"]
+    return execution["completed_at"] or execution["started_at"]
+
+
 def summarize_runs(
     change_requests: list[dict[str, Any]],
     executions: list[dict[str, Any]],
@@ -24,7 +31,7 @@ def summarize_runs(
             "risk": item["risk"],
             "environment": item["environment"],
             "adapter": item["adapter"],
-            "updated_at": item["updated_at"],
+            "updated_at": execution_presentation_timestamp(item),
             "receipt_id": item.get("receipt_id"),
         }
         for item in executions[:limit]
