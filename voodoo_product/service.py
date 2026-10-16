@@ -12,6 +12,7 @@ from .bootstrap import BootstrapService
 from .change_request import ChangeRequestService
 from .config import ProductConfig
 from .control_room_projections import (
+    execution_presentation_timestamp,
     summarize_learning_intelligence,
     summarize_plans,
     summarize_runs,
@@ -849,7 +850,7 @@ class ProductService:
                     "id": execution["id"],
                     "title": execution["title"],
                     "status": execution["status"],
-                    "timestamp": execution["updated_at"],
+                    "timestamp": execution_presentation_timestamp(execution),
                     "detail": execution["adapter"],
                     "source": "LEGACY_EXECUTION",
                     "execution_id": execution["id"],
