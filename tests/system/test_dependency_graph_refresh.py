@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 
 import pytest
 
+from scripts import dependency_graph_snapshot as snapshot_module
 from scripts.dependency_graph_snapshot import (
     CORRELATOR,
     DETECTOR_NAME,
@@ -435,3 +437,70 @@ def test_stale_version_is_not_rejected_when_another_current_manifest_still_requi
 
     assert "pkg:pypi/pydantic@2.13.4" in verification["expected_purls"]
     assert "pkg:pypi/pydantic@2.13.4" not in verification["stale_purls"]
+
+
+@pytest.mark.parametrize("with_previous", [False, True])
+def test_snapshot_writing_reuses_current_lock_parsing_without_changing_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    with_previous: bool,
+) -> None:
+    paths = _write_fixture(tmp_path)
+    previous_product = tmp_path / "previous-product.lock" if with_previous else None
+    previous_dev = tmp_path / "previous-dev.lock" if with_previous else None
+    if previous_product is not None and previous_dev is not None:
+        previous_product.write_bytes(paths["product_lock"].read_bytes())
+        previous_dev.write_bytes(
+            paths["dev_lock"].read_bytes().replace(
+                b"httpx2==2.12.0", b"httpx2==2.10.0"
+            )
+        )
+
+    # Public APIs remain the behavioral oracle for the optimized write path.
+    expected_snapshot = build_snapshot(
+        sha=SHA, ref="refs/heads/main", scanned=SCANNED, **paths
+    )
+    expected_snapshot_bytes = (
+        json.dumps(expected_snapshot, indent=2, sort_keys=True, ensure_ascii=False)
+        + "\n"
+    ).encode("utf-8")
+    expected_verification = build_verification_spec(
+        snapshot=expected_snapshot,
+        snapshot_bytes=expected_snapshot_bytes,
+        product_lock=paths["product_lock"],
+        dev_lock=paths["dev_lock"],
+        previous_product_lock=previous_product,
+        previous_dev_lock=previous_dev,
+    )
+    expected_verification_bytes = (
+        json.dumps(expected_verification, indent=2, sort_keys=True, ensure_ascii=False)
+        + "\n"
+    ).encode("utf-8")
+
+    original_parse_lock = snapshot_module.parse_lock
+    reads: list[Path] = []
+
+    def counted_parse_lock(path: Path) -> dict[str, str]:
+        reads.append(path)
+        return original_parse_lock(path)
+
+    monkeypatch.setattr(snapshot_module, "parse_lock", counted_parse_lock)
+    snapshot_out = tmp_path / "snapshot.json"
+    verification_out = tmp_path / "verification.json"
+    write_snapshot(
+        sha=SHA,
+        ref="refs/heads/main",
+        scanned=SCANNED,
+        snapshot_out=snapshot_out,
+        verification_out=verification_out,
+        previous_product_lock=previous_product,
+        previous_dev_lock=previous_dev,
+        **paths,
+    )
+
+    expected_reads = Counter((paths["product_lock"], paths["dev_lock"]))
+    if previous_product is not None and previous_dev is not None:
+        expected_reads.update((previous_product, previous_dev))
+    assert Counter(reads) == expected_reads
+    assert snapshot_out.read_bytes() == expected_snapshot_bytes
+    assert verification_out.read_bytes() == expected_verification_bytes
