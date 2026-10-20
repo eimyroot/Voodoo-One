@@ -134,3 +134,14 @@ def test_product_readiness_retains_g0_governance_evidence_surface() -> None:
 
     readiness = (ROOT / "scripts/product_readiness_gate.py").read_text(encoding="utf-8")
     assert '"tests/system/test_release_supply_chain.py"' in readiness
+    assert '"voodoo_product/static/workflow_boards.js"' in readiness
+    assert '"voodoo_product/static/workflow_boards.css"' in readiness
+    assert '"tests/system/test_workflow_boards_render.cjs"' in readiness
+
+
+def test_ci_and_release_gate_run_workflow_console_static_safety() -> None:
+    ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    release = (ROOT / ".github/workflows/release-candidate.yml").read_text(encoding="utf-8")
+    for source in (ci, release):
+        assert "node --check voodoo_product/static/workflow_boards.js" in source
+        assert "node tests/system/test_workflow_boards_render.cjs" in source
