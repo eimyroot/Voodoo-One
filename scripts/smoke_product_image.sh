@@ -66,6 +66,12 @@ volume_created=1
 test "$(docker volume inspect \
   --format '{{index .Labels "voodoo.capture.namespace"}}' \
   "$data_volume")" = "$run_namespace"
+docker run --rm \
+  --user 0 \
+  --entrypoint /bin/sh \
+  --mount "type=volume,source=$data_volume,target=/app/storage/product" \
+  "$image" \
+  -c 'chown -R voodoo:voodoo /app/storage/product'
 docker create \
   --name "$container" \
   --read-only \
@@ -94,7 +100,9 @@ for attempt in {1..30}; do
     break
   fi
   if [[ "$attempt" == "30" ]]; then
-    docker logs "$container"
+    echo "VOODOO_SMOKE_ERROR=health_timeout" >&2
+    docker inspect "$container" >&2 || true
+    docker logs "$container" >&2 || true
     exit 1
   fi
   sleep 1

@@ -866,6 +866,8 @@ case "${1:-}:${2:-}" in
   volume:create)
     : >"$state/volume"
     ;;
+  run:*)
+    ;;
   create:--name)
     : >"$state/container"
     printf 'fake-container-id\\n'
