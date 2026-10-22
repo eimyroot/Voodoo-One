@@ -133,7 +133,7 @@ def _resolved(
     }
 
 
-def build_snapshot(
+def _build_snapshot_and_pins(
     *,
     sha: str,
     ref: str,
@@ -142,7 +142,7 @@ def build_snapshot(
     product_lock: Path,
     dev_input: Path,
     dev_lock: Path,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], dict[str, str], dict[str, str]]:
     sha = _require_sha(sha)
     ref = _require_main_ref(ref)
     scanned = _require_scanned(scanned)
@@ -153,7 +153,7 @@ def build_snapshot(
     )
     product_pins = parse_lock(product_lock)
     dev_pins = parse_lock(dev_lock)
-    return {
+    snapshot = {
         "version": 0,
         "sha": sha,
         "ref": ref,
@@ -185,6 +185,30 @@ def build_snapshot(
             },
         },
     }
+
+    return snapshot, product_pins, dev_pins
+
+
+def build_snapshot(
+    *,
+    sha: str,
+    ref: str,
+    scanned: str,
+    product_input: Path,
+    product_lock: Path,
+    dev_input: Path,
+    dev_lock: Path,
+) -> dict[str, Any]:
+    snapshot, _, _ = _build_snapshot_and_pins(
+        sha=sha,
+        ref=ref,
+        scanned=scanned,
+        product_input=product_input,
+        product_lock=product_lock,
+        dev_input=dev_input,
+        dev_lock=dev_lock,
+    )
+    return snapshot
 
 
 def _expected_purls(snapshot: dict[str, Any]) -> list[str]:
@@ -222,17 +246,15 @@ def _previous_versions(
     return stale
 
 
-def build_verification_spec(
+def _build_verification_spec_from_pins(
     *,
     snapshot: dict[str, Any],
     snapshot_bytes: bytes,
-    product_lock: Path,
-    dev_lock: Path,
+    current_product: dict[str, str],
+    current_dev: dict[str, str],
     previous_product_lock: Path | None,
     previous_dev_lock: Path | None,
 ) -> dict[str, Any]:
-    current_product = parse_lock(product_lock)
-    current_dev = parse_lock(dev_lock)
     previous_product = (
         parse_lock(previous_product_lock)
         if previous_product_lock is not None
@@ -260,6 +282,25 @@ def build_verification_spec(
     }
 
 
+def build_verification_spec(
+    *,
+    snapshot: dict[str, Any],
+    snapshot_bytes: bytes,
+    product_lock: Path,
+    dev_lock: Path,
+    previous_product_lock: Path | None,
+    previous_dev_lock: Path | None,
+) -> dict[str, Any]:
+    return _build_verification_spec_from_pins(
+        snapshot=snapshot,
+        snapshot_bytes=snapshot_bytes,
+        current_product=parse_lock(product_lock),
+        current_dev=parse_lock(dev_lock),
+        previous_product_lock=previous_product_lock,
+        previous_dev_lock=previous_dev_lock,
+    )
+
+
 def write_snapshot(
     *,
     sha: str,
@@ -278,7 +319,7 @@ def write_snapshot(
         raise DependencySnapshotError(
             "previous product/dev locks must be supplied together"
         )
-    snapshot = build_snapshot(
+    snapshot, current_product, current_dev = _build_snapshot_and_pins(
         sha=sha,
         ref=ref,
         scanned=scanned,
@@ -290,11 +331,11 @@ def write_snapshot(
     snapshot_bytes = (
         json.dumps(snapshot, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
     ).encode("utf-8")
-    verification = build_verification_spec(
+    verification = _build_verification_spec_from_pins(
         snapshot=snapshot,
         snapshot_bytes=snapshot_bytes,
-        product_lock=product_lock,
-        dev_lock=dev_lock,
+        current_product=current_product,
+        current_dev=current_dev,
         previous_product_lock=previous_product_lock,
         previous_dev_lock=previous_dev_lock,
     )
