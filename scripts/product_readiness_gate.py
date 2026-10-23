@@ -113,6 +113,9 @@ REQUIRED = [
     "voodoo_product/write_runtime.py",
     "voodoo_product/static/index.html",
     "voodoo_product/static/app.js",
+    "voodoo_product/static/control_room.js",
+    "voodoo_product/static/workflow_boards.js",
+    "voodoo_product/static/workflow_boards.css",
     "voodoo_product/migrations/sqlite/0001_core_schema.sql",
     "voodoo_product/migrations/sqlite/0002_auth_rate_limits.sql",
     "voodoo_product/migrations/sqlite/0003_receipt_sequence.sql",
@@ -172,6 +175,9 @@ REQUIRED = [
     "tests/system/test_policy_decision_contract.py",
     "tests/system/test_product_composition.py",
     "tests/system/test_product_platform_rc1.py",
+    "tests/system/test_workflow_boards_surface.py",
+    "tests/system/test_workflow_boards_render.cjs",
+    "tests/system/test_workflow_release_admission.py",
     "tests/system/test_receipt_ledger.py",
     "tests/system/test_reconciliation_truth_invariants.py",
     "tests/system/test_release_promotion_contract.py",
@@ -301,6 +307,47 @@ def repository_paths() -> list[str]:
     return paths
 
 
+WORKFLOW_UI_REQUIRED = (
+    "voodoo_product/static/control_room.js",
+    "voodoo_product/static/workflow_boards.js",
+    "voodoo_product/static/workflow_boards.css",
+    "tests/system/test_workflow_boards_surface.py",
+    "tests/system/test_workflow_boards_render.cjs",
+    "tests/system/test_workflow_release_admission.py",
+)
+
+
+def workflow_ui_source_admission(root: Path) -> dict[str, object]:
+    """Attest exact UI inclusion in HEAD, not only loose working-tree files.
+
+    A missing Git HEAD fails closed rather than treating an unversioned preview
+    or an untracked Docker build-context asset as a release candidate.
+    """
+    if not (root / ".git").exists():
+        return {"ok": False, "reason": "GIT_HEAD_NOT_AVAILABLE", "missing_in_head": list(WORKFLOW_UI_REQUIRED)}
+    tree = subprocess.run(
+        ["git", "ls-tree", "-r", "--name-only", "HEAD"],
+        cwd=root, text=True, capture_output=True, check=False,
+    )
+    if tree.returncode != 0:
+        return {"ok": False, "reason": "HEAD_TREE_UNAVAILABLE", "missing_in_head": list(WORKFLOW_UI_REQUIRED)}
+    versioned = set(tree.stdout.splitlines())
+    missing = sorted(set(WORKFLOW_UI_REQUIRED) - versioned)
+    if missing:
+        return {"ok": False, "reason": "UNVERSIONED_UI_FILES", "missing_in_head": missing}
+    content_drift = subprocess.run(
+        ["git", "diff", "--quiet", "HEAD", "--", *WORKFLOW_UI_REQUIRED],
+        cwd=root, capture_output=True, check=False,
+    )
+    if content_drift.returncode != 0:
+        return {
+            "ok": False,
+            "reason": "UI_SOURCE_DIFFERS_FROM_HEAD" if content_drift.returncode == 1 else "UI_SOURCE_DIFF_UNAVAILABLE",
+            "missing_in_head": [],
+        }
+    return {"ok": True, "reason": "EXACT_UI_FILES_MATCH_HEAD", "missing_in_head": []}
+
+
 def is_forbidden_repository_artifact(path: str) -> bool:
     relative = Path(path)
     if relative.name.startswith("._"):
@@ -398,6 +445,7 @@ def main() -> int:
     checks: dict[str, object] = {}
     missing = [item for item in REQUIRED if not (ROOT / item).is_file()]
     checks["required_files"] = {"ok": not missing, "missing": missing}
+    checks["workflow_ui_source_admission"] = workflow_ui_source_admission(ROOT)
     checks["current_vop_contract_registry"] = current_vop_registry_check()
 
     hygiene_findings = [
@@ -429,7 +477,7 @@ def main() -> int:
     for path in ROOT.rglob("*"):
         if path.resolve() == Path(__file__).resolve():
             continue
-        if path.is_file() and path.suffix in {".py", ".md", ".yml", ".yaml", ".example"}:
+        if path.is_file() and path.suffix in {".py", ".js", ".css", ".md", ".yml", ".yaml", ".example"}:
             text = path.read_text(encoding="utf-8", errors="ignore")
             for label, pattern in forbidden.items():
                 if pattern.search(text):

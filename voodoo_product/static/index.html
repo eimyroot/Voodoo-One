@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>VOODOO One</title>
   <link rel="stylesheet" href="/console/assets/styles.css" />
+  <link rel="stylesheet" href="/console/assets/workflow_boards.css" />
 </head>
 <body>
   <div id="auth-screen" class="auth-shell">
@@ -70,6 +71,12 @@
     </header>
 
     <aside class="sidebar">
+      <button data-view="ecosystem" class="nav">Ecosystem Map</button>
+      <button data-view="lifecycle" class="nav">Task Lifecycle</button>
+      <button data-view="authority" class="nav">Authority &amp; Safety</button>
+      <button data-view="lineage" class="nav">Evidence Chain</button>
+      <button data-view="overlays" class="nav">Project Overlays</button>
+      <div class="sidebar-group-label">VOODOO ONE</div>
       <button data-view="overview" class="nav active">Control Room</button>
       <button data-view="runs" class="nav">Runs</button>
       <button data-view="plans" class="nav">Plans</button>
@@ -83,6 +90,11 @@
     </aside>
 
     <main class="workspace">
+      <section id="view-ecosystem" class="view board-view" aria-label="VOODOO Ecosystem Map"></section>
+      <section id="view-lifecycle" class="view board-view" aria-label="VOODOO Task Lifecycle"></section>
+      <section id="view-authority" class="view board-view" aria-label="Authority and Safety Boundaries"></section>
+      <section id="view-lineage" class="view board-view" aria-label="Evidence and Verification Chain"></section>
+      <section id="view-overlays" class="view board-view" aria-label="Project-Specific Overlays"></section>
       <section id="view-overview" class="view active">
         <div class="page-head">
           <div>
@@ -259,5 +271,6 @@
     <div id="toast" class="toast hidden"></div>
   </div>
   <script src="/console/assets/control_room.js" defer></script>
+  <script src="/console/assets/workflow_boards.js" defer></script>
 </body>
 </html>
