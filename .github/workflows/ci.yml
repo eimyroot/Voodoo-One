@@ -124,7 +124,9 @@ jobs:
           node --check voodoo_product/static/control_room.js
           node --check voodoo_product/static/workflow_boards.js
           node --check tests/system/test_workflow_boards_render.cjs
+          node --check tests/system/test_operator_canonical_read.cjs
           node tests/system/test_workflow_boards_render.cjs
+          node tests/system/test_operator_canonical_read.cjs
       - name: Product readiness gate
         run: python scripts/product_readiness_gate.py
       - name: Dependency vulnerability audits

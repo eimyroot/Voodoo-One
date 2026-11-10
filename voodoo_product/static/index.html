@@ -129,6 +129,7 @@
         </div>
         <div id="runs-kpis" class="kpi-grid compact"></div>
         <div class="panel table-panel"><table><thead><tr><th>Status</th><th>Execution</th><th>Request</th><th>Risk</th><th>Environment</th><th>Adapter</th><th>Receipt</th><th>Passport</th></tr></thead><tbody id="runs-table"></tbody></table></div>
+        <article id="canonical-read-result" class="panel hidden" role="status" aria-live="polite"></article>
         <article id="operation-passport-panel" class="panel passport-panel hidden" aria-live="polite">
           <div class="panel-heading">
             <div><p class="eyebrow">Canonical operation</p><h2>Operation Passport</h2><p>Intent → authority → dispatch → runtime → verification, projected read-only from canonical durable state.</p></div>
@@ -153,12 +154,13 @@
             <label>Název<input id="change-title" required /></label>
             <label>Riziko<select id="change-risk"><option>R0</option><option selected>R1</option><option>R2</option><option>R3</option><option>R4</option></select></label>
             <label>Environment<input id="change-environment" readonly /></label>
-            <label>Adapter<select id="change-adapter"><option>echo</option><option>write_artifact</option><option>run_validation</option></select></label>
+            <label>Adapter<select id="change-adapter"><option>echo</option><option>write_artifact</option><option>run_validation</option><option value="github-read-ref">GitHub READ · canonical</option></select></label>
             <label class="wide">Popis<textarea id="change-description"></textarea></label>
             <label class="wide">Payload JSON<textarea id="change-payload">{"message":"VOODOO One ready"}</textarea></label>
             <div class="wide actions"><button type="submit">Vytvořit</button><button type="button" id="cancel-change-button" class="secondary">Zrušit</button></div>
           </form>
         </div>
+        <div id="canonical-read-feedback" class="panel hidden" role="status" aria-live="polite"></div>
         <div class="grid-two responsive-stack">
           <article class="panel table-panel"><table><thead><tr><th>Risk</th><th>Request</th><th>Status</th><th>Approvals</th><th>Environment</th><th>Akce</th></tr></thead><tbody id="plans-table"></tbody></table></article>
           <article class="panel">
