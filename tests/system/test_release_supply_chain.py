@@ -145,3 +145,14 @@ def test_ci_and_release_gate_run_workflow_console_static_safety() -> None:
     for source in (ci, release):
         assert "node --check voodoo_product/static/workflow_boards.js" in source
         assert "node tests/system/test_workflow_boards_render.cjs" in source
+
+
+def test_ci_and_release_candidate_execute_operator_canonical_read_contract() -> None:
+    ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    release = (ROOT / ".github/workflows/release-candidate.yml").read_text(encoding="utf-8")
+    readiness = (ROOT / "scripts/product_readiness_gate.py").read_text(encoding="utf-8")
+
+    for workflow in (ci, release):
+        assert "node --check tests/system/test_operator_canonical_read.cjs" in workflow
+        assert "node tests/system/test_operator_canonical_read.cjs" in workflow
+    assert readiness.count('"tests/system/test_operator_canonical_read.cjs"') == 2

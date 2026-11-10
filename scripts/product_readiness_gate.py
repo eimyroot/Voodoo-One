@@ -177,6 +177,7 @@ REQUIRED = [
     "tests/system/test_product_platform_rc1.py",
     "tests/system/test_workflow_boards_surface.py",
     "tests/system/test_workflow_boards_render.cjs",
+    "tests/system/test_operator_canonical_read.cjs",
     "tests/system/test_workflow_release_admission.py",
     "tests/system/test_receipt_ledger.py",
     "tests/system/test_reconciliation_truth_invariants.py",
@@ -313,6 +314,7 @@ WORKFLOW_UI_REQUIRED = (
     "voodoo_product/static/workflow_boards.css",
     "tests/system/test_workflow_boards_surface.py",
     "tests/system/test_workflow_boards_render.cjs",
+    "tests/system/test_operator_canonical_read.cjs",
     "tests/system/test_workflow_release_admission.py",
 )
 

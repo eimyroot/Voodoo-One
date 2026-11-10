@@ -13,6 +13,88 @@ $('logout-button').addEventListener('click',async()=>{let warning='';try{await a
 document.querySelectorAll('.nav').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.view)))
 document.querySelectorAll('[data-refresh]').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.refresh)))
 async function loadView(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){toast(err.message,true)}}
+function canonicalReadReady(runtime){
+  return runtime?.configured===true && runtime.read_terminal_configured===true
+    && runtime.write_routes_exposed===false && runtime.provider_write_effects_exposed===false;
+}
+const canonicalReadPending=new Set();
+const canonicalReadRequestPattern=/^[A-Za-z0-9._:-]{5,80}$/;
+function canonicalReadAttemptKey(requestId){
+  const slot='voodoo_canonical_read_attempt:'+requestId;
+  let key=sessionStorage.getItem(slot);
+  if(!key){key=crypto.randomUUID();sessionStorage.setItem(slot,key)}
+  return key;
+}
+function canonicalReadPayloadValid(payload){
+  return payload && typeof payload==='object' && !Array.isArray(payload)
+    && Object.keys(payload).sort().join(',')==='ref,repository'
+    && typeof payload.repository==='string'
+    && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(payload.repository)
+    && typeof payload.ref==='string'
+    && /^refs\/(heads|tags)\//.test(payload.ref);
+}
+function canonicalReadFeedback(message,error=false){
+  const el=$('canonical-read-feedback');
+  el.textContent=message;
+  el.classList.toggle('error',error);
+  el.classList.remove('hidden');
+}
+async function runCanonicalRead(requestId,button){
+  if(!canonicalReadRequestPattern.test(requestId)||canonicalReadPending.has(requestId))return;
+  canonicalReadPending.add(requestId);
+  button.disabled=true;
+  $('canonical-read-result').textContent='';
+  $('canonical-read-result').classList.add('hidden');
+  canonicalReadFeedback('Ověřuji oprávnění a aktuální schválení. Kanonický READ ještě nebyl spuštěn.');
+  try{
+    const [runtime,request]=await Promise.all([
+      api('/operations/status'),
+      api(`/change-requests/${encodeURIComponent(requestId)}`)
+    ]);
+    if(!canonicalReadReady(runtime))throw new Error('Kanonický READ runtime není dostupný. Nic nebylo spuštěno.');
+    if(request?.id!==requestId||request.adapter!=='github-read-ref'||request.status!=='APPROVED'
+      ||!['local','development','staging'].includes(request.environment)
+      ||!canonicalReadPayloadValid(request.payload)){
+      throw new Error('Požadavek nebo schválení nejsou platné pro kanonický GitHub READ.');
+    }
+    if(!confirm(`Provést výhradně READ ${request.payload.repository} · ${request.payload.ref}? Server znovu ověří autoritu a schválení.`)){
+      canonicalReadFeedback('Operátor akci zrušil. Žádná operace nebyla spuštěna.');
+      return;
+    }
+    // Stable per request across a reload: an ambiguous network outcome MUST NOT mint a fresh grant.
+    const key=canonicalReadAttemptKey(requestId);
+    canonicalReadFeedback('READ požadavek odeslán. Výsledek zůstává UNKNOWN do potvrzení nezávislým Verifierem.');
+    const result=await api(`/operations/${encodeURIComponent(requestId)}/read`,{
+      method:'POST',headers:{'Idempotency-Key':key},body:JSON.stringify({correlation_id:key})
+    });
+    if(result?.schema!=='vone.canonical-operation-read/v1'||result.operation?.request_id!==requestId
+      ||!canonicalReadRequestPattern.test(result.operation?.execution_id||'')
+      ||result.execution?.status!=='SUCCEEDED'||result.verification?.verdict!=='VERIFIED'
+      ||result.verification?.strength_class!=='INDEPENDENT_PROVIDER_READBACK'
+      ||typeof result.verification?.result_digest!=='string'||!result.verification.result_digest){
+      throw new Error('Kanonický READ nemá ověřený výsledek. Stav UNKNOWN; neopakovat automaticky.');
+    }
+    const executionId=result.operation.execution_id;
+    canonicalReadFeedback('Kanonický READ: nezávislý VERIFIER odpověděl VERIFIED. Otevírám Passport.');
+    await loadView('runs');
+    const receipt=$('canonical-read-result');
+    receipt.textContent=`READ API: VERIFIED · ${executionId} · ${result.verification.strength_class} · digest ${result.verification.result_digest}. Passport uvádí pouze vlastní dostupnou durable evidenci.`;
+    receipt.classList.remove('hidden');
+    await loadOperationPassport(executionId);
+  }catch(err){
+    canonicalReadFeedback(`Kanonický READ: UNKNOWN / NEOVĚŘENO — ${err.message}. Bez automatického opakování; ověř stav a Passport podle request ID ${requestId}.`,true);
+  }finally{
+    canonicalReadPending.delete(requestId);
+    button.disabled=false;
+  }
+}
+function syncChangeAdapter(){
+  if($('change-adapter').value==='github-read-ref'){
+    $('change-payload').value='{"repository":"","ref":"refs/heads/main"}';
+  }else if($('change-payload').value==='{"repository":"","ref":"refs/heads/main"}'){
+    $('change-payload').value='{"message":"VOODOO One ready"}';
+  }
+}
 function syncChangeEnvironment(){const workspace=state.workspaces.find(w=>w.id===$('change-workspace').value);$('change-environment').value=workspace?.environment||''}
 async function loadWorkspaces(){state.workspaces=await api('/workspaces');$('change-workspace').innerHTML=state.workspaces.map(w=>`<option value="${escapeHtml(w.id)}">${escapeHtml(w.name)} · ${escapeHtml(w.environment)}</option>`).join('');syncChangeEnvironment()}
 function fact(label,value,stateValue=value){return `<div class="fact"><span>${escapeHtml(label)}</span>${status(stateValue)}<strong>${escapeHtml(value)}</strong></div>`}
@@ -29,7 +111,31 @@ function renderOperationPassport(data){const operation=data.operation||{};const 
 async function loadOperationPassport(executionId){const panel=$('operation-passport-panel');panel.classList.remove('hidden');$('operation-passport-content').innerHTML='<p class="muted">Načítám canonical Operation Passport…</p>';try{const data=await api(`/operations/${encodeURIComponent(executionId)}/passport`);renderOperationPassport(data)}catch(err){const missing=err.statusCode===404;const title=missing?'Canonical passport není pro tento execution dostupný.':'Canonical passport se nepodařilo bezpečně načíst.';const note=missing?'Runs obsahují i legacy execution záznamy. Absence canonical lineage se zobrazuje explicitně a není nahrazena domněnkou.':'Chyba čtení nebo konflikt canonical lineage se nesmí interpretovat jako prostá absence. Stav zůstává UNKNOWN, dokud není příčina ověřena.';$('operation-passport-content').innerHTML=`<article class="passport-unavailable"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(err.message)}</p><p class="muted">${escapeHtml(note)}</p></article>`}}
 $('runs-table').addEventListener('click',event=>{if(!(event.target instanceof Element))return;const button=event.target.closest('button[data-passport-execution-id]');if(!button)return;loadOperationPassport(button.dataset.passportExecutionId)})
 $('close-passport-button').addEventListener('click',()=>$('operation-passport-panel').classList.add('hidden'))
-async function loadPlans(){const data=await controlRoom();$('plans-table').innerHTML=data.plans.items.length?data.plans.items.map(plan=>{const action=plan.status==='DRAFT'?`<button data-change-action="submit" data-request-id="${escapeHtml(plan.request_id)}">Submit</button>`:plan.status==='APPROVED'?`<button data-change-action="execute" data-request-id="${escapeHtml(plan.request_id)}">Execute</button>`:'<span class="muted">—</span>';return `<tr><td>${escapeHtml(plan.risk)}</td><td><strong>${escapeHtml(plan.title)}</strong><br><span class="mono muted">${escapeHtml(plan.request_id)}</span></td><td>${status(plan.status)}</td><td>${escapeHtml(plan.approval_count)} / ${escapeHtml(plan.approval_required)}</td><td>${escapeHtml(plan.environment)}</td><td class="actions">${action}</td></tr>`}).join(''):'<tr><td colspan="6" class="muted">Žádné plány.</td></tr>';await loadApprovals()}
+async function loadPlans(){
+  // Both lists are existing authorized GET APIs; an absent/mismatched row is NOT an execution permission.
+  const [data,requests,runtime]=await Promise.all([
+    controlRoom(),api('/change-requests'),api('/operations/status').catch(()=>null)
+  ]);
+  const byId=new Map(requests.map(item=>[item.id,item]));
+  $('plans-table').innerHTML=data.plans.items.length?data.plans.items.map(plan=>{
+    const request=byId.get(plan.request_id);
+    const bound=request && request.status===plan.status && request.environment===plan.environment;
+    let action='<span class="muted">UNKNOWN · obnovit</span>';
+    if(bound && plan.status==='DRAFT'){
+      action=`<button data-change-action="submit" data-request-id="${escapeHtml(plan.request_id)}">Submit</button>`;
+    }else if(bound && plan.status==='APPROVED' && request.adapter==='github-read-ref'){
+      const allowed=canonicalReadReady(runtime)&&['local','development','staging'].includes(plan.environment)
+        && canonicalReadPayloadValid(request.payload);
+      action=allowed?`<button data-change-action="canonical-read" data-request-id="${escapeHtml(plan.request_id)}">Canonical READ</button>`
+        :'<span class="muted">READ DISABLED · runtime / scope</span>';
+    }else if(bound && plan.status==='APPROVED' && plan.environment!=='production'
+      && ['echo','write_artifact','run_validation'].includes(request.adapter)){
+      action=`<button data-change-action="execute" data-request-id="${escapeHtml(plan.request_id)}">Execute (legacy)</button>`;
+    }else if(bound){action='<span class="muted">—</span>'}
+    return `<tr><td>${escapeHtml(plan.risk)}</td><td><strong>${escapeHtml(plan.title)}</strong><br><span class="mono muted">${escapeHtml(plan.request_id)}</span><br><small>${escapeHtml(request?.adapter||'UNKNOWN')}</small></td><td>${status(plan.status)}</td><td>${escapeHtml(plan.approval_count)} / ${escapeHtml(plan.approval_required)}</td><td>${escapeHtml(plan.environment)}</td><td class="actions">${action}</td></tr>`;
+  }).join(''):'<tr><td colspan="6" class="muted">Žádné plány.</td></tr>';
+  await loadApprovals();
+}
 async function loadRegistry(){const data=await controlRoom();$('registry-summary').innerHTML=[fact('Fail-closed default',String(data.capability_registry.fail_closed_default),data.capability_registry.fail_closed_default?'ENFORCED':'FAIL'),fact('Production effects',data.capability_registry.production_effects_enabled?'ENABLED':'DISABLED',data.capability_registry.production_effects_enabled?'ENABLED':'DISABLED')].join('');$('registry-cards').innerHTML=data.capability_registry.items.map(item=>`<article class="panel"><header class="panel-heading"><strong>${escapeHtml(item.id)}</strong>${status(item.runtime_status)}</header><p>${escapeHtml(item.surface)} · ${escapeHtml(item.effect)}</p><p class="muted">Verification: ${escapeHtml(item.verification)}</p></article>`).join('')}
 async function loadTimeline(){const data=await controlRoom();$('timeline-list').innerHTML=data.evidence_timeline.length?data.evidence_timeline.map(item=>{const canonical=item.source==='OPERATION_PASSPORT';const drilldown=canonical&&item.execution_id?`<button class="secondary compact-button" type="button" data-evidence-passport-execution-id="${escapeHtml(item.execution_id)}">Passport</button>`:'';return `<article class="receipt-card"><header><strong>${escapeHtml(item.kind)} · ${escapeHtml(item.title)}</strong>${status(item.status)}</header><p>${escapeHtml(item.detail)}</p><p class="muted">${escapeHtml(item.source||'UNKNOWN_SOURCE')} · ${escapeHtml(item.timestamp)}</p>${drilldown}</article>`}).join(''):'<article class="panel muted">Žádná evidence.</article>'}
 $('timeline-list').addEventListener('click',async event=>{if(!(event.target instanceof Element))return;const button=event.target.closest('button[data-evidence-passport-execution-id]');if(!button)return;await loadView('runs');await loadOperationPassport(button.dataset.evidencePassportExecutionId)})
@@ -42,8 +148,49 @@ async function loadCommand(){const data=await api('/command-center');$('environm
 $('new-change-button').addEventListener('click',()=>$('change-form-panel').classList.remove('hidden'))
 $('cancel-change-button').addEventListener('click',()=>$('change-form-panel').classList.add('hidden'))
 $('change-workspace').addEventListener('change',syncChangeEnvironment)
-$('change-form').addEventListener('submit',async e=>{e.preventDefault();try{const payload=JSON.parse($('change-payload').value||'{}');await api('/change-requests',{method:'POST',body:JSON.stringify({workspace_id:$('change-workspace').value,title:$('change-title').value,description:$('change-description').value,risk:$('change-risk').value,environment:$('change-environment').value,adapter:$('change-adapter').value,payload})});$('change-form-panel').classList.add('hidden');toast('Change request vytvořen');await loadPlans()}catch(err){toast(err.message,true)}})
-$('plans-table').addEventListener('click',async event=>{if(!(event.target instanceof Element))return;const button=event.target.closest('button[data-change-action]');if(!button)return;const id=button.dataset.requestId;try{if(button.dataset.changeAction==='submit'){await api(`/change-requests/${id}/submit`,{method:'POST'});toast('Požadavek odeslán ke schválení')}else if(button.dataset.changeAction==='execute'){const result=await api(`/change-requests/${id}/execute`,{method:'POST',headers:{'Idempotency-Key':crypto.randomUUID()}});toast(`Execution ${result.status}`)}await loadPlans()}catch(err){toast(err.message,true)}})
+$('change-adapter').addEventListener('change',syncChangeAdapter)
+$('change-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  try{
+    const adapter=$('change-adapter').value;
+    const payload=JSON.parse($('change-payload').value||'{}');
+    if(adapter==='github-read-ref'){
+      if(!['local','development','staging'].includes($('change-environment').value)
+        ||!canonicalReadPayloadValid(payload))
+        throw new Error('GitHub READ vyžaduje neprodukční workspace a přesný repository/ref.');
+    }
+    await api('/change-requests',{method:'POST',body:JSON.stringify({
+      workspace_id:$('change-workspace').value,title:$('change-title').value,
+      description:$('change-description').value,risk:$('change-risk').value,
+      environment:$('change-environment').value,adapter,payload
+    })});
+    $('change-form-panel').classList.add('hidden');
+    toast('Change request vytvořen · schválení je stále samostatné');
+    await loadPlans();
+  }catch(err){toast(err.message,true)}
+})
+$('plans-table').addEventListener('click',async event=>{
+  if(!(event.target instanceof Element))return;
+  const button=event.target.closest('button[data-change-action]');
+  if(!button)return;
+  const id=button.dataset.requestId;
+  if(button.dataset.changeAction==='canonical-read'){
+    await runCanonicalRead(id,button);
+    return;
+  }
+  try{
+    if(button.dataset.changeAction==='submit'){
+      await api(`/change-requests/${encodeURIComponent(id)}/submit`,{method:'POST'});
+      toast('Požadavek odeslán ke schválení');
+    }else if(button.dataset.changeAction==='execute'){
+      const result=await api(`/change-requests/${encodeURIComponent(id)}/execute`,{
+        method:'POST',headers:{'Idempotency-Key':crypto.randomUUID()}
+      });
+      toast(`Legacy execution ${result.status}`);
+    }
+    await loadPlans();
+  }catch(err){toast(err.message,true)}
+})
 async function loadApprovals(){const rows=await api('/approvals?pending_only=true');$('approvals-list').innerHTML=rows.length?rows.map(r=>{const approved=Number(r.approved_count||0);const required=Number(r.required_count||0);const remaining=Math.max(required-approved,0);return `<article class="approval-card"><header><div><strong>${escapeHtml(r.title)}</strong><div class="mono muted">${escapeHtml(r.request_id)}</div></div>${status(r.risk)}</header><div class="approval-progress"><div><span>Approved</span><strong>${escapeHtml(approved)} / ${escapeHtml(required)}</strong></div><div><span>Remaining</span><strong>${escapeHtml(remaining)}</strong></div><div><span>Environment</span><strong>${escapeHtml(String(r.environment||'UNKNOWN').toUpperCase())}</strong></div></div><p class="muted">The API exposes the effective threshold for this request. Policy version and requester identity are not yet exposed.</p><div class="actions"><button data-decision="APPROVED" data-request-id="${escapeHtml(r.request_id)}">Approve once</button><button class="danger" data-decision="DENIED" data-request-id="${escapeHtml(r.request_id)}">Deny</button></div></article>`}).join(''):'<article class="panel">Žádná čekající schválení.</article>'}
 $('approvals-list').addEventListener('click',async event=>{if(!(event.target instanceof Element))return;const button=event.target.closest('button[data-decision]');if(!button)return;const reason=prompt('Důvod rozhodnutí:');if(!reason)return;try{await api(`/change-requests/${button.dataset.requestId}/decision`,{method:'POST',body:JSON.stringify({decision:button.dataset.decision,reason})});toast(`Rozhodnutí ${button.dataset.decision}`);await loadPlans()}catch(err){toast(err.message,true)}})
 async function setStop(active){const reason=$('stop-reason').value.trim();if(reason.length<3){toast('Vyplň důvod',true);return}try{await api('/system/emergency-stop',{method:'POST',body:JSON.stringify({active,reason})});toast(active?'Emergency stop aktivován':'Emergency stop zrušen');await loadHealth()}catch(err){toast(err.message,true)}}

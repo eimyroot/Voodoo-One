@@ -60,6 +60,8 @@ jobs:
           node --check voodoo_product/static/control_room.js
           node --check voodoo_product/static/workflow_boards.js
           node tests/system/test_workflow_boards_render.cjs
+          node --check tests/system/test_operator_canonical_read.cjs
+          node tests/system/test_operator_canonical_read.cjs
           python scripts/verify_architecture_atlas.py
           python -m pytest -q
           python scripts/product_readiness_gate.py
