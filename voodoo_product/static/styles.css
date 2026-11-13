@@ -48,3 +48,14 @@ linear-gradient(135deg,#090b0f,#0e151c 55%,#121922)}
 #orchestration-graph.graph-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}.architecture-flow{min-width:0}.architecture-path{display:flex;align-items:stretch;gap:8px;overflow:auto;margin-top:14px;padding-bottom:2px}.architecture-node{min-width:150px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface2);display:grid;gap:8px}.architecture-node strong{font-size:14px;line-height:1.2}.architecture-node>span:not(.status),.architecture-node small{color:var(--muted);font:11px ui-monospace,monospace;overflow-wrap:anywhere}.architecture-path .graph-link{flex:0 0 auto;align-self:center}@media(max-width:1100px){#orchestration-graph.graph-grid{grid-template-columns:1fr}}
 
 .passport-panel{margin-top:18px;border-color:#3e4c2b}.passport-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:18px 0;border-bottom:1px solid var(--line)}.passport-hero h3{margin:6px 0 0;font-size:22px}.passport-group{margin-top:20px}.passport-group h3{margin:0 0 12px}.verification-block{padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--surface2)}.verification-block .fact{background:#0d1116}.passport-raw{margin-top:20px}.passport-unavailable{margin-top:18px;padding:16px;border:1px solid var(--warn);border-radius:12px;background:var(--surface2)}.passport-unavailable p{margin-bottom:0}.compact-button{padding:7px 10px;font-size:12px}@media(max-width:700px){.passport-hero{display:grid}.passport-panel .fact-grid{grid-template-columns:1fr}}
+
+/* Project Control Map: projection only; separate from execution controls. */
+.projectmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:18px 0}
+.projectmap-card{min-width:0}
+.projectmap-card .panel-heading{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between}
+.projectmap-card h2{font-size:17px;margin:0}
+.projectmap-card p{overflow-wrap:anywhere}
+.projectmap-list{padding-left:19px}
+.projectmap-list li{margin:9px 0;overflow-wrap:anywhere}
+#projectmap-status{overflow-wrap:anywhere}
+@media(max-width:860px){.projectmap-grid{grid-template-columns:1fr}}

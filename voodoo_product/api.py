@@ -24,6 +24,7 @@ from .observability import (
     configure_product_logging,
     log_event,
 )
+from .project_control_map import ProjectControlMapUnavailable, project_control_map_projection
 from .security import Principal
 from .service import AuthRateLimitExceeded, ProductService
 
@@ -318,6 +319,23 @@ def create_product_router(
                 getattr(request.app.state, "voodoo_canonical_operation_runtime", None) is not None
             )
         )
+
+    @router.get("/project-control-map")
+    def project_control_map(
+        _: Principal = Depends(require_permission("read")),
+    ) -> JSONResponse:
+        try:
+            projection = project_control_map_projection(
+                service.config.project_control_map_snapshot_path,
+                service.config.project_control_map_snapshot_sha256,
+            )
+        except ProjectControlMapUnavailable as exc:
+            # Never reveal evidence filesystem paths or partial untrusted payloads.
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="project control map evidence unavailable or unverified",
+            ) from exc
+        return JSONResponse(content=projection, headers={"Cache-Control": "no-store"})
 
     @router.get("/change-requests")
     def change_requests(

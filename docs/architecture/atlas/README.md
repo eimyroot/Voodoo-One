@@ -31,6 +31,7 @@ This Atlas is evidence-first. Repository code, configuration, migrations, tests 
 ## Atlas baseline set
 
 - [Project Inventory](PROJECT_INVENTORY.md)
+- [Project Control Map R1](PROJECT_CONTROL_MAP_R1.md) — optional read-only evidence projection; disabled until configured and verified.
 - [AS-IS Architecture](AS_IS_ARCHITECTURE.md)
 - [Contradictions and Unknowns](CONTRADICTIONS.md)
 - [Architecture Gap Analysis](GAP_ANALYSIS.md)
