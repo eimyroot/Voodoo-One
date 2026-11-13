@@ -38,7 +38,7 @@ actor identities, raw receipts and unrecognized fields.
 
 ## Endpoints and UI
 
-`GET /api/v1/project-control-map` — existing `require_permission("read")` policy.
+`GET /api/v1/project-control-map` — existing administrator `require_permission("*")` policy. Generic `read` permission does not authorize cross-project metadata disclosure.
 This is a **separate** endpoint; the original `GET /api/v1/control-room` response
 contract is unchanged. The existing Control Room adds a new "Project Control Map"
 navigation tab that fetches only the authenticated read-only endpoint.

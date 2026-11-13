@@ -340,3 +340,34 @@ def test_public_relationship_kind_rejects_sensitive_content(tmp_path: Path):
     file, sha = write_pinned(tmp_path, data)
     with pytest.raises(ProjectControlMapUnavailable):
         project_control_map_projection(file, sha)
+
+
+def test_viewer_not_authorized_for_cross_project_metadata(tmp_path: Path):
+    file, sha = write_pinned(tmp_path, sample_snapshot())
+    client = build_client(tmp_path, file, sha)
+    admin = token(client)
+    created = client.post(
+        "/api/v1/users",
+        headers={"Authorization": "Bearer " + admin},
+        json={
+            "username": "viewermap",
+            "password": "VeryStrongViewerPassword1!",
+            "role": "viewer",
+        },
+    )
+    assert created.status_code == 201, created.text
+    login = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": "viewermap",
+            "password": "VeryStrongViewerPassword1!",
+        },
+    )
+    assert login.status_code == 200
+    viewer = login.json()["token"]
+    response = client.get(
+        "/api/v1/project-control-map",
+        headers={"Authorization": "Bearer " + viewer},
+    )
+    assert response.status_code == 403
+    assert "VOODOO One" not in response.text

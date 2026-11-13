@@ -322,7 +322,8 @@ def create_product_router(
 
     @router.get("/project-control-map")
     def project_control_map(
-        _: Principal = Depends(require_permission("read")),
+        # A workspace viewer must not inherit read access to unrelated private repos.
+        _: Principal = Depends(require_permission("*")),
     ) -> JSONResponse:
         try:
             projection = project_control_map_projection(
