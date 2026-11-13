@@ -24,6 +24,7 @@ _ID = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
 _REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
 _DIGEST = re.compile(r"^[0-9a-f]{64}$")
+_STATUS_LABEL = re.compile(r"^[A-Z][A-Z0-9_]*(?:[ ;/-][A-Z0-9_]+)*$")
 
 
 class ProjectControlMapUnavailable(Exception):
@@ -39,6 +40,13 @@ def _string(value: Any, *, max_length: int = 240) -> str:
     _need(isinstance(value, str) and 0 < len(value) <= max_length)
     _need(not any(ord(ch) < 32 for ch in value))
     return value
+
+
+def _status_label(value: Any, *, max_length: int = 230) -> str:
+    """Allow public status codes only; never forward free-form evidence content."""
+    label = _string(value, max_length=max_length)
+    _need(bool(_STATUS_LABEL.fullmatch(label)))
+    return label
 
 
 def _date(value: Any) -> datetime:
@@ -131,8 +139,8 @@ def project_control_map_projection(
             "local_head": local[:12],
             "hosted_head": hosted[:12],
             "head_comparison": "MATCHED_AT_OBSERVATION" if local == hosted else "DIFFERENT_HEADS",
-            "worktree": _string(git.get("local_worktree"), max_length=90),
-            "status": _string(item.get("observed_status"), max_length=230),
+            "worktree": _status_label(git.get("local_worktree"), max_length=90),
+            "status": _status_label(item.get("observed_status"), max_length=230),
             "freshness": freshness,
         })
 
@@ -154,12 +162,26 @@ def project_control_map_projection(
         edges.append({
             "from": rel["from"], "to": rel["to"],
             "kind": _string(rel.get("kind"), max_length=110),
-            "status": _string(rel.get("status"), max_length=220),
+            "status": _status_label(rel.get("status"), max_length=220),
         })
 
     raw_gaps = doc.get("known_gaps", [])
     _need(isinstance(raw_gaps, list) and len(raw_gaps) <= 35)
-    gaps = [_string(g, max_length=420) for g in raw_gaps]
+    # Unstructured evidence notes can contain paths, credentials or personal data.
+    # Preserve their existence, but never publish their contents through HTTP.
+    gaps: list[str] = []
+    for p in projects:
+        if p["head_comparison"] == "DIFFERENT_HEADS":
+            gaps.append(f'{p["id"]}: GIT_HEAD_MISMATCH_AT_OBSERVATION')
+        if p["worktree"] != "CLEAN":
+            gaps.append(f'{p["id"]}: DIRTY_LOCAL_WORKTREE_AT_OBSERVATION')
+        if any(code in p["status"] for code in ("UNKNOWN", "UNVERIFIED", "NOT_ADOPTED")):
+            gaps.append(f'{p["id"]}: PROJECT_STATUS_NOT_FULLY_VERIFIED')
+    for edge in edges:
+        if any(code in edge["status"] for code in ("UNKNOWN", "UNVERIFIED", "NOT_ADOPTED", "NONPROMOTED")):
+            gaps.append(f'{edge["from"]}: RELATIONSHIP_TO_{edge["to"].upper().replace("-", "_")}_NOT_VERIFIED')
+    if raw_gaps:
+        gaps.append("ADDITIONAL_UNSTRUCTURED_EVIDENCE_NOT_PUBLISHED")
     return {
         "schema": PROJECTION_SCHEMA,
         "mode": "READ_ONLY",

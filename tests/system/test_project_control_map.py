@@ -261,3 +261,44 @@ def test_ui_and_legacy_control_room_contract(tmp_path: Path):
     legacy = client.get("/api/v1/control-room", headers={"Authorization": "Bearer " + t})
     assert legacy.status_code == 200
     assert "project_control_map" not in legacy.json()
+
+
+def test_unstructured_evidence_fields_never_leak_into_api(tmp_path: Path):
+    data = sample_snapshot()
+    data["known_gaps"] = [
+        "/Users/example/private/credentials.json",
+        "Bearer synthetic_secret_that_must_not_be_public",
+    ]
+    file, sha = write_pinned(tmp_path, data)
+    client = build_client(tmp_path, file, sha)
+    token_value = token(client)
+    response = client.get(
+        "/api/v1/project-control-map",
+        headers={"Authorization": "Bearer " + token_value},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert "ADDITIONAL_UNSTRUCTURED_EVIDENCE_NOT_PUBLISHED" in payload["known_gaps"]
+    assert "/Users/" not in response.text
+    assert "synthetic_secret_that_must_not_be_public" not in response.text
+
+
+@pytest.mark.parametrize(("field", "value"), [
+    ("observed_status", "Bearer a-synthetic-password"),
+    ("observed_status", "/Users/example/private"),
+    ("observed_status", "<script>alert(1)</script>"),
+])
+def test_unstructured_project_status_fails_closed(tmp_path: Path, field: str, value: str):
+    data = sample_snapshot()
+    data["projects"][0][field] = value
+    file, sha = write_pinned(tmp_path, data)
+    with pytest.raises(ProjectControlMapUnavailable):
+        project_control_map_projection(file, sha)
+
+
+def test_unstructured_relation_status_fails_closed(tmp_path: Path):
+    data = sample_snapshot()
+    data["relationships"][0]["status"] = "/Users/example/private"
+    file, sha = write_pinned(tmp_path, data)
+    with pytest.raises(ProjectControlMapUnavailable):
+        project_control_map_projection(file, sha)

@@ -155,7 +155,7 @@ async function loadProjectMap(){
       ||data.authority_effect!=='NONE'||!Array.isArray(data.projects)
       ||!Array.isArray(data.relationships)||!Array.isArray(data.known_gaps))
       throw new Error('Neověřená struktura mapy');
-    banner.textContent=`Zdroj: snapshot ${data.observed_at_utc} · ${data.freshness} · FinishGate: ${data.active_delivery} (${data.focus_status}). SHA-256 ${data.snapshot_sha256}. Žádné schvalování ani změny.`;
+    banner.textContent=`Stav zaznamenaný ve snapshotu ${data.observed_at_utc} · ${data.freshness} · FinishGate podle snapshotu: ${data.active_delivery} (${data.focus_status}). SHA-256 ${data.snapshot_sha256}. Žádné schvalování ani změny.`;
     $('projectmap-projects').innerHTML=data.projects.map(p=>{
       const parts=String(p.repo||'').split('/');
       const link=parts.length===2 && parts.every(x=>/^[A-Za-z0-9_.-]+$/.test(x))

@@ -31,8 +31,9 @@ An unauthenticated request is rejected by existing session/role logic before rea
 the evidence file. The response includes `Cache-Control: no-store`.
 
 To avoid exposing an evidence filesystem through HTTP, the response only contains
-an allowlisted selection of project names, Git references, status/freshness labels,
-explicit dependency relations and bounded gaps. It omits local filesystem paths,
+an allowlisted selection of project names, Git references, controlled status/freshness codes,
+explicit dependency relations and derived gap codes. Arbitrary free-text gap notes are
+not exposed in the API; only their presence is displayed. It omits local filesystem paths,
 actor identities, raw receipts and unrecognized fields.
 
 ## Endpoints and UI
