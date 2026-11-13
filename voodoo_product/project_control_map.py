@@ -24,7 +24,7 @@ _ID = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
 _REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
 _DIGEST = re.compile(r"^[0-9a-f]{64}$")
-_STATUS_LABEL = re.compile(r"^[A-Z][A-Z0-9_]*(?:[ ;/-][A-Z0-9_]+)*$")
+_STATUS_LABEL = re.compile(r"^[A-Z][A-Z0-9_]*(?:[ ;/-]+[A-Z0-9_]+)*$")
 _SENSITIVE_PUBLIC_TEXT = re.compile(
     r"(?i)(?:/users/|/home/|/private/|\\users\\|bearer\s+|(?:password|secret|token|api[-_]?key)\s*[:=])"
 )

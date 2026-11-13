@@ -371,3 +371,13 @@ def test_viewer_not_authorized_for_cross_project_metadata(tmp_path: Path):
     )
     assert response.status_code == 403
     assert "VOODOO One" not in response.text
+
+
+def test_structured_multi_part_status_is_valid(tmp_path: Path):
+    data = sample_snapshot()
+    data["projects"][0]["observed_status"] = "SOURCE_VERIFIED; DEPLOYMENT_UNVERIFIED"
+    data["relationships"][0]["status"] = "DOCUMENTED; NOT_ADOPTED"
+    file, sha = write_pinned(tmp_path, data)
+    view = project_control_map_projection(file, sha)
+    assert view["projects"][0]["status"] == "SOURCE_VERIFIED; DEPLOYMENT_UNVERIFIED"
+    assert view["relationships"][0]["status"] == "DOCUMENTED; NOT_ADOPTED"
