@@ -25,7 +25,9 @@ _REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
 _DIGEST = re.compile(r"^[0-9a-f]{64}$")
 _STATUS_LABEL = re.compile(r"^[A-Z][A-Z0-9_]*(?:[ ;/-][A-Z0-9_]+)*$")
-
+_SENSITIVE_PUBLIC_TEXT = re.compile(
+    r"(?i)(?:/users/|/home/|/private/|\\users\\|bearer\s+|(?:password|secret|token|api[-_]?key)\s*[:=])"
+)
 
 class ProjectControlMapUnavailable(Exception):
     """Missing or untrusted evidence. Never expose its filesystem path to HTTP."""
@@ -40,6 +42,12 @@ def _string(value: Any, *, max_length: int = 240) -> str:
     _need(isinstance(value, str) and 0 < len(value) <= max_length)
     _need(not any(ord(ch) < 32 for ch in value))
     return value
+
+
+def _public_text(value: Any, *, max_length: int = 240) -> str:
+    text = _string(value, max_length=max_length)
+    _need(not _SENSITIVE_PUBLIC_TEXT.search(text))
+    return text
 
 
 def _status_label(value: Any, *, max_length: int = 230) -> str:
@@ -132,10 +140,10 @@ def project_control_map_projection(
         _need(bool(_SHA.fullmatch(local)) and bool(_SHA.fullmatch(hosted)))
         projects.append({
             "id": pid,
-            "name": _string(item.get("name"), max_length=150),
-            "kind": _string(item.get("kind"), max_length=90),
+            "name": _public_text(item.get("name"), max_length=150),
+            "kind": _public_text(item.get("kind"), max_length=90),
             "repo": repo,
-            "branch": _string(git.get("local_branch"), max_length=130),
+            "branch": _public_text(git.get("local_branch"), max_length=130),
             "local_head": local[:12],
             "hosted_head": hosted[:12],
             "head_comparison": "MATCHED_AT_OBSERVATION" if local == hosted else "DIFFERENT_HEADS",
@@ -161,7 +169,7 @@ def project_control_map_projection(
         _need(isinstance(rel, dict) and rel.get("from") in ids | subids and rel.get("to") in ids)
         edges.append({
             "from": rel["from"], "to": rel["to"],
-            "kind": _string(rel.get("kind"), max_length=110),
+            "kind": _public_text(rel.get("kind"), max_length=110),
             "status": _status_label(rel.get("status"), max_length=220),
         })
 

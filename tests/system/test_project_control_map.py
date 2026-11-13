@@ -302,3 +302,41 @@ def test_unstructured_relation_status_fails_closed(tmp_path: Path):
     file, sha = write_pinned(tmp_path, data)
     with pytest.raises(ProjectControlMapUnavailable):
         project_control_map_projection(file, sha)
+
+
+@pytest.mark.parametrize(("field", "payload"), [
+    ("name", "/Users/example/internal"),
+    ("name", "Bearer synthetic_secret_material"),
+    ("kind", "/home/other/private"),
+    ("kind", "api_key=synthetic_secret_material"),
+])
+def test_public_project_fields_reject_sensitive_content(
+    tmp_path: Path, field: str, payload: str
+):
+    data = sample_snapshot()
+    data["projects"][0][field] = payload
+    file, sha = write_pinned(tmp_path, data)
+    with pytest.raises(ProjectControlMapUnavailable):
+        project_control_map_projection(file, sha)
+
+
+@pytest.mark.parametrize(("field", "payload"), [
+    ("local_branch", "feature/password=synthetic"),
+    ("local_branch", "/Users/example/secrets"),
+])
+def test_public_git_branch_rejects_sensitive_content(
+    tmp_path: Path, field: str, payload: str
+):
+    data = sample_snapshot()
+    data["projects"][0]["git"][field] = payload
+    file, sha = write_pinned(tmp_path, data)
+    with pytest.raises(ProjectControlMapUnavailable):
+        project_control_map_projection(file, sha)
+
+
+def test_public_relationship_kind_rejects_sensitive_content(tmp_path: Path):
+    data = sample_snapshot()
+    data["relationships"][0]["kind"] = "token=synthetic_secret"
+    file, sha = write_pinned(tmp_path, data)
+    with pytest.raises(ProjectControlMapUnavailable):
+        project_control_map_projection(file, sha)
