@@ -65,6 +65,8 @@ class ProductConfig:
     oidc_username_claim: str = _DEFAULT_OIDC_USERNAME_CLAIM
     oidc_groups_claim: str = _DEFAULT_OIDC_GROUPS_CLAIM
     approval_policy_compatibility_enabled: bool = False
+    project_control_map_snapshot_path: Path | None = None
+    project_control_map_snapshot_sha256: str = ""
 
     def __post_init__(self) -> None:
         if self.environment not in {"local", "development", "staging", "test", "production"}:
@@ -114,6 +116,13 @@ class ProductConfig:
             raise ValueError("execution lease must exceed timeout by 30 to 3600 seconds")
         if self.log_level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
             raise ValueError("log level is invalid")
+        if self.project_control_map_snapshot_path is not None:
+            if not self.project_control_map_snapshot_path.is_absolute():
+                raise ValueError("project control map snapshot path must be absolute")
+            if not re.fullmatch(r"[0-9a-f]{64}", self.project_control_map_snapshot_sha256):
+                raise ValueError("project control map snapshot requires pinned SHA-256")
+        elif self.project_control_map_snapshot_sha256:
+            raise ValueError("project control map SHA-256 requires a snapshot path")
         if self.production_effects_enabled and self.environment != "production":
             raise ValueError("production effects require VOODOO_ENV=production")
         for origin in self.cors_origins:
@@ -185,6 +194,14 @@ class ProductConfig:
             execution_lease_seconds=int(os.getenv("VOODOO_EXECUTION_LEASE_SECONDS", "180")),
             log_level=os.getenv("VOODOO_LOG_LEVEL", "INFO").strip().upper(),
             production_effects_enabled=_bool_env("VOODOO_ALLOW_PRODUCTION_EFFECTS", False),
+            project_control_map_snapshot_path=(
+                Path(os.environ["VOODOO_PROJECT_CONTROL_MAP_SNAPSHOT_PATH"]).expanduser()
+                if os.getenv("VOODOO_PROJECT_CONTROL_MAP_SNAPSHOT_PATH", "").strip()
+                else None
+            ),
+            project_control_map_snapshot_sha256=os.getenv(
+                "VOODOO_PROJECT_CONTROL_MAP_SNAPSHOT_SHA256", ""
+            ).strip(),
             approval_policy_compatibility_enabled=_bool_env(
                 "VOODOO_ENABLE_APPROVAL_POLICY_COMPATIBILITY",
                 False,

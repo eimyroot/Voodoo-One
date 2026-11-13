@@ -86,6 +86,7 @@
       <button data-view="verifier" class="nav">Verifier Center</button>
       <button data-view="health" class="nav">Runtime Health</button>
       <button data-view="learning" class="nav">Learning Intelligence</button>
+      <button data-view="projectmap" class="nav">Project Control Map</button>
       <button data-view="governance" class="nav">Governance</button>
     </aside>
 
@@ -256,6 +257,31 @@
         </div>
         <div id="learning-signals" class="fact-grid"></div>
         <article class="panel emphasis-panel"><h2>Scoring Router</h2><p id="learning-router" class="muted">NOT_EXPOSED</p></article>
+      </section>
+
+      <section id="view-projectmap" class="view" aria-label="Project Control Map">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Architecture Atlas / evidence projection</p>
+            <h1>Project Control Map</h1>
+            <p>Ověřený snapshot, nikoli živé Git řídicí centrum. Žádná práva ani operace.</p>
+          </div>
+          <button data-refresh="projectmap" type="button">Obnovit</button>
+        </div>
+        <article class="panel" role="status" aria-live="polite" id="projectmap-status">
+          Snapshot nebyl načten. Stav UNKNOWN.
+        </article>
+        <div class="projectmap-grid" id="projectmap-projects"></div>
+        <div class="grid-two">
+          <article class="panel">
+            <h2>Vazby mezi projekty</h2>
+            <ul class="projectmap-list" id="projectmap-relations"></ul>
+          </article>
+          <article class="panel">
+            <h2>Neověřené oblasti</h2>
+            <ul class="projectmap-list" id="projectmap-gaps"></ul>
+          </article>
+        </div>
       </section>
 
       <section id="view-governance" class="view">

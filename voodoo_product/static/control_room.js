@@ -12,7 +12,7 @@ $('bootstrap-form').addEventListener('submit',async e=>{e.preventDefault();try{c
 $('logout-button').addEventListener('click',async()=>{let warning='';try{await api('/auth/logout', { method: 'POST' })}catch(err){console.warn('Server-side logout failed; clearing local session',err);warning='Serverové odvolání relace se nepodařilo potvrdit. Lokální token byl odstraněn.'}finally{state.token='';sessionStorage.removeItem('voodoo_token');showAuth();$('auth-error').textContent=warning}})
 document.querySelectorAll('.nav').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.view)))
 document.querySelectorAll('[data-refresh]').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.refresh)))
-async function loadView(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){toast(err.message,true)}}
+async function loadView(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){toast(err.message,true)}}
 function canonicalReadReady(runtime){
   return runtime?.configured===true && runtime.read_terminal_configured===true
     && runtime.write_routes_exposed===false && runtime.provider_write_effects_exposed===false;
@@ -143,6 +143,43 @@ async function loadPolicy(){const data=await controlRoom();$('policy-gates').inn
 async function loadVerifier(){const data=await controlRoom();$('verifier-rule').textContent=data.verifier_center.separation_rule;$('verifier-list').innerHTML=data.verifier_center.recent_checks.length?data.verifier_center.recent_checks.map(check=>{const canonical=check.source==='VERIFICATION_RESULT_V1';const reference=canonical?check.result_digest:(check.receipt_id||check.execution_id);const provenance=canonical?`Strength ${escapeHtml(check.verification_strength||'UNKNOWN')} · checked ${escapeHtml(check.checked_at||'TIME_NOT_AVAILABLE')}`:'No durable independent VerificationResult/v1 is bound to this receipt.';return `<article class="receipt-card"><header><strong>${escapeHtml(canonical?'VerificationResult/v1':'Legacy receipt')} · ${escapeHtml(reference)}</strong>${status(check.verification_status)}</header><p>Execution ${escapeHtml(check.execution_id)} · ${escapeHtml(check.execution_status)}</p><p class="muted">${provenance}</p></article>`}).join(''):'<article class="panel muted">Independent verification zatím nemá runtime výsledek.</article>'}
 async function loadRuntimeHealth(){const data=await controlRoom();$('health-summary').innerHTML=data.runtime_health.map(item=>fact(item.name,item.detail,item.status)).join('');$('health-json').textContent=JSON.stringify(data.runtime_health,null,2)}
 async function loadLearning(){const data=await controlRoom();$('learning-signals').innerHTML=data.learning_intelligence.signals.map(item=>fact(item.name,item.value,item.status)).join('');$('learning-router').textContent=data.learning_intelligence.scoring_router}
+async function loadProjectMap(){
+  const banner=$('projectmap-status');
+  banner.textContent='Načítám SHA-256 ověřený snapshot. Nejedná se o živé Git údaje.';
+  $('projectmap-projects').textContent='';
+  $('projectmap-relations').textContent='';
+  $('projectmap-gaps').textContent='';
+  try{
+    const data=await api('/project-control-map');
+    if(data?.schema!=='ProjectControlMapProjection/v1'||data.mode!=='READ_ONLY'
+      ||data.authority_effect!=='NONE'||!Array.isArray(data.projects)
+      ||!Array.isArray(data.relationships)||!Array.isArray(data.known_gaps))
+      throw new Error('Neověřená struktura mapy');
+    banner.textContent=`Stav zaznamenaný ve snapshotu ${data.observed_at_utc} · ${data.freshness} · FinishGate podle snapshotu: ${data.active_delivery} (${data.focus_status}). SHA-256 ${data.snapshot_sha256}. Žádné schvalování ani změny.`;
+    $('projectmap-projects').innerHTML=data.projects.map(p=>{
+      const parts=String(p.repo||'').split('/');
+      const link=parts.length===2 && parts.every(x=>/^[A-Za-z0-9_.-]+$/.test(x))
+        ? `https://github.com/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}`:null;
+      const label=link?`<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(p.name)}</a>`:escapeHtml(p.name);
+      return `<article class="panel projectmap-card">
+        <header class="panel-heading"><h2>${label}</h2>${status(p.freshness)}</header>
+        <p class="muted">${escapeHtml(p.kind)} · ${escapeHtml(p.status)}</p>
+        <p><strong>Git:</strong> <span class="mono">${escapeHtml(p.branch)}</span></p>
+        <p><strong>Lokální / GitHub:</strong> <span class="mono">${escapeHtml(p.local_head)} / ${escapeHtml(p.hosted_head)}</span></p>
+        <p><strong>Porovnání:</strong> ${status(p.head_comparison)} · <strong>Working tree:</strong> ${escapeHtml(p.worktree)}</p>
+      </article>`;
+    }).join('');
+    $('projectmap-relations').innerHTML=data.relationships.map(r=>
+      `<li><strong>${escapeHtml(r.from)}</strong> → <strong>${escapeHtml(r.to)}</strong>
+      <span class="muted">${escapeHtml(r.kind)} · ${escapeHtml(r.status)}</span></li>`).join('');
+    $('projectmap-gaps').innerHTML=data.known_gaps.map(g=>`<li>${escapeHtml(g)}</li>`).join('');
+  }catch(error){
+    banner.textContent='UNAVAILABLE / UNVERIFIED — mapový snapshot není nakonfigurován, je neplatný nebo se nepodařilo načtení. Žádné údaje nebyly považovány za aktuální.';
+    $('projectmap-projects').textContent='';
+    $('projectmap-relations').textContent='';
+    $('projectmap-gaps').textContent='';
+  }
+}
 async function loadGovernance(){const data=await controlRoom();$('governance-grid').innerHTML=Object.entries(data.governance).map(([key,value])=>fact(key.replaceAll('_',' '),Array.isArray(value)?value.join(', ')||'NONE':String(value),typeof value==='boolean'?(value?'ENABLED':'DISABLED'):'OBSERVED')).join('')}
 async function loadCommand(){const data=await api('/command-center');$('environment-badge').textContent=data.environment.toUpperCase();$('health-badge').textContent=data.trust_state;$('health-badge').className=`status ${data.trust_state}`;const kpis=[['Trust state',data.trust_state],['Active executions',data.executions.RUNNING||0],['Pending approvals',data.pending_approvals],['Production effects',data.production_effects_enabled?'ENABLED':'DISABLED']];$('command-kpis').innerHTML=kpis.map(x=>`<div class="kpi"><span>${escapeHtml(x[0])}</span><strong>${escapeHtml(x[1])}</strong></div>`).join('');$('risk-overview').innerHTML=['R0','R1','R2','R3','R4'].map(r=>`<p><strong>${r}</strong> · ${escapeHtml(data.risk[r]||0)}</p>`).join('');$('integrity-overview').innerHTML=`<p>Receipts: ${status(data.receipt_integrity.valid?'PASS':'FAIL')}</p><p>Audit: ${status(data.audit_integrity.valid?'PASS':'FAIL')}</p><p>Emergency stop: ${status(data.emergency_stop?'ACTIVE':'INACTIVE')}</p>`;const evidenceState=data.receipt_integrity.valid&&data.audit_integrity.valid?'PASS':'FAIL';const policyFacts=[fact('Environment',String(data.environment||'UNKNOWN').toUpperCase(),String(data.environment||'UNKNOWN').toUpperCase()),fact('Production effects',data.production_effects_enabled?'ENABLED':'DISABLED',data.production_effects_enabled?'ENABLED':'DISABLED'),fact('Emergency stop',data.emergency_stop?'ACTIVE':'INACTIVE',data.emergency_stop?'ACTIVE':'INACTIVE'),fact('Evidence integrity',evidenceState,evidenceState),fact('Approval policy metadata','NOT EXPOSED','UNKNOWN'),fact('Execution-plane isolation','NOT EXPOSED','UNKNOWN')];$('policy-overview').innerHTML=policyFacts.join('');$('policy-summary-status').textContent=data.trust_state;$('policy-summary-status').className=`status ${data.trust_state}`}
 $('new-change-button').addEventListener('click',()=>$('change-form-panel').classList.remove('hidden'))
