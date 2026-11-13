@@ -58,4 +58,8 @@ linear-gradient(135deg,#090b0f,#0e151c 55%,#121922)}
 .projectmap-list{padding-left:19px}
 .projectmap-list li{margin:9px 0;overflow-wrap:anywhere}
 #projectmap-status{overflow-wrap:anywhere}
+#projectmap-status .projectmap-summary{margin:0}
+#projectmap-status .projectmap-digest{margin:8px 0 0;font-size:13px}
+#projectmap-status .projectmap-digest summary{cursor:pointer;max-width:100%;overflow-wrap:anywhere}
+#projectmap-status .projectmap-digest code{display:block;margin-top:8px;font-size:12px;overflow-wrap:anywhere;user-select:text}
 @media(max-width:860px){.projectmap-grid{grid-template-columns:1fr}}

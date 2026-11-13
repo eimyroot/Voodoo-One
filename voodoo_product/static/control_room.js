@@ -12,7 +12,15 @@ $('bootstrap-form').addEventListener('submit',async e=>{e.preventDefault();try{c
 $('logout-button').addEventListener('click',async()=>{let warning='';try{await api('/auth/logout', { method: 'POST' })}catch(err){console.warn('Server-side logout failed; clearing local session',err);warning='Serverové odvolání relace se nepodařilo potvrdit. Lokální token byl odstraněn.'}finally{state.token='';sessionStorage.removeItem('voodoo_token');showAuth();$('auth-error').textContent=warning}})
 document.querySelectorAll('.nav').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.view)))
 document.querySelectorAll('[data-refresh]').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.refresh)))
-async function loadView(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){toast(err.message,true)}}
+function revealActiveNavOnCompactViewport(name){
+  if(typeof window==='undefined'||typeof window.matchMedia!=='function'
+    ||!window.matchMedia('(max-width:900px)').matches)return;
+  const current=[...document.querySelectorAll('.nav')].find(button=>button.dataset.view===name);
+  if(current&&typeof current.scrollIntoView==='function'){
+    current.scrollIntoView({block:'nearest',inline:'center',behavior:'auto'});
+  }
+}
+async function loadView(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){toast(err.message,true)}}
 function canonicalReadReady(runtime){
   return runtime?.configured===true && runtime.read_terminal_configured===true
     && runtime.write_routes_exposed===false && runtime.provider_write_effects_exposed===false;
@@ -155,7 +163,19 @@ async function loadProjectMap(){
       ||data.authority_effect!=='NONE'||!Array.isArray(data.projects)
       ||!Array.isArray(data.relationships)||!Array.isArray(data.known_gaps))
       throw new Error('Neověřená struktura mapy');
-    banner.textContent=`Stav zaznamenaný ve snapshotu ${data.observed_at_utc} · ${data.freshness} · FinishGate podle snapshotu: ${data.active_delivery} (${data.focus_status}). SHA-256 ${data.snapshot_sha256}. Žádné schvalování ani změny.`;
+    const digest=String(data.snapshot_sha256||'');
+    if(!/^[0-9a-f]{64}$/.test(digest))throw new Error('Neověřený hash snapshotu');
+    const summary=document.createElement('p');
+    summary.className='projectmap-summary';
+    summary.textContent=`Stav zaznamenaný ve snapshotu ${data.observed_at_utc} · ${data.freshness} · FinishGate podle snapshotu: ${data.active_delivery} (${data.focus_status}). Žádné schvalování ani změny.`;
+    const details=document.createElement('details');
+    details.className='projectmap-digest';
+    const label=document.createElement('summary');
+    label.textContent=`SHA-256 ${digest.slice(0,12)}… (zobrazit celý otisk)`;
+    const full=document.createElement('code');
+    full.textContent=digest;
+    details.append(label,full);
+    banner.replaceChildren(summary,details);
     $('projectmap-projects').innerHTML=data.projects.map(p=>{
       const parts=String(p.repo||'').split('/');
       const link=parts.length===2 && parts.every(x=>/^[A-Za-z0-9_.-]+$/.test(x))
