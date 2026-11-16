@@ -1,0 +1,340 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "architecture-lab-artifact-admission/v1",
+  "title": "VOODOO Architecture Lab Artifact Admission Evidence v1",
+  "description": "Non-authoritative admission evidence for executable/model artifacts. It does not replace ExecutionCapsule, candidate security.network_required, candidate provenance license_status, or any runtime/authority decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "admission_id",
+    "candidate_id",
+    "artifact_kind",
+    "source_ref",
+    "source_revision",
+    "requires_remote_code",
+    "remote_code_revision",
+    "remote_code_review_status",
+    "remote_code_review_receipt",
+    "executable_files",
+    "dependency_manifest",
+    "native_extensions",
+    "model_loader",
+    "preprocessing_code",
+    "postprocessing_code",
+    "network_required_ref",
+    "filesystem_write_required",
+    "subprocess_required",
+    "unsafe_deserialization_surface",
+    "license_status_ref",
+    "model_hash",
+    "code_hash",
+    "runtime_hash",
+    "runtime_permission_owner_ref",
+    "sandbox_requirements",
+    "admission_risk",
+    "admission_verdict",
+    "authority_effect"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "architecture-lab-artifact-admission/v1"
+    },
+    "admission_id": {
+      "type": "string",
+      "pattern": "^AL-ADM-[A-Z0-9][A-Z0-9._-]{2,63}$"
+    },
+    "candidate_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "artifact_kind": {
+      "enum": [
+        "MODEL_ARTIFACT",
+        "EXECUTABLE_ARTIFACT",
+        "DATA_ONLY_ARTIFACT"
+      ]
+    },
+    "source_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requires_remote_code": {
+      "type": "boolean"
+    },
+    "remote_code_revision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "remote_code_review_status": {
+      "enum": [
+        "NOT_REQUIRED",
+        "REQUIRED_NOT_REVIEWED",
+        "REVIEWED"
+      ]
+    },
+    "executable_files": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "dependency_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "sha256"
+      ],
+      "properties": {
+        "ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "native_extensions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "model_loader": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "preprocessing_code": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "postprocessing_code": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "network_required_ref": {
+      "const": "candidate.security.network_required"
+    },
+    "filesystem_write_required": {
+      "type": "boolean"
+    },
+    "subprocess_required": {
+      "type": "boolean"
+    },
+    "unsafe_deserialization_surface": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "license_status_ref": {
+      "const": "candidate.provenance.sources[].license_status"
+    },
+    "model_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "code_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "runtime_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sandbox_requirements": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "admission_risk": {
+      "enum": [
+        "BASELINE",
+        "ELEVATED",
+        "HIGH",
+        "REJECTED"
+      ]
+    },
+    "admission_verdict": {
+      "enum": [
+        "ADMIT_FOR_ISOLATED_EVAL",
+        "BLOCKED",
+        "NOT_EVALUABLE"
+      ]
+    },
+    "authority_effect": {
+      "const": "NONE"
+    },
+    "remote_code_review_receipt": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "reviewer_id",
+        "evidence_ref",
+        "source_revision",
+        "remote_code_revision",
+        "code_hash",
+        "decision"
+      ],
+      "properties": {
+        "reviewer_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "remote_code_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "code_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "decision": {
+          "const": "APPROVED_FOR_ISOLATED_EVAL"
+        }
+      }
+    },
+    "runtime_permission_owner_ref": {
+      "const": "ExecutionCapsule/v1"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "requires_remote_code": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "remote_code_revision": {
+            "type": "string",
+            "minLength": 1
+          },
+          "remote_code_review_status": {
+            "enum": [
+              "REQUIRED_NOT_REVIEWED",
+              "REVIEWED"
+            ]
+          },
+          "executable_files": {
+            "minItems": 1
+          },
+          "sandbox_requirements": {
+            "minItems": 1
+          },
+          "admission_risk": {
+            "enum": [
+              "ELEVATED",
+              "HIGH",
+              "REJECTED"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "admission_verdict": {
+            "const": "ADMIT_FOR_ISOLATED_EVAL"
+          },
+          "requires_remote_code": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "remote_code_review_status": {
+            "const": "REVIEWED"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "admission_risk": {
+            "const": "REJECTED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "admission_verdict": {
+            "enum": [
+              "BLOCKED",
+              "NOT_EVALUABLE"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "admission_verdict": {
+            "const": "ADMIT_FOR_ISOLATED_EVAL"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "sandbox_requirements": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}

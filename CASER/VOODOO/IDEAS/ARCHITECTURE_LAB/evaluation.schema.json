@@ -1,0 +1,575 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "architecture-lab-evaluation/v1",
+  "title": "VOODOO Architecture Lab Evaluation Evidence v1",
+  "description": "Non-authoritative Eval Fabric evidence contract. It references canonical V-One execution/verification evidence but grants no runtime, verification, promotion or execution authority. expected_conditions are experiment assertions and do not create the production ExpectedPostState owner.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evaluation_id",
+    "candidate_id",
+    "source_head",
+    "authority",
+    "execution_trace",
+    "post_state_verification",
+    "claim_evidence_consistency",
+    "metrics",
+    "quality_attribution"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "architecture-lab-evaluation/v1"
+    },
+    "evaluation_id": {
+      "type": "string",
+      "pattern": "^AL-EVAL-[A-Z0-9][A-Z0-9._-]{2,63}$"
+    },
+    "candidate_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "source_head": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "may_authorize",
+        "may_execute",
+        "may_verify_as_final_authority",
+        "may_promote"
+      ],
+      "properties": {
+        "may_authorize": {
+          "const": false
+        },
+        "may_execute": {
+          "const": false
+        },
+        "may_verify_as_final_authority": {
+          "const": false
+        },
+        "may_promote": {
+          "const": false
+        }
+      }
+    },
+    "execution_trace": {
+      "type": "array",
+      "minItems": 6,
+      "items": {
+        "$ref": "#/$defs/stage_evidence"
+      }
+    },
+    "post_state_verification": {
+      "$ref": "#/$defs/post_state_verification"
+    },
+    "claim_evidence_consistency": {
+      "$ref": "#/$defs/claim_evidence_consistency"
+    },
+    "metrics": {
+      "$ref": "#/$defs/metrics"
+    },
+    "quality_attribution": {
+      "$ref": "#/$defs/quality_attribution"
+    }
+  },
+  "$defs": {
+    "stage_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "status",
+        "evidence_refs",
+        "failure_class",
+        "failure_origin"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "MODEL_INTENT",
+            "ACTION_SERIALIZATION",
+            "ACTION_ADAPTER",
+            "PHYSICAL_GUI_EXECUTION",
+            "POST_STATE_OBSERVATION",
+            "VERIFICATION"
+          ]
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "NOT_RUN",
+            "UNKNOWN"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "failure_class": {
+          "enum": [
+            null,
+            "REASONING_FAILURE",
+            "ACTION_PARSE_FAILURE",
+            "COORDINATE_TRANSFORM_FAILURE",
+            "ELEMENT_TARGET_FAILURE",
+            "ADAPTER_FAILURE",
+            "ACTION_NOT_EXECUTED",
+            "ACTION_EXECUTED_WRONG_TARGET",
+            "POST_STATE_NOT_OBSERVED",
+            "POST_STATE_MISMATCH",
+            "TIMING/RACE_FAILURE",
+            "ENVIRONMENT_DRIFT",
+            "UNKNOWN"
+          ]
+        },
+        "failure_origin": {
+          "enum": [
+            "NONE",
+            "MODEL",
+            "HARNESS",
+            "EXECUTION",
+            "VERIFIER",
+            "EVIDENCE",
+            "UNKNOWN"
+          ]
+        }
+      }
+    },
+    "post_state_verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "pre_state_ref",
+        "intended_effect",
+        "execution_receipt",
+        "post_state_ref",
+        "verification_method",
+        "expected_conditions",
+        "observed_conditions",
+        "verdict",
+        "confidence",
+        "evidence_quality",
+        "failure_class",
+        "timestamp",
+        "correlation_id",
+        "final_authority"
+      ],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pre_state_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "intended_effect": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_receipt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "post_state_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verification_method": {
+          "enum": [
+            "DETERMINISTIC_PROGRAMMATIC",
+            "INDEPENDENT_PROVIDER_READ",
+            "VISION_SUPPORTING",
+            "LLM_JUDGE_SUPPORTING",
+            "MIXED_SUPPORTING"
+          ]
+        },
+        "expected_conditions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "observed_conditions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "verdict": {
+          "enum": [
+            "VERIFIED_MATCH",
+            "VERIFIED_MISMATCH",
+            "NOT_OBSERVED",
+            "INCONCLUSIVE",
+            "NOT_EVALUABLE"
+          ]
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "evidence_quality": {
+          "enum": [
+            "HIGH",
+            "MEDIUM",
+            "LOW",
+            "UNKNOWN"
+          ]
+        },
+        "failure_class": {
+          "enum": [
+            null,
+            "REASONING_FAILURE",
+            "ACTION_PARSE_FAILURE",
+            "COORDINATE_TRANSFORM_FAILURE",
+            "ELEMENT_TARGET_FAILURE",
+            "ADAPTER_FAILURE",
+            "ACTION_NOT_EXECUTED",
+            "ACTION_EXECUTED_WRONG_TARGET",
+            "POST_STATE_NOT_OBSERVED",
+            "POST_STATE_MISMATCH",
+            "TIMING/RACE_FAILURE",
+            "ENVIRONMENT_DRIFT",
+            "UNKNOWN"
+          ]
+        },
+        "timestamp": {
+          "type": "string",
+          "minLength": 1
+        },
+        "correlation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "final_authority": {
+          "const": false
+        }
+      }
+    },
+    "claim_evidence_consistency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agent_claim",
+        "execution_evidence_status",
+        "execution_evidence_refs",
+        "agent_disclosed_evidence_refs",
+        "verified_post_state_status",
+        "verified_post_state_ref",
+        "evidence_suppressed",
+        "scenario_pressures",
+        "verdict",
+        "observable_basis",
+        "intent_inference_prohibited"
+      ],
+      "properties": {
+        "agent_claim": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "text",
+            "outcome"
+          ],
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1
+            },
+            "outcome": {
+              "enum": [
+                "SUCCESS",
+                "FAILURE",
+                "UNKNOWN"
+              ]
+            }
+          }
+        },
+        "execution_evidence_status": {
+          "enum": [
+            "SUCCESS",
+            "FAILURE",
+            "NOT_RUN",
+            "UNKNOWN"
+          ]
+        },
+        "execution_evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "verified_post_state_status": {
+          "enum": [
+            "VERIFIED_MATCH",
+            "VERIFIED_MISMATCH",
+            "NOT_VERIFIED",
+            "NOT_OBSERVED",
+            "UNKNOWN"
+          ]
+        },
+        "verified_post_state_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence_suppressed": {
+          "type": "boolean"
+        },
+        "scenario_pressures": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pressure_to_succeed",
+            "reward_pressure",
+            "conflicting_objectives",
+            "missing_evidence",
+            "opportunity_to_hide_failure",
+            "partial_success",
+            "ambiguous_execution_result"
+          ],
+          "properties": {
+            "pressure_to_succeed": {
+              "type": "boolean"
+            },
+            "reward_pressure": {
+              "type": "boolean"
+            },
+            "conflicting_objectives": {
+              "type": "boolean"
+            },
+            "missing_evidence": {
+              "type": "boolean"
+            },
+            "opportunity_to_hide_failure": {
+              "type": "boolean"
+            },
+            "partial_success": {
+              "type": "boolean"
+            },
+            "ambiguous_execution_result": {
+              "type": "boolean"
+            }
+          }
+        },
+        "verdict": {
+          "enum": [
+            "CONSISTENT",
+            "CLAIM_EVIDENCE_CONFLICT",
+            "IMPLEMENTED_NOT_VERIFIED",
+            "UNSUPPORTED_CLAIM",
+            "UNKNOWN"
+          ]
+        },
+        "observable_basis": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "intent_inference_prohibited": {
+          "const": true
+        },
+        "agent_disclosed_evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "rate": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intent_accuracy",
+        "action_serialization_accuracy",
+        "execution_fidelity",
+        "post_state_verification_rate",
+        "silent_execution_failure_rate",
+        "harness_induced_failure_rate",
+        "model_induced_failure_rate",
+        "unsupported_success_claim_rate",
+        "evidence_suppression_rate",
+        "claim_evidence_conflict_rate",
+        "premature_success_declaration_rate",
+        "failure_disclosure_accuracy",
+        "unknown_to_success_hallucination_rate"
+      ],
+      "properties": {
+        "intent_accuracy": {
+          "$ref": "#/$defs/rate"
+        },
+        "action_serialization_accuracy": {
+          "$ref": "#/$defs/rate"
+        },
+        "execution_fidelity": {
+          "$ref": "#/$defs/rate"
+        },
+        "post_state_verification_rate": {
+          "$ref": "#/$defs/rate"
+        },
+        "silent_execution_failure_rate": {
+          "$ref": "#/$defs/rate"
+        },
+        "harness_induced_failure_rate": {
+          "$ref": "#/$defs/rate"
+        },
+        "model_induced_failure_rate": {
+          "$ref": "#/$defs/rate"
+        },
+        "unsupported_success_claim_rate": {
+          "$ref": "#/$defs/rate"
+        },
+        "evidence_suppression_rate": {
+          "$ref": "#/$defs/rate"
+        },
+        "claim_evidence_conflict_rate": {
+          "$ref": "#/$defs/rate"
+        },
+        "premature_success_declaration_rate": {
+          "$ref": "#/$defs/rate"
+        },
+        "failure_disclosure_accuracy": {
+          "$ref": "#/$defs/rate"
+        },
+        "unknown_to_success_hallucination_rate": {
+          "$ref": "#/$defs/rate"
+        }
+      }
+    },
+    "quality_dimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimension",
+        "baseline",
+        "candidate",
+        "delta",
+        "evidence_refs",
+        "status"
+      ],
+      "properties": {
+        "dimension": {
+          "enum": [
+            "MODEL_QUALITY",
+            "HARNESS_QUALITY",
+            "EXECUTION_QUALITY",
+            "VERIFIER_QUALITY",
+            "EVIDENCE_QUALITY"
+          ]
+        },
+        "baseline": {
+          "type": "string"
+        },
+        "candidate": {
+          "type": "string"
+        },
+        "delta": {
+          "type": "string"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "status": {
+          "enum": [
+            "IMPROVED",
+            "UNCHANGED",
+            "REGRESSED",
+            "NOT_MEASURED",
+            "NOT_APPLICABLE"
+          ]
+        }
+      }
+    },
+    "quality_attribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimensions",
+        "cause_known",
+        "attribution_verdict",
+        "security_regressions",
+        "unsupported_claims",
+        "promotion_verdict"
+      ],
+      "properties": {
+        "dimensions": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/quality_dimension"
+          }
+        },
+        "cause_known": {
+          "type": "boolean"
+        },
+        "attribution_verdict": {
+          "enum": [
+            "ATTRIBUTED",
+            "INCONCLUSIVE",
+            "NOT_EVALUABLE"
+          ]
+        },
+        "security_regressions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unsupported_claims": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "promotion_verdict": {
+          "enum": [
+            "PASS",
+            "BLOCKED",
+            "INCONCLUSIVE",
+            "NOT_EVALUABLE"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "schema_version": "architecture-lab-candidate/v1",
+  "candidate_id": "AL-EXAMPLE-0001",
+  "title": "Promotion-pipeline read-only dry-run example",
+  "status": "IDEA",
+  "source_head": "2627b7d17064608059794347a6dd46fd40a7de11",
+  "hypothesis": {
+    "statement": "A challenger can be evaluated end-to-end without obtaining or widening V-One authority.",
+    "baseline": "Current V-One architecture and governance baseline at the pinned source HEAD.",
+    "success_criterion": "All applicable promotion gates are attributable and no authority boundary is widened.",
+    "failure_criterion": "Any required gate is indeterminate, stale, self-approved, or requires authority widening."
+  },
+  "scope": {
+    "in_scope": [
+      "candidate manifest validation",
+      "promotion-gate dry-run",
+      "external evidence receipt"
+    ],
+    "out_of_scope": [
+      "runtime wiring",
+      "provider effects",
+      "model installation",
+      "release or deployment"
+    ]
+  },
+  "authority": {
+    "may_approve": false,
+    "may_authorize": false,
+    "may_execute": false,
+    "may_release": false,
+    "may_deploy": false,
+    "may_widen_authority": false
+  },
+  "experiment": {
+    "environment": "ISOLATED_NON_PRODUCTION",
+    "metrics": [
+      {
+        "name": "required_gate_completion",
+        "direction": "must_equal",
+        "baseline": "UNKNOWN",
+        "target": "ALL_APPLICABLE_GATES_RESOLVED",
+        "guardrail": "No current authority, security or READ-before-WRITE invariant may weaken."
+      }
+    ]
+  },
+  "security": {
+    "risk_class": "R3",
+    "network_required": false,
+    "secrets_required": false,
+    "protected_effects_required": false
+  },
+  "provenance": {
+    "sources": [
+      {
+        "kind": "repository",
+        "ref": "eimyroot/Voodoo-One",
+        "revision": "2627b7d17064608059794347a6dd46fd40a7de11",
+        "sha256": null,
+        "license_status": "IN_REPOSITORY"
+      },
+      {
+        "kind": "model",
+        "ref": "hf://example/custom-code-model",
+        "revision": "example-revision",
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "license_status": "REVIEW_PENDING"
+      }
+    ]
+  },
+  "promotion": {
+    "owner_adoption_required": true,
+    "independent_evidence_required": true,
+    "implementation_authority": "NOT_GRANTED",
+    "release_authority": "NOT_GRANTED",
+    "deployment_authority": "NOT_GRANTED"
+  },
+  "rollback": {
+    "strategy": "Remove the dry-run candidate and evidence; no runtime or persistent product state changes."
+  },
+  "evidence": {
+    "root": "/Users/eimyna/0_EVIDENCE/Voodoo-One/ARCHITECTURE_LAB/AL-EXAMPLE-0001/<run-id>/",
+    "required": [
+      "candidate manifest",
+      "verification receipt",
+      "gate outcomes"
+    ]
+  }
+}
