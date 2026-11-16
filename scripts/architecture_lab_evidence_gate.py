@@ -794,6 +794,16 @@ def validate_evidence_bundle(
     return errors
 
 
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    # Duplicate object keys make evidence identity parser-dependent.
+    values: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in values:
+            raise ValueError("duplicate JSON object key")
+        values[key] = value
+    return values
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--candidate", type=Path, required=True)
@@ -809,7 +819,10 @@ def main() -> int:
         ("artifact-admission", args.artifact_admission),
     ):
         try:
-            input_records[label] = json.loads(path.read_text(encoding="utf-8"))
+            input_records[label] = json.loads(
+                path.read_text(encoding="utf-8"),
+                object_pairs_hook=_reject_duplicate_json_keys,
+            )
         except (OSError, UnicodeError, ValueError, RecursionError) as exc:
             # Untrusted or unreadable input must yield a structured denial.
             errors.append(f"{label}: invalid or unreadable JSON ({type(exc).__name__})")

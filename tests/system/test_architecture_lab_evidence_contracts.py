@@ -1028,3 +1028,75 @@ def test_bundle_malformed_digest_type_never_crashes() -> None:
         changed["provenance"]["sources"][1]["sha256"] = bad
         errs = gate.validate_evidence_bundle(changed, e, a)
         assert errs
+
+
+def test_cli_duplicate_object_keys_fail_closed_at_all_depths(tmp_path: Path) -> None:
+    # Reject ambiguous source/provenance, authority, and artifact identities,
+    # including two identical field values (not just conflicting duplicates).
+    cases = (
+        (
+            "candidate",
+            "candidate.example.json",
+            '"candidate_id": "AL-EXAMPLE-0001"',
+            '"candidate_id": "attacker", "candidate_id": "AL-EXAMPLE-0001"',
+        ),
+        (
+            "evaluation",
+            "evaluation.example.json",
+            '"may_authorize": false',
+            '"may_authorize": true, "may_authorize": false',
+        ),
+        (
+            "artifact-admission",
+            "artifact-admission.example.json",
+            '"source_ref": "hf://example/custom-code-model"',
+            '"source_ref": "untrusted://source", "source_ref": "hf://example/custom-code-model"',
+        ),
+        (
+            "candidate",
+            "candidate.example.json",
+            '"candidate_id": "AL-EXAMPLE-0001"',
+            '"candidate_id": "AL-EXAMPLE-0001", "candidate_id": "AL-EXAMPLE-0001"',
+        ),
+        (
+            "candidate",
+            "candidate.example.json",
+            '"candidate_id": "AL-EXAMPLE-0001"',
+            r'"\u0063andidate_id": "AL-EXAMPLE-0001", "candidate_id": "AL-EXAMPLE-0001"',
+        ),
+        (
+            "evaluation",
+            "evaluation.example.json",
+            '"stage": "MODEL_INTENT"',
+            '"stage": "VERIFICATION", "stage": "MODEL_INTENT"',
+        ),
+    )
+    for index, (label, example, needle, ambiguous) in enumerate(cases):
+        source = (LAB / example).read_text(encoding="utf-8")
+        assert source.count(needle) == 1
+        path = tmp_path / f"duplicate-{index}.json"
+        path.write_text(source.replace(needle, ambiguous, 1), encoding="utf-8")
+        inputs = {
+            "candidate": LAB / "candidate.example.json",
+            "evaluation": LAB / "evaluation.example.json",
+            "artifact-admission": LAB / "artifact-admission.example.json",
+        }
+        inputs[label] = path
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(GATE_PATH),
+                "--candidate", str(inputs["candidate"]),
+                "--evaluation", str(inputs["evaluation"]),
+                "--artifact-admission", str(inputs["artifact-admission"]),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert completed.returncode == 1, label
+        assert not completed.stderr, label
+        receipt = json.loads(completed.stdout)
+        assert receipt["verdict"] == "BLOCKED", label
+        assert receipt["authority_effect"] == "NONE", label
+        assert f"{label}: invalid or unreadable JSON (ValueError)" in receipt["errors"]
