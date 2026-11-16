@@ -42,6 +42,8 @@ normative authority remains governed separately by adopted records and repositor
 | What is the current OperationCell/v1 decision? | [`adr/ADR-0017-operation-cell-v1-r1.md`](adr/ADR-0017-operation-cell-v1-r1.md) — ACCEPTED / MERGED |
 | How are local checkpoint candidates finalized? | [`adr/ADR-0004-repository-owned-checkpoint-finalization.md`](adr/ADR-0004-repository-owned-checkpoint-finalization.md) |
 
+| Where is the proposed Architecture Lab identity reconciliation? | [ADR-0030](adr/ADR-0030-architecture-lab-controlled-promotion-v1.md) / [identity note](governance/ARCHITECTURE_LAB_ADR_ID_RECONCILIATION_CANDIDATE.md) — PROPOSED / NOT ADOPTED |
+
 ## Current truth hierarchy
 
 For runtime/technical state use, in order:

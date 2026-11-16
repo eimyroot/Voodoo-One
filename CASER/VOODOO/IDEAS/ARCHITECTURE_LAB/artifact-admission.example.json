@@ -1,0 +1,46 @@
+{
+  "schema_version": "architecture-lab-artifact-admission/v1",
+  "admission_id": "AL-ADM-MODEL-0001",
+  "candidate_id": "AL-EXAMPLE-0001",
+  "artifact_kind": "MODEL_ARTIFACT",
+  "source_ref": "hf://example/custom-code-model",
+  "source_revision": "example-revision",
+  "requires_remote_code": true,
+  "remote_code_revision": "example-code-revision",
+  "remote_code_review_status": "REQUIRED_NOT_REVIEWED",
+  "executable_files": [
+    "modeling_example.py",
+    "configuration_example.py"
+  ],
+  "dependency_manifest": {
+    "ref": "requirements.txt",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "native_extensions": [],
+  "model_loader": "AutoModel.from_pretrained",
+  "preprocessing_code": [
+    "processing_example.py"
+  ],
+  "postprocessing_code": [],
+  "network_required_ref": "candidate.security.network_required",
+  "filesystem_write_required": false,
+  "subprocess_required": false,
+  "unsafe_deserialization_surface": [
+    "custom Python model loader executes repository code"
+  ],
+  "license_status_ref": "candidate.provenance.sources[].license_status",
+  "model_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+  "code_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+  "runtime_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+  "runtime_permission_owner_ref": "ExecutionCapsule/v1",
+  "sandbox_requirements": [
+    "network disabled unless separately approved",
+    "read-only model/code mount",
+    "no ambient credentials",
+    "bounded CPU/RAM"
+  ],
+  "admission_risk": "ELEVATED",
+  "admission_verdict": "BLOCKED",
+  "authority_effect": "NONE",
+  "remote_code_review_receipt": null
+}

@@ -11,3 +11,6 @@ This directory is a non-authoritative incubation space for VOODOO / V-One ideas,
 ## Invariant
 
 `IDEA != ADOPTED DECISION != IMPLEMENTED != VERIFIED != RELEASED`
+## Architecture Lab (candidate)
+
+- [Architecture Lab](ARCHITECTURE_LAB/README.md) is non-authoritative; its new ADR-0030 identity is PROPOSED only.
