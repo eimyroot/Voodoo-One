@@ -103,6 +103,11 @@ def test_g8_live_gate_proves_http_restart_resume_and_duplicate_lineage() -> None
         "--status ACTIVE",
         "resume --execution-id",
         "--status COMPLETED",
+        "assert-passport-http",
+        "passport-after-restart.json",
+        "--expected-verification-result-digest",
+        'passport["verification_result_digest"] == resume["verification_result_digest"]',
+        '"durable_operation_passport_after_restart": True',
         'assert active["counts"] == completed["counts"]',
         'assert active["current_lease_id"] == completed["current_lease_id"]',
     ):
@@ -120,6 +125,7 @@ def test_g8_acceptance_driver_has_only_fixed_subcommands() -> None:
         'subparsers.add_parser("prepare-active")',
         'subparsers.add_parser("resume")',
         'subparsers.add_parser("assert-lineage")',
+        'subparsers.add_parser("assert-passport-http")',
     ):
         assert command in source
     assert "github_create_ref" not in source

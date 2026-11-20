@@ -395,6 +395,24 @@ jobs:
             assert-lineage --execution-id "$EXECUTION_ID" --status COMPLETED \
             > "$RUNNER_TEMP/g8-evidence/lineage-completed.json"
 
+          # New HTTP process reads the SAME persistent SQLite after interruption/resume.
+          g8_exec sh -c \
+            'nohup python -m uvicorn voodoo_product.main:app --host 0.0.0.0 --port 8000 --no-access-log --no-server-header >/tmp/g8-app-resumed.log 2>&1 </dev/null & echo $! >/tmp/g8-app.pid'
+          for _ in $(seq 1 40); do
+            if curl -fsS "$VONE_G8_BASE_URL/api/v1/health" >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS "$VONE_G8_BASE_URL/api/v1/health" >/dev/null
+          VERIFICATION_RESULT_DIGEST="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["verification_result_digest"])' \
+            "$RUNNER_TEMP/g8-evidence/resume-result.json")"
+          test "${#VERIFICATION_RESULT_DIGEST}" -eq 64
+          python scripts/g8_live_product_acceptance.py assert-passport-http \
+            --execution-id "$EXECUTION_ID" \
+            --expected-verification-result-digest "$VERIFICATION_RESULT_DIGEST" \
+            > "$RUNNER_TEMP/g8-evidence/passport-after-restart.json"
+          test "$(curl -sS --max-time 6 -o /dev/null -w '%{http_code}' \
+            "$VONE_G8_BASE_URL/api/v1/operations/$EXECUTION_ID/passport")" = "401"
+
           python - <<'PY'
           import json
           import os
@@ -403,7 +421,14 @@ jobs:
           active = json.loads((root / "lineage-active.json").read_text())
           completed = json.loads((root / "lineage-completed.json").read_text())
           resume = json.loads((root / "resume-result.json").read_text())
+          passport = json.loads((root / "passport-after-restart.json").read_text())
           assert active["execution_id"] == completed["execution_id"] == resume["execution_id"]
+          assert passport["status"] == "PASS"
+          assert passport["schema"] == "vone.operation-passport/v1"
+          assert passport["execution_id"] == resume["execution_id"]
+          assert passport["verification_result_digest"] == resume["verification_result_digest"]
+          assert passport["lineage_bindings_validated"] is True
+          assert passport["independent_verification_validated"] is True
           assert active["counts"] == completed["counts"]
           assert active["current_epoch"] == completed["current_epoch"]
           assert active["current_lease_id"] == completed["current_lease_id"]
@@ -424,6 +449,7 @@ jobs:
               "same_execution_resume": True,
               "duplicate_lineage_count": 0,
               "independent_verification_result": True,
+              "durable_operation_passport_after_restart": True,
               "provider_write_performed": False,
               "production_effects": False,
               "release_performed": False,
