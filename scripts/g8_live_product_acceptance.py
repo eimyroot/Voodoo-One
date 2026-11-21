@@ -340,6 +340,81 @@ def _assert_lineage(execution_id: str, expected_status: str) -> dict[str, Any]:
     return snapshot
 
 
+def _assert_passport_http_after_restart(
+    execution_id: str, expected_verification_result_digest: str
+) -> dict[str, Any]:
+    """Read completed evidence via authenticated HTTP after product restart.
+
+    This is a read-only assertion: it cannot create or mutate canonical authority.
+    """
+    if (
+        not isinstance(execution_id, str)
+        or len(execution_id) < 5
+        or len(execution_id) > 256
+        or any(
+            character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+            for character in execution_id
+        )
+    ):
+        raise RuntimeError("passport execution id is invalid")
+    if len(expected_verification_result_digest) != 64 or any(
+        c not in "0123456789abcdef" for c in expected_verification_result_digest
+    ):
+        raise RuntimeError("expected verification digest must be lowercase SHA-256")
+
+    operator_token = _login(OPERATOR_USERNAME, _required_env(OPERATOR_CREDENTIAL_ENV))
+    passport = _http_json(
+        "GET",
+        f"/api/v1/operations/{execution_id}/passport",
+        token=operator_token,
+    )
+    if not isinstance(passport, dict):
+        raise RuntimeError("passport HTTP response is not an object")
+    verification = passport.get("verification")
+    integrity = passport.get("integrity")
+    operation = passport.get("operation")
+    runtime = passport.get("runtime")
+    if any(not isinstance(x, dict) for x in (verification, integrity, operation, runtime)):
+        raise RuntimeError("passport HTTP response is incomplete")
+    expected = {
+        "schema": "vone.operation-passport/v1",
+        "execution_id": execution_id,
+        "lifecycle_stage": "EXECUTION_COMPLETED",
+    }
+    if any(passport.get(key) != value for key, value in expected.items()):
+        raise RuntimeError("passport identity or lifecycle mismatch")
+    if (
+        operation.get("capability") != "github.read-ref/v1"
+        or operation.get("environment") != "staging"
+    ):
+        raise RuntimeError("passport is not the approved staging GitHub READ")
+    if runtime.get("status") != "COMPLETED":
+        raise RuntimeError("passport runtime has not completed")
+    if (
+        verification.get("status") != "PERSISTED"
+        or verification.get("verdict") != "VERIFIED"
+        or verification.get("independent_verification_exposed") is not True
+        or verification.get("verification_strength_class") != "INDEPENDENT_PROVIDER_READBACK"
+        or verification.get("result_digest") != expected_verification_result_digest
+    ):
+        raise RuntimeError("passport does not expose the exact durable independent VERIFIED result")
+    if (
+        integrity.get("lineage_bindings_validated") is not True
+        or integrity.get("independent_verification_validated") is not True
+    ):
+        raise RuntimeError("passport integrity validation failed")
+    return {
+        "status": "PASS",
+        "schema": expected["schema"],
+        "execution_id": execution_id,
+        "lifecycle_stage": "EXECUTION_COMPLETED",
+        "verification_result_digest": expected_verification_result_digest,
+        "verification_strength_class": "INDEPENDENT_PROVIDER_READBACK",
+        "lineage_bindings_validated": True,
+        "independent_verification_validated": True,
+    }
+
+
 def _emit(value: dict[str, Any]) -> None:
     print(json.dumps(value, sort_keys=True, separators=(",", ":")))
 
@@ -358,6 +433,9 @@ def _parser() -> argparse.ArgumentParser:
     lineage = subparsers.add_parser("assert-lineage")
     lineage.add_argument("--execution-id", required=True)
     lineage.add_argument("--status", choices=("ACTIVE", "COMPLETED"), required=True)
+    passport = subparsers.add_parser("assert-passport-http")
+    passport.add_argument("--execution-id", required=True)
+    passport.add_argument("--expected-verification-result-digest", required=True)
     return parser
 
 
@@ -380,6 +458,12 @@ def main() -> int:
         _emit(_resume(args.execution_id))
     elif args.command == "assert-lineage":
         _emit(_assert_lineage(args.execution_id, args.status))
+    elif args.command == "assert-passport-http":
+        _emit(
+            _assert_passport_http_after_restart(
+                args.execution_id, args.expected_verification_result_digest
+            )
+        )
     else:
         raise RuntimeError("unsupported acceptance command")
     return 0
