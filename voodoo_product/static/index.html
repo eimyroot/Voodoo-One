@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>VOODOO One</title>
+  <title>VOODOO One · Living Core</title>
   <link rel="stylesheet" href="/console/assets/styles.css" />
   <link rel="stylesheet" href="/console/assets/workflow_boards.css" />
+  <link rel="stylesheet" href="/console/assets/living_core.css" />
 </head>
 <body>
   <div id="auth-screen" class="auth-shell">
@@ -58,8 +59,8 @@
   <div id="app-shell" class="app-shell hidden">
     <header class="topbar">
       <div class="brand-stack">
-        <div class="brand"><span class="brand-mark small">V1</span><strong>VOODOO One</strong></div>
-        <p>Dark control-room dashboard for governed operations</p>
+        <div class="brand"><span class="brand-mark small lc-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 32" focusable="false"><path d="M2 19 C9 6 15 5 22 16 S35 29 46 9"/><path d="M2 19 C10 12 15 11 22 16 S35 24 46 9"/></svg></span><strong>VOODOO One</strong></div>
+        <p>Living Core · governed operations</p>
       </div>
       <div class="topbar-right">
         <div class="context">
@@ -71,24 +72,30 @@
     </header>
 
     <aside class="sidebar">
-      <button data-view="ecosystem" class="nav">Ecosystem Map</button>
-      <button data-view="lifecycle" class="nav">Task Lifecycle</button>
-      <button data-view="authority" class="nav">Authority &amp; Safety</button>
-      <button data-view="lineage" class="nav">Evidence Chain</button>
-      <button data-view="overlays" class="nav">Project Overlays</button>
-      <div class="sidebar-group-label">VOODOO ONE</div>
-      <button data-view="overview" class="nav active">Control Room</button>
-      <button data-view="runs" class="nav">Runs</button>
-      <button data-view="plans" class="nav">Plans</button>
-      <button data-view="registry" class="nav">Capability Registry</button>
-      <button data-view="evidence" class="nav">Evidence Timeline</button>
+      <div class="sidebar-group-label">LIVING CORE</div>
+      <button data-view="overview" class="nav active">Overview</button>
+      <button data-view="runs" class="nav">Active Delivery</button>
+      <button data-view="registry" class="nav">Control Plane</button>
+      <button class="nav" type="button" disabled aria-disabled="true" title="Roster agentů není v současném API dostupný">Agents · Nedostupné</button>
+      <button class="nav" type="button" disabled aria-disabled="true" title="Katalog skills není v současném API dostupný">Skills · Nedostupné</button>
+      <button data-view="plans" class="nav">Approvals</button>
+      <button data-view="plans" class="nav" title="Schválené JIT operace se spouštějí v Plans po ověření serverové autority">JIT Execution</button>
+      <button data-view="verifier" class="nav">Verification</button>
+      <button data-view="evidence" class="nav">Evidence</button>
       <button data-view="casebook" class="nav">CASEBOOK Tasks</button>
-      <button data-view="policy" class="nav">Policy Gates</button>
-      <button data-view="verifier" class="nav">Verifier Center</button>
-      <button data-view="health" class="nav">Runtime Health</button>
-      <button data-view="learning" class="nav">Learning Intelligence</button>
-      <button data-view="projectmap" class="nav">Project Control Map</button>
-      <button data-view="governance" class="nav">Governance</button>
+      <button data-view="health" class="nav">Monitor</button>
+      <button data-view="governance" class="nav">Settings</button>
+      <details class="sidebar-more">
+        <summary>Další pohledy</summary>
+        <button data-view="ecosystem" class="nav">Ecosystem Map</button>
+        <button data-view="lifecycle" class="nav">Task Lifecycle</button>
+        <button data-view="authority" class="nav">Authority &amp; Safety</button>
+        <button data-view="lineage" class="nav">Evidence Chain</button>
+        <button data-view="overlays" class="nav">Project Overlays</button>
+        <button data-view="policy" class="nav">Policy Gates</button>
+        <button data-view="learning" class="nav">Learning Intelligence</button>
+        <button data-view="projectmap" class="nav">Project Control Map</button>
+      </details>
     </aside>
 
     <main class="workspace">
@@ -97,27 +104,74 @@
       <section id="view-authority" class="view board-view" aria-label="Authority and Safety Boundaries"></section>
       <section id="view-lineage" class="view board-view" aria-label="Evidence and Verification Chain"></section>
       <section id="view-overlays" class="view board-view" aria-label="Project-Specific Overlays"></section>
-      <section id="view-overview" class="view active">
-        <div class="page-head">
+      <section id="view-overview" class="view active lc-screen" aria-labelledby="living-core-title">
+        <header class="page-head lc-page-head">
           <div>
-            <p class="eyebrow">Overview</p>
-            <h1>Control Room</h1>
-            <p>Aktuální pravda o řízených operacích, policy a evidenci.</p>
+            <p class="eyebrow">VOODOO ONE · OPERATIONS CONTROL</p>
+            <h1 id="living-core-title">Living Core</h1>
+            <p>Jedno přihlášené provozní rozhraní pro záměr, řízení, běh, ověření a důkaz.</p>
           </div>
-          <button data-refresh="overview">Obnovit</button>
-        </div>
-        <div id="overview-kpis" class="kpi-grid"></div>
-        <div id="orchestration-graph" class="graph-grid"></div>
-        <div class="grid-two">
-          <article class="panel">
-            <div class="panel-heading"><div><h2>Risk Mix</h2><p>Distribuce change requests podle risk class.</p></div></div>
-            <div id="risk-overview" class="stack-list"></div>
+          <button data-refresh="overview" type="button">Obnovit projekci</button>
+        </header>
+
+        <section class="lc-core panel" aria-labelledby="lc-cycle-title">
+          <div class="lc-section-head">
+            <div><p class="lc-kicker">Provozní cyklus</p><h2 id="lc-cycle-title">Intent → Approval → JIT → Execution → Verification → Evidence</h2></div>
+            <span id="lc-observed-at" class="lc-observed" role="status" aria-live="polite">Čekám na ověřenou projekci</span>
+          </div>
+          <p class="lc-truth-note">Fáze jsou souhrnem samostatných záznamů z Control Roomu, nikoli tvrzením o jednom propojeném běhu.</p>
+          <div class="lc-flow">
+            <svg class="lc-flow-art" viewBox="0 0 1200 240" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+              <defs><linearGradient id="lc-stream-gradient" x1="0" x2="1"><stop offset="0" stop-color="#7e9cff" stop-opacity=".12"/><stop offset=".48" stop-color="#c9e8ff" stop-opacity=".9"/><stop offset="1" stop-color="#a88bff" stop-opacity=".32"/></linearGradient></defs>
+              <path class="lc-stream lc-stream-halo" d="M0 126 C130 24 190 210 320 118 S520 44 620 128 S820 220 930 116 S1080 50 1200 126"/>
+              <path class="lc-stream lc-stream-ribbon" d="M0 126 C130 78 190 164 320 120 S520 88 620 126 S820 162 930 120 S1080 82 1200 126"/>
+              <path class="lc-stream lc-stream-wide" d="M0 126 C130 24 190 210 320 118 S520 44 620 128 S820 220 930 116 S1080 50 1200 126"/>
+              <path class="lc-stream" d="M0 126 C130 78 190 164 320 120 S520 88 620 126 S820 162 930 120 S1080 82 1200 126"/>
+              <path class="lc-stream lc-stream-lower" d="M0 126 C150 190 190 64 320 122 S500 210 620 126 S820 44 930 120 S1080 188 1200 126"/>
+            </svg>
+            <div class="lc-stages" role="list" aria-label="Fáze provozního cyklu">
+              <article class="lc-stage" data-stage="intent" role="listitem"><span class="lc-stage-orb" aria-hidden="true">01</span><h3>Intent</h3><span class="lc-stage-state status UNKNOWN">UNKNOWN</span><p class="lc-stage-detail">Načítám skutečné požadavky…</p><small class="lc-stage-source">Control Room</small></article>
+              <article class="lc-stage" data-stage="approval" role="listitem"><span class="lc-stage-orb" aria-hidden="true">02</span><h3>Approval</h3><span class="lc-stage-state status UNKNOWN">UNKNOWN</span><p class="lc-stage-detail">Načítám frontu…</p><small class="lc-stage-source">Control Room</small></article>
+              <article class="lc-stage" data-stage="jit" role="listitem"><span class="lc-stage-orb" aria-hidden="true">03</span><h3>JIT Authorization</h3><span class="lc-stage-state status UNKNOWN">UNKNOWN</span><p class="lc-stage-detail">Stav není v přehledu vystaven.</p><small class="lc-stage-source">API projekce</small></article>
+              <article class="lc-stage" data-stage="execution" role="listitem"><span class="lc-stage-orb" aria-hidden="true">04</span><h3>Execution</h3><span class="lc-stage-state status UNKNOWN">UNKNOWN</span><p class="lc-stage-detail">Načítám skutečné běhy…</p><small class="lc-stage-source">Control Room</small></article>
+              <article class="lc-stage" data-stage="verification" role="listitem"><span class="lc-stage-orb" aria-hidden="true">05</span><h3>Verification</h3><span class="lc-stage-state status UNKNOWN">UNKNOWN</span><p class="lc-stage-detail">Načítám verdict…</p><small class="lc-stage-source">Verifier Center</small></article>
+              <article class="lc-stage" data-stage="evidence" role="listitem"><span class="lc-stage-orb" aria-hidden="true">06</span><h3>Evidence</h3><span class="lc-stage-state status UNKNOWN">UNKNOWN</span><p class="lc-stage-detail">Načítám evidence…</p><small class="lc-stage-source">Evidence Timeline</small></article>
+            </div>
+          </div>
+          <div class="lc-kpis" id="overview-kpis" aria-label="Ověřené systémové souhrny"></div>
+        </section>
+
+        <div class="lc-dashboard-grid">
+          <article class="panel lc-panel lc-delivery">
+            <div class="panel-heading"><div><p class="lc-kicker">Runs · actual projection</p><h2>Active Delivery</h2></div><button type="button" class="secondary" data-refresh="runs">Otevřít běhy</button></div>
+            <div id="lc-delivery-content" class="lc-list"><p class="muted">Načítám běhy z Control Roomu…</p></div>
           </article>
-          <article class="panel">
-            <div class="panel-heading"><div><h2>Integrity</h2><p>Evidence a runtime stop stav.</p></div></div>
-            <div id="integrity-overview" class="stack-list"></div>
+          <article class="panel lc-panel lc-approvals">
+            <div class="panel-heading"><div><p class="lc-kicker">Plans · actual projection</p><h2>Approvals Queue</h2></div><button type="button" class="secondary" data-refresh="plans">Otevřít schválení</button></div>
+            <div id="lc-approvals-content" class="lc-list"><p class="muted">Načítám schvalovací frontu…</p></div>
+          </article>
+          <article class="panel lc-panel lc-verification">
+            <div class="panel-heading"><div><p class="lc-kicker">Verifier Center</p><h2>Verification</h2></div><button type="button" class="secondary" data-refresh="verifier">Otevřít verifier</button></div>
+            <div id="lc-verification-content" class="lc-list"><p class="muted">Načítám výsledky ověření…</p></div>
+          </article>
+          <article class="panel lc-panel lc-evidence-panel">
+            <div class="panel-heading"><div><p class="lc-kicker">Evidence Timeline · při načtení</p><h2>Event &amp; Evidence</h2></div><button type="button" class="secondary" data-refresh="evidence">Otevřít evidenci</button></div>
+            <div id="lc-evidence-content" class="lc-list"><p class="muted">Načítám evidenci…</p></div>
+          </article>
+          <article class="panel lc-panel lc-metrics-panel">
+            <div class="panel-heading"><div><p class="lc-kicker">System Metrics</p><h2>Provozní dostupnost dat</h2></div><button type="button" class="secondary" data-refresh="health">Runtime health</button></div>
+            <div id="lc-metrics-content" class="lc-metrics"></div>
           </article>
         </div>
+
+        <details class="panel lc-advanced">
+          <summary>Další skutečné Control Room pohledy</summary>
+          <div class="grid-two">
+            <article class="panel"><div class="panel-heading"><div><h2>Risk Mix</h2><p>Distribuce change requests podle risk class.</p></div></div><div id="risk-overview" class="stack-list"></div></article>
+            <article class="panel"><div class="panel-heading"><div><h2>Integrity</h2><p>Evidence a runtime stop stav.</p></div></div><div id="integrity-overview" class="stack-list"></div></article>
+          </div>
+          <div id="orchestration-graph" class="graph-grid hidden" aria-hidden="true"></div>
+        </details>
       </section>
 
       <section id="view-runs" class="view">
@@ -337,5 +391,6 @@
   </div>
   <script src="/console/assets/control_room.js" defer></script>
   <script src="/console/assets/workflow_boards.js" defer></script>
+  <script src="/console/assets/living_core.js" defer></script>
 </body>
 </html>
