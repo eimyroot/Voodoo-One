@@ -49,7 +49,7 @@
       latestIntent?((latestIntent.title||latestIntent.kind||'Záměr zachycen')+' · '+stateName(latestIntent.status||'OBSERVED')):'Nedostupné · samostatná událost záměru v projekci chybí',
       'Evidence Timeline');
     const pending=Number.isSafeInteger(plans.pending_approvals)?plans.pending_approvals:null;
-    setStage('approval',pending===null?'UNKNOWN':pending?'REVIEW_REQUIRED':'OBSERVED',
+    setStage('approval',pending===null?'UNKNOWN':pending?'REVIEW_REQUIRED':'NO_PENDING',
       pending===null?'Nedostupné':pending+' čekajících',
       'Plans');
 
@@ -57,8 +57,8 @@
       'API');
 
     const active=Number.isSafeInteger(runs.active_count)?runs.active_count:null;
-    setStage('execution',active===null?'UNKNOWN':active?'RUNNING':'OBSERVED',
-      active===null?'Nedostupné':active+' běžících · '+count(runs.completed_count)+' dokončených',
+    setStage('execution',active===null?'UNKNOWN':active?'RUNNING':'IDLE',
+      active===null?'Nedostupné':active+' běžících · '+count(runs.queue_depth)+' ve frontě · '+count(runs.completed_count)+' dokončených · '+count(runs.failed_count)+' selhalo',
       'Runs');
 
     const latestCheck=checks[0];
