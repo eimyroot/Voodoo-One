@@ -9,7 +9,7 @@ async function showApp(){if(!(await authReady())){showAuth();return}$('auth-scre
 function showAuth(){$('app-shell').classList.add('hidden');$('auth-screen').classList.remove('hidden');api('/bootstrap/status').then(x=>$('bootstrap-panel').open=x.required).catch(()=>{})}
 $('login-form').addEventListener('submit',async e=>{e.preventDefault();try{const result=await api('/auth/login',{method:'POST',body:JSON.stringify({username:$('login-username').value,password:$('login-password').value})});state.token=result.token;sessionStorage.setItem('voodoo_token',result.token);$('auth-error').textContent='';await showApp()}catch(err){$('auth-error').textContent=err.message}})
 $('bootstrap-form').addEventListener('submit',async e=>{e.preventDefault();try{const result=await api('/auth/bootstrap',{method:'POST',body:JSON.stringify({username:$('bootstrap-username').value,password:$('bootstrap-password').value,bootstrap_token:$('bootstrap-token').value})});state.token=result.token;sessionStorage.setItem('voodoo_token',result.token);await showApp()}catch(err){$('auth-error').textContent=err.message}})
-$('logout-button').addEventListener('click',async()=>{let warning='';try{await api('/auth/logout', { method: 'POST' })}catch(err){console.warn('Server-side logout failed; clearing local session',err);warning='Serverové odvolání relace se nepodařilo potvrdit. Lokální token byl odstraněn.'}finally{state.token='';sessionStorage.removeItem('voodoo_token');showAuth();$('auth-error').textContent=warning}})
+$('logout-button').addEventListener('click',async()=>{let warning='';try{await api('/auth/logout', { method: 'POST' })}catch(err){console.warn('Server-side logout failed; clearing local session',err);warning='Serverové odvolání relace se nepodařilo potvrdit. Lokální token byl odstraněn.'}finally{state.token='';sessionStorage.removeItem('voodoo_token');clearCasebookTask();$('casebook-session-id').value='';showAuth();$('auth-error').textContent=warning}})
 document.querySelectorAll('.nav').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.view)))
 document.querySelectorAll('[data-refresh]').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.refresh)))
 function revealActiveNavOnCompactViewport(name){
@@ -20,7 +20,82 @@ function revealActiveNavOnCompactViewport(name){
     current.scrollIntoView({block:'nearest',inline:'center',behavior:'auto'});
   }
 }
-async function loadView(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){toast(err.message,true)}}
+async function loadView(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){toast(err.message,true)}}
+const casebookSessionIdPattern=/^[A-Za-z0-9_-]{5,128}$/;
+let casebookRequestGeneration=0;
+function clearCasebookTask(){
+  casebookRequestGeneration+=1;
+  $('casebook-task-detail').classList.add('hidden');
+  $('casebook-task-state').replaceChildren();
+  $('casebook-task-timeline').replaceChildren();
+  $('casebook-task-goal').textContent='';
+}
+function loadCasebookTasks(){
+  clearCasebookTask();
+  $('casebook-task-feedback').textContent='Zadejte existující CASEBOOK session ID. Stav čtení dosud není ověřen.';
+}
+async function loadCasebookTask(sessionId){
+  clearCasebookTask();
+  const generation=casebookRequestGeneration;
+  const bearer=state.token;
+  const feedback=$('casebook-task-feedback');
+  if(!casebookSessionIdPattern.test(sessionId)){
+    feedback.textContent='Neplatné ID relace. Nebyla odeslána žádná žádost.';
+    return;
+  }
+  feedback.textContent='Ověřuji oprávnění a integritu CASEBOOK journalu…';
+  try{
+    const data=await api('/casebook/tasks/'+encodeURIComponent(sessionId));
+    if(generation!==casebookRequestGeneration || bearer!==state.token)return;
+    if(data?.schema!=='voodoo-casebook/task-view/v1'
+      ||data.session_id!==sessionId
+      ||data.journal_integrity!=='LOCAL_HASH_CHAIN_VERIFIED_ONLY'
+      ||data.native_approval!=='NOT_ATTESTED'
+      ||data.isolated_runner_execution!=='NOT_ATTESTED'
+      ||data.independent_verifier!=='NOT_ATTESTED'
+      ||(data.execution_verified_by_this_view!==undefined
+        &&data.execution_verified_by_this_view!==false)
+      ||(data.execution_authorized_by_this_view!==undefined
+        &&data.execution_authorized_by_this_view!==false)
+      ||!Array.isArray(data.timeline)){
+      throw new Error('Neúplná nebo neověřená projekce CASEBOOK.');
+    }
+    feedback.textContent='Čtení: pouze lokální integrita journalu ověřena. Externí schválení, Runner a Verifier nejsou doloženy.';
+    $('casebook-task-goal').textContent=data.goal;
+    const facts=[
+      ['Stav',data.display_state],
+      ['Workspace',data.workspace_id],
+      ['CASER handoff',data.handoff],
+      ['Schválení',data.native_approval],
+      ['Runner',data.isolated_runner_execution],
+      ['Verifier',data.independent_verifier],
+      ['Výsledek',data.result],
+      ['Další krok',data.next_action],
+    ];
+    $('casebook-task-state').innerHTML=facts.map(([label,value])=>
+      '<div class="fact"><span>'+escapeHtml(label)+'</span><strong>'+escapeHtml(value)+'</strong></div>'
+    ).join('');
+    $('casebook-task-timeline').innerHTML=data.timeline.map(event=>
+      '<article class="timeline-item"><div class="timeline-marker">'+
+        status(event.type)+'</div><div class="timeline-body"><header><strong>'+
+        escapeHtml(event.summary)+'</strong><span class="mono muted">#'+
+        escapeHtml(event.seq)+'</span></header><time>'+
+        escapeHtml(event.timestamp)+'</time><p class="muted">'+
+        escapeHtml(event.source_claim)+' · '+escapeHtml(event.status_claim)+
+      '</p></div></article>'
+    ).join('');
+    $('casebook-task-detail').classList.remove('hidden');
+  }catch(err){
+    if(generation!==casebookRequestGeneration || bearer!==state.token)return;
+    feedback.textContent='CASEBOOK: NEDOSTUPNÉ / NEOVĚŘENO — '+err.message+
+      '. Nebyl proveden zápis ani spuštění.';
+  }
+}
+$('casebook-task-form').addEventListener('submit',event=>{
+  event.preventDefault();
+  loadCasebookTask($('casebook-session-id').value.trim());
+});
+
 function canonicalReadReady(runtime){
   return runtime?.configured===true && runtime.read_terminal_configured===true
     && runtime.write_routes_exposed===false && runtime.provider_write_effects_exposed===false;
