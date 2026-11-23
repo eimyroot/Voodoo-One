@@ -74,6 +74,21 @@ context.sample=sample;
   assert.match(element('lc-metrics-content').innerHTML,/Nedostupné/);
   assert.doesNotMatch(element('lc-metrics-content').innerHTML,/98\.7%|142 ms|1,248/);
 
+  context.idleProjection={
+    overview:{trust_state:'HEALTHY',receipt_integrity:{valid:true},audit_integrity:{valid:true}},
+    plans:{pending_approvals:0,items:[]},
+    runs:{active_count:0,queue_depth:1,completed_count:0,failed_count:2,recent:[{id:'ex_failed',status:'FAILED'}]},
+    verifier_center:{recent_checks:[]},evidence_timeline:[]
+  };
+  vm.runInContext('window.voodooLivingCore.renderProjection(idleProjection)',context);
+  assert.equal(stage('approval').parts['.lc-stage-state'].textContent,'NO_PENDING',
+    'zero pending requests does not imply an approval was granted');
+  assert.equal(stage('execution').parts['.lc-stage-state'].textContent,'IDLE',
+    'zero active runs does not imply a successful execution');
+  assert.match(stage('execution').parts['.lc-stage-detail'].textContent,/1 ve frontě · 0 dokončených · 2 selhalo/);
+  assert.match(css,/status\.NO_PENDING/);
+  assert.match(css,/status\.IDLE/);
+
   await context.loadOverview();
   assert.doesNotMatch(element('lc-metrics-content').innerHTML,/Legacy KPI/,
     'the legacy overview renderer must not overwrite the Living Core projection');
