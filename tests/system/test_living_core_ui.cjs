@@ -16,9 +16,16 @@ assert.equal(new Set(ids).size,ids.length,'HTML IDs must be unique');
 assert.ok(css.includes('@media (prefers-reduced-motion:reduce)'));
 assert.match(css,/@media \(max-width:560px\)[\s\S]*?\.sidebar \{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/,'small screens must use a wrapping nav instead of horizontal overflow');
 assert.ok(css.includes('@supports not (backdrop-filter:blur(1px))'));
+assert.match(index,/id="lc-focus-open"[^>]*data-refresh="plans"/,'native navigation attaches to the button on initial DOM load');
 const elements=new Map();
 function element(id){
-  if(!elements.has(id))elements.set(id,{id,innerHTML:'',textContent:'',classList:{contains:name=>id==='view-overview'&&name==='active'}});
+  if(!elements.has(id))elements.set(id,{
+    id,innerHTML:'',textContent:'',value:'',disabled:false,dataset:{},listeners:{},
+    setAttribute(name,value){this[name]=value},
+    addEventListener(name,callback){this.listeners[name]=callback},
+    focus(){this.didFocus=true},
+    classList:{contains:name=>id==='view-overview'&&name==='active'}
+  });
   return elements.get(id);
 }
 const stages=new Map();
@@ -62,6 +69,10 @@ context.sample=sample;
   vm.runInContext('window.voodooLivingCore.renderProjection(sample)',context);
   assert.equal(stage('intent').parts['.lc-stage-state'].textContent,'OBSERVED');
   assert.match(stage('intent').parts['.lc-stage-detail'].textContent,/Pipeline request captured/);
+  assert.equal(element('lc-focus-state').textContent,'REVIEW_REQUIRED');
+  assert.equal(element('lc-focus-open').dataset.refresh,'plans');
+  assert.equal(element('lc-focus-open').disabled,false);
+  assert.match(element('lc-focus-summary').textContent,/1 čekajících/);
   assert.equal(stage('approval').parts['.lc-stage-detail'].textContent,
     '1 čekajících');
   assert.equal(stage('jit').parts['.lc-stage-state'].textContent,'UNKNOWN');
@@ -88,6 +99,17 @@ context.sample=sample;
   assert.match(stage('execution').parts['.lc-stage-detail'].textContent,/1 ve frontě · 0 dokončených · 2 selhalo/);
   assert.match(css,/status\.NO_PENDING/);
   assert.match(css,/status\.IDLE/);
+  assert.equal(element('lc-focus-state').textContent,'FAILED');
+  assert.equal(element('lc-focus-open').dataset.refresh,'runs');
+  assert.match(element('lc-focus-summary').textContent,/2 neúspěšných/);
+  context.noPending={
+    overview:{},plans:{pending_approvals:0,items:[]},
+    runs:{active_count:0,failed_count:0,recent:[]},
+    verifier_center:{recent_checks:[]},evidence_timeline:[]
+  };
+  vm.runInContext('window.voodooLivingCore.renderProjection(noPending)',context);
+  assert.equal(element('lc-focus-state').textContent,'NO_PENDING');
+  assert.doesNotMatch(element('lc-focus-summary').textContent,/globálně zdrav|globální zdraví/);
 
   await context.loadOverview();
   assert.doesNotMatch(element('lc-metrics-content').innerHTML,/Legacy KPI/,
@@ -101,5 +123,26 @@ context.sample=sample;
   assert.equal(element('health-badge').className,'status UNKNOWN');
   assert.equal(element('environment-badge').textContent,'Nedostupné');
   assert.doesNotMatch(element('overview-kpis').innerHTML,/HEALTHY|PASS/);
+  assert.equal(element('lc-focus-state').textContent,'UNKNOWN');
+  assert.equal(element('lc-focus-open').disabled,true,'stale priority must not remain actionable');
+  assert.equal(element('lc-focus-open').dataset.refresh,'');
+
+  const readCalls=[];
+  const viewCalls=[];
+  context.loadView=async name=>viewCalls.push(name);
+  context.loadCasebookTask=async session=>readCalls.push(session);
+  const session='voodoo-one-p0-desktop-20261123';
+  element('lc-casebook-id').value=session;
+  await element('lc-casebook-form').listeners.submit({preventDefault(){}});
+  assert.deepEqual(viewCalls,['casebook']);
+  assert.deepEqual(readCalls,[session],'must use native scoped CASEBOOK reader');
+  assert.equal(element('casebook-session-id').value,session);
+  assert.equal(element('casebook-session-id').didFocus,true);
+  element('lc-casebook-id').value='../unscoped';
+  await element('lc-casebook-form').listeners.submit({preventDefault(){}});
+  assert.equal(readCalls.length,1,'invalid ID must never call the API');
+  assert.match(element('lc-casebook-hint').textContent,/Neplatné/);
+  element('logout-button').listeners.click();
+  assert.equal(element('lc-casebook-id').value,'','logout must clear session context');
   console.log('PASS: actual event mapping, unavailable JIT, escaped data, no invented metrics, fail-closed API and stale KPI clearing');
 })().catch(error=>{console.error(error);process.exitCode=1});

@@ -33,6 +33,59 @@
     return '<div class="lc-metric"><span>'+html(label)+'</span><strong>'+html(value)+'</strong><small class="status '+safe+'">'+html(safe)+'</small></div>';
   }
 
+  // Operator focus is a *summary of independent records*, not one execution passport.
+  // A route never grants authority: all consequential actions remain in their native views.
+  function setFocus(state,title,summary,source,route,label){
+    const badge=$('lc-focus-state');
+    if(badge){const safe=stateName(state);badge.textContent=safe;badge.className='status '+safe}
+    const heading=$('lc-focus-title');
+    if(heading)heading.textContent=String(title);
+    const detail=$('lc-focus-summary');
+    if(detail)detail.textContent=String(summary);
+    const origin=$('lc-focus-source');
+    if(origin)origin.textContent=String(source);
+    const action=$('lc-focus-open');
+    if(action){
+      action.dataset.refresh=route||'';
+      action.disabled=!route;
+      action.setAttribute('aria-disabled',route?'false':'true');
+      action.textContent=label||'Otevřít související modul';
+    }
+  }
+
+  function renderFocus(plans,runs,checks){
+    const pending=Number.isSafeInteger(plans.pending_approvals)&&plans.pending_approvals>=0?plans.pending_approvals:null;
+    const active=Number.isSafeInteger(runs.active_count)&&runs.active_count>=0?runs.active_count:null;
+    const failures=Number.isSafeInteger(runs.failed_count)&&runs.failed_count>=0?runs.failed_count:null;
+    const latest=list(checks)[0];
+    const verdict=latest?stateName(latest.verification_status):'UNKNOWN';
+    if(pending!==null&&pending>0){
+      setFocus('REVIEW_REQUIRED','Rozhodnutí čekají na člověka',
+        pending+' čekajících schválení v aktuální projekci. Oprávnění a platnost musí ověřit server.',
+        'Zdroj: Plans / pending_approvals','plans','Otevřít Approvals');
+    }else if(active!==null&&active>0){
+      setFocus('RUNNING','Probíhá vykonávání',
+        active+' aktivních běhů. Stav není důkazem úspěchu ani nezávislého ověření.',
+        'Zdroj: Runs / active_count','runs','Otevřít Runs');
+    }else if(failures!==null&&failures>0){
+      setFocus('FAILED','V historii jsou neúspěšné běhy',
+        failures+' neúspěšných běhů podle souhrnné projekce. Je potřeba otevřít detail.',
+        'Zdroj: Runs / failed_count','runs','Prověřit Runs');
+    }else if(['FAILED','DENIED','REJECTED','INCONCLUSIVE'].includes(verdict)){
+      setFocus(verdict,'Poslední kontrola vyžaduje pozornost',
+        'Zobrazený verdict patří pouze poslednímu zaznamenanému verifier checku.',
+        'Zdroj: Verifier Center / recent_checks','verifier','Otevřít Verifier');
+    }else if(pending===0&&active===0){
+      setFocus('NO_PENDING','V přehledu není aktivní požadavek',
+        'Projekce hlásí 0 čekajících schválení a 0 aktivních běhů. To není potvrzení globálního zdraví systému.',
+        'Zdroj: Plans + Runs / agregované počty','plans','Prohlédnout Plans');
+    }else{
+      setFocus('UNKNOWN','Nelze určit aktuální fokus',
+        'Control Room nevystavil úplné počty potřebné pro bezpečné určení priority.',
+        'Zdroj: Control Room / neúplná projekce',null,null);
+    }
+  }
+
   function renderProjection(data){
     if(!data||typeof data!=='object')return;
     const overview=data.overview&&typeof data.overview==='object'?data.overview:{};
@@ -93,6 +146,8 @@
     const eventList=$('lc-evidence-content');
     if(eventList)eventList.innerHTML=evidence.length?evidence.slice(0,4).map(item=>'<div class="lc-event"><span class="status '+stateName(item.status)+'">'+html(stateName(item.status))+'</span><div><strong>'+html(item.kind||'Záznam')+' · '+html(item.title||'Bez názvu')+'</strong><small>'+html(item.source||'Zdroj nedostupný')+' · '+html(item.timestamp||'Čas nedostupný')+'</small></div></div>').join(''):'<p class="lc-empty">Nedostupné · timeline neobsahuje záznamy.</p>';
 
+    renderFocus(plans,runs,checks);
+
     const metrics=$('lc-metrics-content');
     if(metrics){
       const integrity=overview.receipt_integrity?.valid===true&&overview.audit_integrity?.valid===true?'PASS':
@@ -109,6 +164,7 @@
   }
 
   function renderUnavailable(){
+    setFocus('UNKNOWN','Projekce nedostupná','Nepodařilo se ověřit aktuální stav. Dříve zobrazená priorita není platná.','Zdroj: Control Room / chyba',null,null);
     setStage('intent','UNKNOWN','Nedostupné · Control Room projekce se nepodařila načíst','API');
     setStage('approval','UNKNOWN','Nedostupné · Control Room projekce se nepodařila načíst','API');
     setStage('jit','UNKNOWN','Nedostupné · JIT není vystaven v přehledu','API');
@@ -129,6 +185,35 @@
     ].map(([label,value])=>'<div class="kpi"><span>'+label+'</span><strong>'+value+'</strong></div>').join('');
     const observed=$('lc-observed-at');if(observed)observed.textContent='Projekce nedostupná';
   }
+
+  const casebookForm=$('lc-casebook-form');
+  if(casebookForm)casebookForm.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const sessionId=String($('lc-casebook-id')?.value||'').trim();
+    const hint=$('lc-casebook-hint');
+    if(!/^[A-Za-z0-9_-]{5,128}$/.test(sessionId)){
+      if(hint)hint.textContent='Neplatné ID relace. Nebyl proveden žádný požadavek.';
+      return;
+    }
+    if(typeof window.loadView!=='function'||typeof window.loadCasebookTask!=='function'){
+      if(hint)hint.textContent='CASEBOOK pohled není dostupný; nebyl proveden žádný požadavek.';
+      return;
+    }
+    // Reuse the native scoped CASEBOOK reader and its validation, authorization and truth rules.
+    await window.loadView('casebook');
+    const target=$('casebook-session-id');
+    if(!target){if(hint)hint.textContent='CASEBOOK formulář není dostupný.';return}
+    target.value=sessionId;
+    if(typeof target.focus==='function')target.focus();
+    await window.loadCasebookTask(sessionId);
+  });
+  const logout=$('logout-button');
+  if(logout)logout.addEventListener('click',()=>{
+    const field=$('lc-casebook-id');
+    if(field)field.value='';
+    const hint=$('lc-casebook-hint');
+    if(hint)hint.textContent='Pouze autentizované čtení; bez spuštění operace nebo zápisu.';
+  });
 
   window.voodooLivingCore=Object.freeze({renderProjection,renderUnavailable});
   window.controlRoom=async function(){

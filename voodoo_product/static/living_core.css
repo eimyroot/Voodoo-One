@@ -113,6 +113,58 @@ body {
   box-shadow: inset 0 1px rgba(255,255,255,.08), 0 5px 18px rgba(36, 82, 139, .13);
 }
 .lc-screen button.secondary { background: rgba(25, 39, 58, .72); }
+/* Operator focus and scoped CASEBOOK jump use the native Control Room. */
+.lc-operator-deck {
+  display:grid;
+  grid-template-columns:minmax(0,1.2fr) minmax(290px,.8fr);
+  gap:14px;
+  margin:0 0 14px;
+}
+.lc-command,.lc-casebook-card {
+  position:relative;
+  overflow:hidden;
+  min-width:0;
+  padding:clamp(18px,2vw,28px);
+  border:1px solid rgba(161,202,250,.26);
+  border-radius:17px;
+  background:linear-gradient(118deg,rgba(29,53,81,.93),rgba(17,26,46,.94) 66%,rgba(25,28,56,.83));
+  box-shadow:inset 0 1px rgba(255,255,255,.07),0 16px 44px rgba(0,0,0,.22);
+}
+.lc-command::before {
+  content:"";
+  position:absolute;
+  pointer-events:none;
+  width:330px;height:330px;top:-200px;right:-90px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(144,193,255,.28),rgba(96,110,234,.09) 46%,transparent 73%);
+}
+.lc-command > *,.lc-casebook-card > * {position:relative}
+.lc-command-top {display:flex;align-items:center;justify-content:space-between;gap:10px}
+.lc-command h2 {font-size:clamp(21px,2vw,29px);line-height:1.2;letter-spacing:-.035em;margin:18px 0 10px;color:#f3f8ff}
+.lc-command-summary {max-width:60ch;min-height:3em;font-size:14px;line-height:1.6;color:#c8d8ec}
+.lc-command-source {font:11px ui-monospace,monospace;color:#9db0c9;margin:18px 0 15px}
+.lc-command button {max-width:100%}
+.lc-command button:disabled {opacity:.52;cursor:not-allowed}
+.lc-casebook-card {
+  background:radial-gradient(ellipse at 110% 0,rgba(112,99,183,.2),transparent 55%),linear-gradient(140deg,rgba(21,34,55,.96),rgba(12,20,34,.94));
+}
+.lc-casebook-card h2 {color:#f0f6ff;font-size:20px;letter-spacing:-.02em;margin:6px 0 10px}
+.lc-casebook-desc,.lc-casebook-hint {font-size:12px;line-height:1.55;color:#aebfd5}
+.lc-casebook-hint {min-height:2.6em;margin:9px 0 0}
+.lc-session-form {display:grid;gap:8px;margin-top:15px}
+.lc-session-form label {font-size:11px;color:#c3d4ec;font-weight:600}
+.lc-session-actions {display:flex;gap:8px;min-width:0}
+.lc-session-actions input {
+  min-width:0;flex:1;padding:10px 12px;
+  border:1px solid rgba(166,198,238,.38);
+  border-radius:9px;background:rgba(7,15,29,.76);
+  color:#edf5ff;font-size:13px;
+}
+.lc-session-actions button {flex:0 0 auto;white-space:nowrap}
+.lc-screen :is(button,input):focus-visible {outline:2px solid #c3e4ff;outline-offset:3px}
+@media(max-width:1080px) {.lc-operator-deck {grid-template-columns:1fr}}
+@media(max-width:560px) {.lc-session-actions {flex-direction:column}.lc-session-actions button {width:100%}}
+
 .lc-core, .lc-panel, .lc-advanced {
   min-width: 0;
   border: 1px solid rgba(169, 202, 241, .22);

@@ -114,6 +114,32 @@
           <button data-refresh="overview" type="button">Obnovit projekci</button>
         </header>
 
+        <section class="lc-operator-deck" aria-label="Operátorský fokus a CASEBOOK">
+          <article class="panel lc-command" aria-labelledby="lc-focus-title">
+            <div class="lc-command-top">
+              <p class="lc-kicker">OPERATOR FOCUS · ACTUAL PROJECTION</p>
+              <span id="lc-focus-state" class="status UNKNOWN">UNKNOWN</span>
+            </div>
+            <h2 id="lc-focus-title">Čekám na provozní data</h2>
+            <p id="lc-focus-summary" class="lc-command-summary">Stav rozhodnutí a běhů zatím nebyl ověřen.</p>
+            <p id="lc-focus-source" class="lc-command-source">Zdroj: Control Room / nenačteno</p>
+            <button id="lc-focus-open" type="button" class="secondary" data-refresh="plans" disabled aria-disabled="true">Otevřít související modul</button>
+          </article>
+          <article class="panel lc-casebook-card" aria-labelledby="lc-casebook-title">
+            <p class="lc-kicker">CASEBOOK · SCOPED READ</p>
+            <h2 id="lc-casebook-title">Kontext jedné relace</h2>
+            <p class="lc-casebook-desc">Otevře existující CASEBOOK Tasks. Lokální integrita journalu není důkaz Runneru ani nezávislé verifikace.</p>
+            <form id="lc-casebook-form" class="lc-session-form">
+              <label for="lc-casebook-id">ID existující CASEBOOK relace</label>
+              <div class="lc-session-actions">
+                <input id="lc-casebook-id" type="text" maxlength="128" pattern="[A-Za-z0-9_-]{5,128}" autocomplete="off" placeholder="voodoo-one-…" required />
+                <button type="submit">Otevřít</button>
+              </div>
+            </form>
+            <p id="lc-casebook-hint" class="lc-casebook-hint" role="status" aria-live="polite">Pouze autentizované čtení; bez spuštění operace nebo zápisu.</p>
+          </article>
+        </section>
+
         <section class="lc-core panel" aria-labelledby="lc-cycle-title">
           <div class="lc-section-head">
             <div><p class="lc-kicker">Provozní cyklus</p><h2 id="lc-cycle-title">Intent → Approval → JIT → Execution → Verification → Evidence</h2></div>
