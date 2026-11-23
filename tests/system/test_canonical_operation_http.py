@@ -142,13 +142,34 @@ def test_status_requires_authentication_and_reports_no_write_surface() -> None:
     response = api.get("/api/v1/operations/status", headers=auth("viewer-token"))
 
     assert response.status_code == 200
-    assert response.json() == {
-        "schema": "vone.canonical-operation-api-status/v1",
-        "configured": True,
-        "read_terminal_configured": True,
-        "write_routes_exposed": False,
-        "provider_write_effects_exposed": False,
-    }
+    status = response.json()
+    assert status["schema"] == "vone.canonical-operation-api-status/v1"
+    assert status["configured"] is True
+    assert status["read_terminal_configured"] is True
+    assert status["approval_validity_seconds"] is None
+    assert status["server_time_utc"].endswith("+00:00")
+    assert status["write_routes_exposed"] is False
+    assert status["provider_write_effects_exposed"] is False
+
+
+def test_status_reports_policy_ttl_only_from_authoritative_snapshot_creator() -> None:
+    runtime = FakeRuntime()
+    policy = SimpleNamespace(approval_validity_seconds=600)
+    runtime.pipeline = SimpleNamespace(snapshot_creator=SimpleNamespace(
+        policy_authority=SimpleNamespace(resolve=lambda name: policy),
+        policy_version="approval-policy/current-v1",
+    ))
+    response = client(runtime).get("/api/v1/operations/status", headers=auth("viewer-token"))
+    assert response.status_code == 200
+    assert response.json()["approval_validity_seconds"] == 600
+
+    # A missing policy revision is not a default authorization grant.
+    runtime.pipeline.snapshot_creator.policy_authority = SimpleNamespace(
+        resolve=lambda name: (_ for _ in ()).throw(LookupError("no policy"))
+    )
+    missing = client(runtime).get("/api/v1/operations/status", headers=auth("viewer-token"))
+    assert missing.status_code == 200
+    assert missing.json()["approval_validity_seconds"] is None
 
 
 def test_authentication_error_does_not_leak_identity_provider_detail() -> None:

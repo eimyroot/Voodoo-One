@@ -100,6 +100,36 @@ function canonicalReadReady(runtime){
   return runtime?.configured===true && runtime.read_terminal_configured===true
     && runtime.write_routes_exposed===false && runtime.provider_write_effects_exposed===false;
 }
+// UI eligibility is advisory and FAIL-CLOSED. The server remains the only
+// authority to issue a grant. The source of TTL is the canonical runtime's
+// immutable policy; first_approved_at comes from the persisted approval rows.
+// The UTC server timestamp avoids relying on the operator computer's clock.
+function canonicalReadApprovalWindow(request,runtime){
+  const seconds=runtime?.approval_validity_seconds;
+  const serverUtc=runtime?.server_time_utc;
+  const firstUtc=request?.first_approved_at;
+  const validDate=value=>typeof value==='string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}\+00:00$/.test(value)
+    ? Date.parse(value):NaN;
+  const approved=validDate(firstUtc);
+  const now=validDate(serverUtc);
+  if(!Number.isSafeInteger(seconds)||seconds<1||seconds>86400
+    ||!Number.isFinite(approved)||!Number.isFinite(now)
+    ||request?.status!=='APPROVED'||!Number.isInteger(request?.approval_count)
+    ||request.approval_count<1)
+    return {eligible:false,reason:'UNKNOWN',label:'SCHVÁLENÍ NEOVĚŘENO · READ ZAKÁZÁN'};
+  const until=approved+seconds*1000;
+  if(!Number.isSafeInteger(until)||approved>now)
+    return {eligible:false,reason:'UNKNOWN',label:'ČAS SCHVÁLENÍ NEOVĚŘEN · READ ZAKÁZÁN'};
+  // Three-second guard prevents offering an action that is already about to
+  // expire; the canonical server independently enforces the exact cutoff.
+  if(until-now<=3000)
+    return {eligible:false,reason:'EXPIRED',label:'SCHVÁLENÍ VYPRŠELO · založ nový požadavek jako g8-requester'};
+  const localDeadline=new Date(until).toLocaleString('cs-CZ',{
+    timeZone:'Europe/Prague',day:'2-digit',month:'2-digit',year:'numeric',
+    hour:'2-digit',minute:'2-digit',second:'2-digit'
+  });
+  return {eligible:true,reason:'VALID',label:`Platnost schválení do ${localDeadline} (Praha)`};
+}
 const canonicalReadPending=new Set();
 const canonicalReadRequestPattern=/^[A-Za-z0-9._:-]{5,80}$/;
 function canonicalReadAttemptKey(requestId){
@@ -125,20 +155,28 @@ function canonicalReadFeedback(message,error=false){
 async function runCanonicalRead(requestId,button){
   if(!canonicalReadRequestPattern.test(requestId)||canonicalReadPending.has(requestId))return;
   canonicalReadPending.add(requestId);
+  let approvalExpired=false;
   button.disabled=true;
   $('canonical-read-result').textContent='';
   $('canonical-read-result').classList.add('hidden');
   canonicalReadFeedback('Ověřuji oprávnění a aktuální schválení. Kanonický READ ještě nebyl spuštěn.');
   try{
     const [runtime,request]=await Promise.all([
-      api('/operations/status'),
-      api(`/change-requests/${encodeURIComponent(requestId)}`)
+      api('/operations/status',{cache:'no-store'}),
+      api(`/change-requests/${encodeURIComponent(requestId)}`,{cache:'no-store'})
     ]);
     if(!canonicalReadReady(runtime))throw new Error('Kanonický READ runtime není dostupný. Nic nebylo spuštěno.');
     if(request?.id!==requestId||request.adapter!=='github-read-ref'||request.status!=='APPROVED'
       ||!['local','development','staging'].includes(request.environment)
       ||!canonicalReadPayloadValid(request.payload)){
       throw new Error('Požadavek nebo schválení nejsou platné pro kanonický GitHub READ.');
+    }
+    const approval=canonicalReadApprovalWindow(request,runtime);
+    if(!approval.eligible){
+      approvalExpired=approval.reason==='EXPIRED';
+      canonicalReadFeedback(approval.label+' · nevykonáno, neopakovat původní požadavek.',true);
+      await loadPlans();
+      return;
     }
     if(!confirm(`Provést výhradně READ ${request.payload.repository} · ${request.payload.ref}? Server znovu ověří autoritu a schválení.`)){
       canonicalReadFeedback('Operátor akci zrušil. Žádná operace nebyla spuštěna.');
@@ -168,7 +206,7 @@ async function runCanonicalRead(requestId,button){
     canonicalReadFeedback(`Kanonický READ: UNKNOWN / NEOVĚŘENO — ${err.message}. Bez automatického opakování; ověř stav a Passport podle request ID ${requestId}.`,true);
   }finally{
     canonicalReadPending.delete(requestId);
-    button.disabled=false;
+    button.disabled=approvalExpired;
   }
 }
 function syncChangeAdapter(){
@@ -197,7 +235,7 @@ $('close-passport-button').addEventListener('click',()=>$('operation-passport-pa
 async function loadPlans(){
   // Both lists are existing authorized GET APIs; an absent/mismatched row is NOT an execution permission.
   const [data,requests,runtime]=await Promise.all([
-    controlRoom(),api('/change-requests'),api('/operations/status').catch(()=>null)
+    controlRoom(),api('/change-requests',{cache:'no-store'}),api('/operations/status',{cache:'no-store'}).catch(()=>null)
   ]);
   const byId=new Map(requests.map(item=>[item.id,item]));
   $('plans-table').innerHTML=data.plans.items.length?data.plans.items.map(plan=>{
@@ -207,10 +245,12 @@ async function loadPlans(){
     if(bound && plan.status==='DRAFT'){
       action=`<button data-change-action="submit" data-request-id="${escapeHtml(plan.request_id)}">Submit</button>`;
     }else if(bound && plan.status==='APPROVED' && request.adapter==='github-read-ref'){
+      const approval=canonicalReadApprovalWindow(request,runtime);
       const allowed=canonicalReadReady(runtime)&&['local','development','staging'].includes(plan.environment)
-        && canonicalReadPayloadValid(request.payload);
-      action=allowed?`<button data-change-action="canonical-read" data-request-id="${escapeHtml(plan.request_id)}">Canonical READ</button>`
-        :'<span class="muted">READ DISABLED · runtime / scope</span>';
+        && canonicalReadPayloadValid(request.payload)&&approval.eligible;
+      action=allowed?`<button data-change-action="canonical-read" data-request-id="${escapeHtml(plan.request_id)}">Canonical READ</button><small class="muted">${escapeHtml(approval.label)}</small>`
+        :`<span class="muted">${escapeHtml(approval.reason==='EXPIRED'
+          ?approval.label:'READ DISABLED · runtime / scope / schválení neověřeno')}</span>`;
     }else if(bound && plan.status==='APPROVED' && plan.environment!=='production'
       && ['echo','write_artifact','run_validation'].includes(request.adapter)){
       action=`<button data-change-action="execute" data-request-id="${escapeHtml(plan.request_id)}">Execute (legacy)</button>`;

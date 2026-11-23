@@ -123,7 +123,9 @@ LIST_CHANGE_REQUESTS = _read(
     """
     SELECT cr.*, u.username AS requested_by_username,
            (SELECT COUNT(*) FROM approvals a
-            WHERE a.request_id = cr.id AND a.decision = 'APPROVED') AS approval_count
+            WHERE a.request_id = cr.id AND a.decision = 'APPROVED') AS approval_count,
+           (SELECT MIN(a.created_at) FROM approvals a
+            WHERE a.request_id = cr.id AND a.decision = 'APPROVED') AS first_approved_at
     FROM change_requests cr
     JOIN users u ON u.id = cr.requested_by
     ORDER BY cr.updated_at DESC LIMIT ?
@@ -134,7 +136,9 @@ GET_CHANGE_REQUEST = _read(
     """
     SELECT cr.*, u.username AS requested_by_username,
            (SELECT COUNT(*) FROM approvals a
-            WHERE a.request_id = cr.id AND a.decision = 'APPROVED') AS approval_count
+            WHERE a.request_id = cr.id AND a.decision = 'APPROVED') AS approval_count,
+           (SELECT MIN(a.created_at) FROM approvals a
+            WHERE a.request_id = cr.id AND a.decision = 'APPROVED') AS first_approved_at
     FROM change_requests cr JOIN users u ON u.id = cr.requested_by
     WHERE cr.id = ?
     """,
