@@ -63,3 +63,18 @@ linear-gradient(135deg,#090b0f,#0e151c 55%,#121922)}
 #projectmap-status .projectmap-digest summary{cursor:pointer;max-width:100%;overflow-wrap:anywhere}
 #projectmap-status .projectmap-digest code{display:block;margin-top:8px;font-size:12px;overflow-wrap:anywhere;user-select:text}
 @media(max-width:860px){.projectmap-grid{grid-template-columns:1fr}}
+
+/* CASEBOOK task pane — guarded, read-only source-claim presentation. */
+.casebook-finder{margin-bottom:16px}
+.casebook-finder .inline-controls{display:grid;grid-template-columns:auto minmax(200px,1fr) auto;gap:12px}
+.casebook-finder label{font-weight:700;color:var(--muted);font-size:13px}
+.casebook-finder input{width:100%;max-width:620px}
+.casebook-finder p{font-size:13px;margin:12px 0 0}
+#casebook-task-feedback{margin-bottom:16px;overflow-wrap:anywhere}
+.casebook-task-hero{margin-bottom:18px;border-color:#3f4f31;background:linear-gradient(135deg,#17211b,#111821 62%,#171c24)}
+.casebook-task-hero h2{font-size:clamp(19px,3vw,26px);line-height:1.25;margin:8px 0 18px}
+.casebook-task-hero .fact-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+#casebook-task-timeline .timeline-body{min-width:0;overflow-wrap:anywhere}
+#casebook-task-timeline .timeline-body strong{font-size:14px;line-height:1.4}
+#casebook-task-timeline .timeline-marker .status{white-space:normal;overflow-wrap:anywhere}
+@media(max-width:860px){.casebook-finder .inline-controls{grid-template-columns:1fr}.casebook-task-hero .fact-grid{grid-template-columns:1fr}}

@@ -82,6 +82,7 @@
       <button data-view="plans" class="nav">Plans</button>
       <button data-view="registry" class="nav">Capability Registry</button>
       <button data-view="evidence" class="nav">Evidence Timeline</button>
+      <button data-view="casebook" class="nav">CASEBOOK Tasks</button>
       <button data-view="policy" class="nav">Policy Gates</button>
       <button data-view="verifier" class="nav">Verifier Center</button>
       <button data-view="health" class="nav">Runtime Health</button>
@@ -195,6 +196,42 @@
         </div>
         <div id="evidence-summary" class="kpi-grid compact"></div>
         <div id="timeline-list" class="timeline"></div>
+      </section>
+
+      <section id="view-casebook" class="view" aria-label="CASEBOOK Task Status">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Session memory / read-only</p>
+            <h1>CASEBOOK Tasks</h1>
+            <p>Stav uloženého úkolu. Zápis v CASEBOOKu není důkazem skutečného vykonání nebo nezávislého ověření.</p>
+          </div>
+        </div>
+        <article class="panel casebook-finder">
+          <form id="casebook-task-form" class="inline-controls">
+            <label for="casebook-session-id">CASEBOOK session ID</label>
+            <input id="casebook-session-id" maxlength="128" autocomplete="off"
+                   placeholder="caser-… / ses_…" required />
+            <button type="submit">Načíst stav</button>
+          </form>
+          <p class="muted">Přístup je omezen na konkrétní relace přiřazené k vašemu workspace. Žádný příkaz se nespouští.</p>
+        </article>
+        <article class="panel" id="casebook-task-feedback" role="status" aria-live="polite">
+          Zadejte existující CASEBOOK session ID. Stav čtení dosud není ověřen.
+        </article>
+        <section id="casebook-task-detail" class="hidden" aria-label="CASEBOOK task detail">
+          <div class="panel casebook-task-hero">
+            <p class="eyebrow">Recorded journal state</p>
+            <h2 id="casebook-task-goal"></h2>
+            <div id="casebook-task-state" class="fact-grid"></div>
+          </div>
+          <article class="panel">
+            <div class="panel-heading"><div>
+              <h2>Recorded timeline</h2>
+              <p>Uložené události. Souhrny a statusy jsou tvrzení zdroje, nikoli potvrzení Verifieru.</p>
+            </div></div>
+            <div class="timeline" id="casebook-task-timeline"></div>
+          </article>
+        </section>
       </section>
 
       <section id="view-policy" class="view">

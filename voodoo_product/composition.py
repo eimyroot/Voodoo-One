@@ -208,6 +208,39 @@ def install_composed_product_platform(
     app.state.voodoo_operation_passport_service = operation_passport_service
     app.state.voodoo_canonical_operation_runtime = canonical_operation_runtime
     app.state.voodoo_product_composition = composition
+
+    if resolved_config.casebook_read_binding is not None:
+        # Optional native attachment, never a separate server or implicit
+        # permission. It is local-only, read-only and tied to one explicitly
+        # selected session, project and existing workspace.
+        from .casebook_pinned_task_reader import PinnedCasebookTaskReader
+        from .casebook_task_gateway import TaskScope, attach_casebook_task_gateway
+
+        binding = resolved_config.casebook_read_binding
+        if not any(
+            row["id"] == binding.workspace_id and row["environment"] == "local"
+            for row in service.list_workspaces()
+        ):
+            raise RuntimeError("CASEBOOK read workspace binding does not exist")
+        reader = PinnedCasebookTaskReader(
+            source_root=binding.source_root,
+            data_root=binding.data_root,
+        )
+        # Both CASEBOOK's source SHA and journal integrity must pass at
+        # startup. A mismatch aborts the whole startup rather than exposing
+        # an ambiguous task pane or silently falling back to a new identity.
+        attach_casebook_task_gateway(
+            app=app,
+            composition=composition,
+            reader=reader,
+            scopes=[TaskScope(
+                session_id=binding.session_id,
+                workspace_id=binding.workspace_id,
+                environment="local",
+                project=binding.project,
+            )],
+        )
+
     app.include_router(
         create_product_router(
             identity_provider=resolved_identity_provider,

@@ -9,7 +9,7 @@ async function showApp(){if(!(await authReady())){showAuth();return}$('auth-scre
 function showAuth(){$('app-shell').classList.add('hidden');$('auth-screen').classList.remove('hidden');api('/bootstrap/status').then(x=>$('bootstrap-panel').open=x.required).catch(()=>{})}
 $('login-form').addEventListener('submit',async e=>{e.preventDefault();try{const result=await api('/auth/login',{method:'POST',body:JSON.stringify({username:$('login-username').value,password:$('login-password').value})});state.token=result.token;sessionStorage.setItem('voodoo_token',result.token);$('auth-error').textContent='';await showApp()}catch(err){$('auth-error').textContent=err.message}})
 $('bootstrap-form').addEventListener('submit',async e=>{e.preventDefault();try{const result=await api('/auth/bootstrap',{method:'POST',body:JSON.stringify({username:$('bootstrap-username').value,password:$('bootstrap-password').value,bootstrap_token:$('bootstrap-token').value})});state.token=result.token;sessionStorage.setItem('voodoo_token',result.token);await showApp()}catch(err){$('auth-error').textContent=err.message}})
-$('logout-button').addEventListener('click',async()=>{let warning='';try{await api('/auth/logout', { method: 'POST' })}catch(err){console.warn('Server-side logout failed; clearing local session',err);warning='Serverové odvolání relace se nepodařilo potvrdit. Lokální token byl odstraněn.'}finally{state.token='';sessionStorage.removeItem('voodoo_token');showAuth();$('auth-error').textContent=warning}})
+$('logout-button').addEventListener('click',async()=>{let warning='';try{await api('/auth/logout', { method: 'POST' })}catch(err){console.warn('Server-side logout failed; clearing local session',err);warning='Serverové odvolání relace se nepodařilo potvrdit. Lokální token byl odstraněn.'}finally{state.token='';sessionStorage.removeItem('voodoo_token');clearCasebookTask();$('casebook-session-id').value='';showAuth();$('auth-error').textContent=warning}})
 document.querySelectorAll('.nav').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.view)))
 document.querySelectorAll('[data-refresh]').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.refresh)))
 function revealActiveNavOnCompactViewport(name){
@@ -20,10 +20,115 @@ function revealActiveNavOnCompactViewport(name){
     current.scrollIntoView({block:'nearest',inline:'center',behavior:'auto'});
   }
 }
-async function loadView(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){toast(err.message,true)}}
+async function loadView(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){toast(err.message,true)}}
+const casebookSessionIdPattern=/^[A-Za-z0-9_-]{5,128}$/;
+let casebookRequestGeneration=0;
+function clearCasebookTask(){
+  casebookRequestGeneration+=1;
+  $('casebook-task-detail').classList.add('hidden');
+  $('casebook-task-state').replaceChildren();
+  $('casebook-task-timeline').replaceChildren();
+  $('casebook-task-goal').textContent='';
+}
+function loadCasebookTasks(){
+  clearCasebookTask();
+  $('casebook-task-feedback').textContent='Zadejte existující CASEBOOK session ID. Stav čtení dosud není ověřen.';
+}
+async function loadCasebookTask(sessionId){
+  clearCasebookTask();
+  const generation=casebookRequestGeneration;
+  const bearer=state.token;
+  const feedback=$('casebook-task-feedback');
+  if(!casebookSessionIdPattern.test(sessionId)){
+    feedback.textContent='Neplatné ID relace. Nebyla odeslána žádná žádost.';
+    return;
+  }
+  feedback.textContent='Ověřuji oprávnění a integritu CASEBOOK journalu…';
+  try{
+    const data=await api('/casebook/tasks/'+encodeURIComponent(sessionId));
+    if(generation!==casebookRequestGeneration || bearer!==state.token)return;
+    if(data?.schema!=='voodoo-casebook/task-view/v1'
+      ||data.session_id!==sessionId
+      ||data.journal_integrity!=='LOCAL_HASH_CHAIN_VERIFIED_ONLY'
+      ||data.native_approval!=='NOT_ATTESTED'
+      ||data.isolated_runner_execution!=='NOT_ATTESTED'
+      ||data.independent_verifier!=='NOT_ATTESTED'
+      ||(data.execution_verified_by_this_view!==undefined
+        &&data.execution_verified_by_this_view!==false)
+      ||(data.execution_authorized_by_this_view!==undefined
+        &&data.execution_authorized_by_this_view!==false)
+      ||!Array.isArray(data.timeline)){
+      throw new Error('Neúplná nebo neověřená projekce CASEBOOK.');
+    }
+    feedback.textContent='Čtení: pouze lokální integrita journalu ověřena. Externí schválení, Runner a Verifier nejsou doloženy.';
+    $('casebook-task-goal').textContent=data.goal;
+    const facts=[
+      ['Stav',data.display_state],
+      ['Workspace',data.workspace_id],
+      ['CASER handoff',data.handoff],
+      ['Schválení',data.native_approval],
+      ['Runner',data.isolated_runner_execution],
+      ['Verifier',data.independent_verifier],
+      ['Výsledek',data.result],
+      ['Další krok',data.next_action],
+    ];
+    $('casebook-task-state').innerHTML=facts.map(([label,value])=>
+      '<div class="fact"><span>'+escapeHtml(label)+'</span><strong>'+escapeHtml(value)+'</strong></div>'
+    ).join('');
+    $('casebook-task-timeline').innerHTML=data.timeline.map(event=>
+      '<article class="timeline-item"><div class="timeline-marker">'+
+        status(event.type)+'</div><div class="timeline-body"><header><strong>'+
+        escapeHtml(event.summary)+'</strong><span class="mono muted">#'+
+        escapeHtml(event.seq)+'</span></header><time>'+
+        escapeHtml(event.timestamp)+'</time><p class="muted">'+
+        escapeHtml(event.source_claim)+' · '+escapeHtml(event.status_claim)+
+      '</p></div></article>'
+    ).join('');
+    $('casebook-task-detail').classList.remove('hidden');
+  }catch(err){
+    if(generation!==casebookRequestGeneration || bearer!==state.token)return;
+    feedback.textContent='CASEBOOK: NEDOSTUPNÉ / NEOVĚŘENO — '+err.message+
+      '. Nebyl proveden zápis ani spuštění.';
+  }
+}
+$('casebook-task-form').addEventListener('submit',event=>{
+  event.preventDefault();
+  loadCasebookTask($('casebook-session-id').value.trim());
+});
+
 function canonicalReadReady(runtime){
   return runtime?.configured===true && runtime.read_terminal_configured===true
     && runtime.write_routes_exposed===false && runtime.provider_write_effects_exposed===false;
+}
+// UI eligibility is advisory and FAIL-CLOSED. The server remains the only
+// authority to issue a grant. The source of TTL is the canonical runtime's
+// immutable policy; first_approved_at comes from the persisted approval rows.
+// The UTC server timestamp avoids relying on the operator computer's clock.
+function canonicalReadApprovalWindow(request,runtime){
+  const seconds=runtime?.approval_validity_seconds;
+  const serverUtc=runtime?.server_time_utc;
+  const firstUtc=request?.first_approved_at;
+  const validDate=value=>typeof value==='string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}\+00:00$/.test(value)
+    ? Date.parse(value):NaN;
+  const approved=validDate(firstUtc);
+  const now=validDate(serverUtc);
+  if(!Number.isSafeInteger(seconds)||seconds<1||seconds>86400
+    ||!Number.isFinite(approved)||!Number.isFinite(now)
+    ||request?.status!=='APPROVED'||!Number.isInteger(request?.approval_count)
+    ||request.approval_count<1)
+    return {eligible:false,reason:'UNKNOWN',label:'SCHVÁLENÍ NEOVĚŘENO · READ ZAKÁZÁN'};
+  const until=approved+seconds*1000;
+  if(!Number.isSafeInteger(until)||approved>now)
+    return {eligible:false,reason:'UNKNOWN',label:'ČAS SCHVÁLENÍ NEOVĚŘEN · READ ZAKÁZÁN'};
+  // Three-second guard prevents offering an action that is already about to
+  // expire; the canonical server independently enforces the exact cutoff.
+  if(until-now<=3000)
+    return {eligible:false,reason:'EXPIRED',label:'SCHVÁLENÍ VYPRŠELO · založ nový požadavek jako g8-requester'};
+  const localDeadline=new Date(until).toLocaleString('cs-CZ',{
+    timeZone:'Europe/Prague',day:'2-digit',month:'2-digit',year:'numeric',
+    hour:'2-digit',minute:'2-digit',second:'2-digit'
+  });
+  return {eligible:true,reason:'VALID',label:`Platnost schválení do ${localDeadline} (Praha)`};
 }
 const canonicalReadPending=new Set();
 const canonicalReadRequestPattern=/^[A-Za-z0-9._:-]{5,80}$/;
@@ -50,20 +155,28 @@ function canonicalReadFeedback(message,error=false){
 async function runCanonicalRead(requestId,button){
   if(!canonicalReadRequestPattern.test(requestId)||canonicalReadPending.has(requestId))return;
   canonicalReadPending.add(requestId);
+  let approvalExpired=false;
   button.disabled=true;
   $('canonical-read-result').textContent='';
   $('canonical-read-result').classList.add('hidden');
   canonicalReadFeedback('Ověřuji oprávnění a aktuální schválení. Kanonický READ ještě nebyl spuštěn.');
   try{
     const [runtime,request]=await Promise.all([
-      api('/operations/status'),
-      api(`/change-requests/${encodeURIComponent(requestId)}`)
+      api('/operations/status',{cache:'no-store'}),
+      api(`/change-requests/${encodeURIComponent(requestId)}`,{cache:'no-store'})
     ]);
     if(!canonicalReadReady(runtime))throw new Error('Kanonický READ runtime není dostupný. Nic nebylo spuštěno.');
     if(request?.id!==requestId||request.adapter!=='github-read-ref'||request.status!=='APPROVED'
       ||!['local','development','staging'].includes(request.environment)
       ||!canonicalReadPayloadValid(request.payload)){
       throw new Error('Požadavek nebo schválení nejsou platné pro kanonický GitHub READ.');
+    }
+    const approval=canonicalReadApprovalWindow(request,runtime);
+    if(!approval.eligible){
+      approvalExpired=approval.reason==='EXPIRED';
+      canonicalReadFeedback(approval.label+' · nevykonáno, neopakovat původní požadavek.',true);
+      await loadPlans();
+      return;
     }
     if(!confirm(`Provést výhradně READ ${request.payload.repository} · ${request.payload.ref}? Server znovu ověří autoritu a schválení.`)){
       canonicalReadFeedback('Operátor akci zrušil. Žádná operace nebyla spuštěna.');
@@ -93,7 +206,7 @@ async function runCanonicalRead(requestId,button){
     canonicalReadFeedback(`Kanonický READ: UNKNOWN / NEOVĚŘENO — ${err.message}. Bez automatického opakování; ověř stav a Passport podle request ID ${requestId}.`,true);
   }finally{
     canonicalReadPending.delete(requestId);
-    button.disabled=false;
+    button.disabled=approvalExpired;
   }
 }
 function syncChangeAdapter(){
@@ -122,7 +235,7 @@ $('close-passport-button').addEventListener('click',()=>$('operation-passport-pa
 async function loadPlans(){
   // Both lists are existing authorized GET APIs; an absent/mismatched row is NOT an execution permission.
   const [data,requests,runtime]=await Promise.all([
-    controlRoom(),api('/change-requests'),api('/operations/status').catch(()=>null)
+    controlRoom(),api('/change-requests',{cache:'no-store'}),api('/operations/status',{cache:'no-store'}).catch(()=>null)
   ]);
   const byId=new Map(requests.map(item=>[item.id,item]));
   $('plans-table').innerHTML=data.plans.items.length?data.plans.items.map(plan=>{
@@ -132,10 +245,12 @@ async function loadPlans(){
     if(bound && plan.status==='DRAFT'){
       action=`<button data-change-action="submit" data-request-id="${escapeHtml(plan.request_id)}">Submit</button>`;
     }else if(bound && plan.status==='APPROVED' && request.adapter==='github-read-ref'){
+      const approval=canonicalReadApprovalWindow(request,runtime);
       const allowed=canonicalReadReady(runtime)&&['local','development','staging'].includes(plan.environment)
-        && canonicalReadPayloadValid(request.payload);
-      action=allowed?`<button data-change-action="canonical-read" data-request-id="${escapeHtml(plan.request_id)}">Canonical READ</button>`
-        :'<span class="muted">READ DISABLED · runtime / scope</span>';
+        && canonicalReadPayloadValid(request.payload)&&approval.eligible;
+      action=allowed?`<button data-change-action="canonical-read" data-request-id="${escapeHtml(plan.request_id)}">Canonical READ</button><small class="muted">${escapeHtml(approval.label)}</small>`
+        :`<span class="muted">${escapeHtml(approval.reason==='EXPIRED'
+          ?approval.label:'READ DISABLED · runtime / scope / schválení neověřeno')}</span>`;
     }else if(bound && plan.status==='APPROVED' && plan.environment!=='production'
       && ['echo','write_artifact','run_validation'].includes(request.adapter)){
       action=`<button data-change-action="execute" data-request-id="${escapeHtml(plan.request_id)}">Execute (legacy)</button>`;

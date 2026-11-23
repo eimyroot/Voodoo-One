@@ -37,8 +37,10 @@ const requestId = 'cr_g8_test_001';
 const executionId = 'exec_g8_test_001';
 let runtimeReady = false, approved = true, confirmed = false, verdict = 'VERIFIED', forceNetworkFailure = false;
 let requests = [], postCalls = [], confirmCalls = 0, generatedKeys = 0;
+const serverNow = '2026-11-23T15:00:00.000+00:00';
 const request = {
   id: requestId, status: 'APPROVED', environment: 'staging', adapter: 'github-read-ref',
+  approval_count: 1, first_approved_at: '2026-11-23T14:59:00.000+00:00',
   payload: {repository: 'eimyroot/Voodoo-One', ref: 'refs/heads/main'},
 };
 const legacy = {
@@ -77,6 +79,7 @@ async function fetchStub(url, options = {}) {
   else if (pathname === '/approvals?pending_only=true') body = [];
   else if (pathname === '/operations/status') body = {
     configured: runtimeReady, read_terminal_configured: runtimeReady,
+    approval_validity_seconds: 600, server_time_utc: serverNow,
     write_routes_exposed: false, provider_write_effects_exposed: false,
   };
   else if (pathname === '/change-requests/' + requestId) {
@@ -123,6 +126,21 @@ async function test() {
 
   const button = new Element('canonical-button');
   button.dataset = {changeAction: 'canonical-read', requestId};
+  // The exact bug: a persisted APPROVED row is not valid after the
+  // policy's 600-second grant window. Neither Plans nor the click path
+  // may offer or dispatch a Canonical READ for an expired approval.
+  request.first_approved_at = '2026-11-23T14:45:00.000+00:00';
+  await run('loadPlans()');
+  assert.match(el('plans-table').innerHTML, /SCHVÁLENÍ VYPRŠELO/);
+  assert.doesNotMatch(el('plans-table').innerHTML, /data-change-action="canonical-read"/);
+  confirmed = true;
+  await el('plans-table').listeners.click({target: button});
+  assert.equal(postCalls.length, 0, 'expired approval cannot issue a provider READ');
+  assert.equal(generatedKeys, 0, 'expired approval cannot mint an idempotency key');
+  assert.match(el('canonical-read-feedback').textContent, /SCHVÁLENÍ VYPRŠELO/);
+  assert.equal(button.disabled, true);
+  request.first_approved_at = '2026-11-23T14:59:00.000+00:00';
+  await run('loadPlans()');
   confirmed = false;
   await el('plans-table').listeners.click({target: button});
   assert.equal(postCalls.length, 0, 'operator cancellation must never execute');

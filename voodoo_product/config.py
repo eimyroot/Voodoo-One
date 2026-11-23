@@ -39,6 +39,52 @@ def _valid_trusted_host(host: str) -> bool:
 
 
 @dataclass(frozen=True, slots=True)
+class CasebookReadBinding:
+    """An explicitly scoped, local-only read attachment; never a grant."""
+
+    source_root: Path
+    data_root: Path
+    workspace_id: str
+    session_id: str
+    project: str
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.source_root, Path)
+            or not isinstance(self.data_root, Path)
+            or not self.source_root.is_absolute()
+            or not self.data_root.is_absolute()
+            or not re.fullmatch(r"[A-Za-z0-9_-]{5,128}", self.session_id)
+            or not re.fullmatch(r"[A-Za-z0-9_-]{5,128}", self.workspace_id)
+            or not isinstance(self.project, str)
+            or not 1 <= len(self.project) <= 120
+        ):
+            raise ValueError("CASEBOOK read binding must specify exact source/data/scope")
+
+
+def _casebook_read_binding_from_env() -> CasebookReadBinding | None:
+    keys = {
+        "source_root": "VOODOO_CASEBOOK_READ_SOURCE_ROOT",
+        "data_root": "VOODOO_CASEBOOK_READ_DATA_ROOT",
+        "workspace_id": "VOODOO_CASEBOOK_READ_WORKSPACE_ID",
+        "session_id": "VOODOO_CASEBOOK_READ_SESSION_ID",
+        "project": "VOODOO_CASEBOOK_READ_PROJECT",
+    }
+    values = {field: os.environ.get(key, "").strip() for field, key in keys.items()}
+    if not any(values.values()):
+        return None
+    if not all(values.values()):
+        raise ValueError("CASEBOOK read configuration must contain all five exact fields")
+    return CasebookReadBinding(
+        source_root=Path(values["source_root"]),
+        data_root=Path(values["data_root"]),
+        workspace_id=values["workspace_id"],
+        session_id=values["session_id"],
+        project=values["project"],
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class ProductConfig:
     environment: str
     database_path: Path
@@ -67,6 +113,7 @@ class ProductConfig:
     approval_policy_compatibility_enabled: bool = False
     project_control_map_snapshot_path: Path | None = None
     project_control_map_snapshot_sha256: str = ""
+    casebook_read_binding: CasebookReadBinding | None = None
 
     def __post_init__(self) -> None:
         if self.environment not in {"local", "development", "staging", "test", "production"}:
@@ -123,6 +170,11 @@ class ProductConfig:
                 raise ValueError("project control map snapshot requires pinned SHA-256")
         elif self.project_control_map_snapshot_sha256:
             raise ValueError("project control map SHA-256 requires a snapshot path")
+        if self.casebook_read_binding is not None:
+            if not isinstance(self.casebook_read_binding, CasebookReadBinding):
+                raise ValueError("CASEBOOK read binding must be typed")
+            if self.environment != "local" or self.production_effects_enabled:
+                raise ValueError("CASEBOOK read attachment is local-only with effects disabled")
         if self.production_effects_enabled and self.environment != "production":
             raise ValueError("production effects require VOODOO_ENV=production")
         for origin in self.cors_origins:
@@ -194,6 +246,7 @@ class ProductConfig:
             execution_lease_seconds=int(os.getenv("VOODOO_EXECUTION_LEASE_SECONDS", "180")),
             log_level=os.getenv("VOODOO_LOG_LEVEL", "INFO").strip().upper(),
             production_effects_enabled=_bool_env("VOODOO_ALLOW_PRODUCTION_EFFECTS", False),
+            casebook_read_binding=_casebook_read_binding_from_env(),
             project_control_map_snapshot_path=(
                 Path(os.environ["VOODOO_PROJECT_CONTROL_MAP_SNAPSHOT_PATH"]).expanduser()
                 if os.getenv("VOODOO_PROJECT_CONTROL_MAP_SNAPSHOT_PATH", "").strip()

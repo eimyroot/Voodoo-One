@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, status
@@ -80,6 +81,10 @@ class CanonicalOperationApiStatus(BaseModel):
     )
     configured: bool
     read_terminal_configured: bool
+    # Explicit policy-derived metadata, never an execution authorization.
+    # When absent the operator UI must disable the Canonical READ action.
+    approval_validity_seconds: int | None = None
+    server_time_utc: str
     write_routes_exposed: Literal[False] = False
     provider_write_effects_exposed: Literal[False] = False
 
@@ -230,9 +235,22 @@ def create_canonical_operation_router(
     def operation_status(
         _: Principal = Depends(require_permission("read")),
     ) -> CanonicalOperationApiStatus:
+        validity = None
+        if runtime is not None:
+            # Resolve the SAME immutable approval policy the authoritative
+            # snapshot creator enforces; never guess or relax its TTL in UI.
+            # Partial/fake runtimes have no policy binding: fail closed.
+            try:
+                creator = runtime.pipeline.snapshot_creator
+                revision = creator.policy_authority.resolve(creator.policy_version)
+                validity = revision.approval_validity_seconds
+            except (AttributeError, LookupError, ValueError):
+                validity = None
         return CanonicalOperationApiStatus(
             configured=runtime is not None,
             read_terminal_configured=runtime is not None and runtime.read_terminal is not None,
+            approval_validity_seconds=validity,
+            server_time_utc=datetime.now(UTC).isoformat(timespec="milliseconds"),
         )
 
     @router.get(

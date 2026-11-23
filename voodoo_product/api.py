@@ -12,6 +12,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from .casebook_task_gateway import (
+    CasebookTaskAccessDenied,
+    CasebookTaskGateway,
+    CasebookTaskUnavailable,
+)
 from .config import ProductConfig
 from .http_security import SecurityHeadersMiddleware
 from .identity import (
@@ -319,6 +324,31 @@ def create_product_router(
                 getattr(request.app.state, "voodoo_canonical_operation_runtime", None) is not None
             )
         )
+
+    @router.get("/casebook/tasks/{session_id}")
+    def casebook_task_detail(
+        session_id: str,
+        request: Request,
+        principal: Principal = Depends(require_permission("evidence.read")),
+    ) -> JSONResponse:
+        # The source remains disabled unless a separately governed, pinned,
+        # workspace-scoped reader was attached to this ProductComposition.
+        gateway = getattr(request.app.state, "voodoo_casebook_task_gateway", None)
+        if not isinstance(gateway, CasebookTaskGateway):
+            raise HTTPException(
+                status_code=503, detail="CASEBOOK task view is not configured"
+            )
+        try:
+            projection = gateway.read(principal=principal, session_id=session_id)
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail="CASEBOOK task not found") from exc
+        except CasebookTaskAccessDenied as exc:
+            raise HTTPException(status_code=403, detail="CASEBOOK task access denied") from exc
+        except CasebookTaskUnavailable as exc:
+            raise HTTPException(
+                status_code=503, detail="CASEBOOK evidence is unavailable or unverified"
+            ) from exc
+        return JSONResponse(content=projection, headers={"Cache-Control": "no-store"})
 
     @router.get("/project-control-map")
     def project_control_map(
