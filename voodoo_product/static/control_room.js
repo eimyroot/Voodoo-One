@@ -64,6 +64,7 @@ async function loadCasebookTask(sessionId){
     $('casebook-task-goal').textContent=data.goal;
     const facts=[
       ['Stav',data.display_state],
+      ['Poslední zápis',data.timeline.at(-1)?.summary||'Žádný zápis'],
       ['Workspace',data.workspace_id],
       ['CASER handoff',data.handoff],
       ['Schválení',data.native_approval],
@@ -223,7 +224,12 @@ async function controlRoom(){return api('/control-room')}
 function renderTable(target,rows,columns){$(target).innerHTML=rows.length?rows.map(row=>`<tr>${columns.map(column=>`<td>${column.status?status(row[column.key]):escapeHtml(row[column.key]??'—')}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${columns.length}" class="muted">Žádná data.</td></tr>`}
 function renderArchitectureFlow(flow){const nodes=flow.nodes.map((node,index)=>`<div class="architecture-node">${status(node.status)}<strong>${escapeHtml(node.label)}</strong><span>${escapeHtml(node.source)}</span>${node.note?`<small>${escapeHtml(node.note)}</small>`:''}</div>${index<flow.nodes.length-1?'<span class="graph-link">→</span>':''}`).join('');return `<article class="panel architecture-flow"><div class="panel-heading"><div><h2>${escapeHtml(flow.label)}</h2><p>${escapeHtml(flow.id)}</p></div>${status(flow.status)}</div><div class="architecture-path">${nodes}</div></article>`}
 async function loadOverview(){const data=await controlRoom();const overview=data.overview;$('environment-badge').textContent=overview.environment.toUpperCase();$('health-badge').textContent=overview.trust_state;$('health-badge').className=`status ${overview.trust_state}`;const kpis=[['Trust state',overview.trust_state],['Active runs',data.runs.active_count],['Pending approvals',data.plans.pending_approvals],['Evidence integrity',overview.receipt_integrity.valid&&overview.audit_integrity.valid?'PASS':'FAIL']];$('overview-kpis').innerHTML=kpis.map(([label,value])=>`<div class="kpi"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('');$('risk-overview').innerHTML=['R0','R1','R2','R3','R4'].map(risk=>`<p><strong>${risk}</strong> · ${escapeHtml(overview.risk[risk]||0)}</p>`).join('');$('integrity-overview').innerHTML=`<p>Receipts: ${status(overview.receipt_integrity.valid?'PASS':'FAIL')}</p><p>Audit: ${status(overview.audit_integrity.valid?'PASS':'FAIL')}</p><p>Emergency stop: ${status(overview.emergency_stop?'ACTIVE':'INACTIVE')}</p>`;$('orchestration-graph').innerHTML=data.architecture.flows.map(renderArchitectureFlow).join('')}
-async function loadRuns(){const data=await controlRoom();$('runs-kpis').innerHTML=[['Queue',data.runs.queue_depth],['Active',data.runs.active_count],['Succeeded',data.runs.completed_count],['Failed',data.runs.failed_count]].map(([label,value])=>`<div class="kpi"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('');$('runs-table').innerHTML=data.runs.recent.length?data.runs.recent.map(run=>`<tr><td>${status(run.status)}</td><td><strong>${escapeHtml(run.id)}</strong><br><span class="muted">${escapeHtml(run.title)}</span></td><td>${escapeHtml(run.title)}</td><td>${escapeHtml(run.risk)}</td><td>${escapeHtml(run.environment)}</td><td>${escapeHtml(run.adapter)}</td><td>${escapeHtml(run.receipt_id??'—')}</td><td><button class="secondary compact-button" type="button" data-passport-execution-id="${escapeHtml(run.id)}">Passport</button></td></tr>`).join(''):'<tr><td colspan="8" class="muted">Žádné běhy.</td></tr>'}
+async function loadRuns(){
+  $('runs-kpis').textContent='';
+  $('runs-table').textContent='Data běhů nejsou ověřena.';
+  const data=await controlRoom();
+  $('runs-kpis').hidden=[data.runs.queue_depth,data.runs.active_count,data.runs.completed_count,data.runs.failed_count].every(count=>count===0);
+  $('runs-kpis').innerHTML=[['Queue',data.runs.queue_depth],['Active',data.runs.active_count],['Succeeded',data.runs.completed_count],['Failed',data.runs.failed_count]].map(([label,value])=>`<div class="kpi"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('');$('runs-table').innerHTML=data.runs.recent.length?data.runs.recent.map(run=>`<tr><td>${status(run.status)}</td><td><strong>${escapeHtml(run.id)}</strong><br><span class="muted">${escapeHtml(run.title)}</span></td><td>${escapeHtml(run.request_id||'—')}</td><td>${escapeHtml(run.risk)}</td><td>${escapeHtml(run.environment)}</td><td>${escapeHtml(run.adapter)}</td><td>${escapeHtml(run.receipt_id??'—')}</td><td><button class="secondary compact-button" type="button" data-passport-execution-id="${escapeHtml(run.id)}">Passport</button></td></tr>`).join(''):'<tr><td colspan="8" class="muted">Žádné běhy.</td></tr>'}
 function passportFact(label,value,stateValue='OBSERVED'){return `<div class="fact"><span>${escapeHtml(label)}</span>${status(stateValue)}<strong>${escapeHtml(value??'—')}</strong></div>`}
 function passportGroup(title,entries){return `<section class="passport-group"><h3>${escapeHtml(title)}</h3><div class="fact-grid">${entries.map(entry=>passportFact(entry[0],entry[1],entry[2]??'OBSERVED')).join('')}</div></section>`}
 function passportTimelineEvent(label,timestamp,reference,stateValue='OBSERVED'){return `<article class="timeline-item"><div class="timeline-marker">${status(stateValue)}</div><div class="timeline-body"><header><strong>${escapeHtml(label)}</strong><span class="mono muted">${escapeHtml(reference||'NO_REFERENCE')}</span></header><time>${escapeHtml(timestamp||'TIME_NOT_AVAILABLE')}</time></div></article>`}
@@ -253,21 +259,50 @@ async function loadPlans(){
           ?approval.label:'READ DISABLED · runtime / scope / schválení neověřeno')}</span>`;
     }else if(bound && plan.status==='APPROVED' && plan.environment!=='production'
       && ['echo','write_artifact','run_validation'].includes(request.adapter)){
-      action=`<button data-change-action="execute" data-request-id="${escapeHtml(plan.request_id)}">Execute (legacy)</button>`;
+      action=`<button data-change-action="execute" data-request-id="${escapeHtml(plan.request_id)}">Spustit schválenou operaci</button>`;
     }else if(bound){action='<span class="muted">—</span>'}
     return `<tr><td>${escapeHtml(plan.risk)}</td><td><strong>${escapeHtml(plan.title)}</strong><br><span class="mono muted">${escapeHtml(plan.request_id)}</span><br><small>${escapeHtml(request?.adapter||'UNKNOWN')}</small></td><td>${status(plan.status)}</td><td>${escapeHtml(plan.approval_count)} / ${escapeHtml(plan.approval_required)}</td><td>${escapeHtml(plan.environment)}</td><td class="actions">${action}</td></tr>`;
   }).join(''):'<tr><td colspan="6" class="muted">Žádné plány.</td></tr>';
   await loadApprovals();
 }
 async function loadRegistry(){const data=await controlRoom();$('registry-summary').innerHTML=[fact('Fail-closed default',String(data.capability_registry.fail_closed_default),data.capability_registry.fail_closed_default?'ENFORCED':'FAIL'),fact('Production effects',data.capability_registry.production_effects_enabled?'ENABLED':'DISABLED',data.capability_registry.production_effects_enabled?'ENABLED':'DISABLED')].join('');$('registry-cards').innerHTML=data.capability_registry.items.map(item=>`<article class="panel"><header class="panel-heading"><strong>${escapeHtml(item.id)}</strong>${status(item.runtime_status)}</header><p>${escapeHtml(item.surface)} · ${escapeHtml(item.effect)}</p><p class="muted">Verification: ${escapeHtml(item.verification)}</p></article>`).join('')}
-async function loadTimeline(){const data=await controlRoom();$('timeline-list').innerHTML=data.evidence_timeline.length?data.evidence_timeline.map(item=>{const canonical=item.source==='OPERATION_PASSPORT';const drilldown=canonical&&item.execution_id?`<button class="secondary compact-button" type="button" data-evidence-passport-execution-id="${escapeHtml(item.execution_id)}">Passport</button>`:'';return `<article class="receipt-card"><header><strong>${escapeHtml(item.kind)} · ${escapeHtml(item.title)}</strong>${status(item.status)}</header><p>${escapeHtml(item.detail)}</p><p class="muted">${escapeHtml(item.source||'UNKNOWN_SOURCE')} · ${escapeHtml(item.timestamp)}</p>${drilldown}</article>`}).join(''):'<article class="panel muted">Žádná evidence.</article>'}
+async function loadTimeline(){const data=await controlRoom();const filter=$('timeline-filter').value;
+  const items=data.evidence_timeline.filter(item=>filter==='all'||(filter==='access')===(item.title==='session.issue'));
+  $('timeline-list').innerHTML=items.length?items.map(item=>{const canonical=item.source==='OPERATION_PASSPORT';const drilldown=canonical&&item.execution_id?`<button class="secondary compact-button" type="button" data-evidence-passport-execution-id="${escapeHtml(item.execution_id)}">Passport</button>`:'';return `<article class="receipt-card"><header><strong>${escapeHtml(item.kind)} · ${escapeHtml(item.title==='session.issue'?'Vydání přístupové relace':item.title)}</strong>${status(item.status)}</header><p>${escapeHtml(item.detail)}</p><p class="muted">${escapeHtml(item.source||'UNKNOWN_SOURCE')} · ${escapeHtml(item.timestamp && Number.isFinite(Date.parse(item.timestamp)) ? new Date(item.timestamp).toLocaleString('cs-CZ') : 'Čas neuveden')}</p>${drilldown}</article>`}).join(''):'<article class="panel muted">Žádná evidence.</article>'}
+$('timeline-filter').addEventListener('change',()=>loadView('evidence'));
 $('timeline-list').addEventListener('click',async event=>{if(!(event.target instanceof Element))return;const button=event.target.closest('button[data-evidence-passport-execution-id]');if(!button)return;await loadView('runs');await loadOperationPassport(button.dataset.evidencePassportExecutionId)})
-async function loadPolicy(){const data=await controlRoom();$('policy-gates').innerHTML=data.policy_gates.map(gate=>fact(gate.name,gate.source,gate.status)).join('')}
-async function loadVerifier(){const data=await controlRoom();$('verifier-rule').textContent=data.verifier_center.separation_rule;$('verifier-list').innerHTML=data.verifier_center.recent_checks.length?data.verifier_center.recent_checks.map(check=>{const canonical=check.source==='VERIFICATION_RESULT_V1';const reference=canonical?check.result_digest:(check.receipt_id||check.execution_id);const provenance=canonical?`Strength ${escapeHtml(check.verification_strength||'UNKNOWN')} · checked ${escapeHtml(check.checked_at||'TIME_NOT_AVAILABLE')}`:'No durable independent VerificationResult/v1 is bound to this receipt.';return `<article class="receipt-card"><header><strong>${escapeHtml(canonical?'VerificationResult/v1':'Legacy receipt')} · ${escapeHtml(reference)}</strong>${status(check.verification_status)}</header><p>Execution ${escapeHtml(check.execution_id)} · ${escapeHtml(check.execution_status)}</p><p class="muted">${provenance}</p></article>`}).join(''):'<article class="panel muted">Independent verification zatím nemá runtime výsledek.</article>'}
-async function loadRuntimeHealth(){const data=await controlRoom();$('health-summary').innerHTML=data.runtime_health.map(item=>fact(item.name,item.detail,item.status)).join('');$('health-json').textContent=JSON.stringify(data.runtime_health,null,2)}
-async function loadLearning(){const data=await controlRoom();$('learning-signals').innerHTML=data.learning_intelligence.signals.map(item=>fact(item.name,item.value,item.status)).join('');$('learning-router').textContent=data.learning_intelligence.scoring_router}
+for (const view of ['authority','lifecycle','lineage']) {
+  $('view-'+view).addEventListener('click',async event=>{
+    if (!(event.target instanceof Element)) return;
+    const button=event.target.closest('button');
+    if (button?.hasAttribute('data-board-policy')) await loadView('policy');
+    if (button?.dataset.boardPassport) {
+      await loadView('runs');
+      await loadOperationPassport(button.dataset.boardPassport);
+    }
+  });
+}
+async function loadPolicy(){const data=await controlRoom();$('policy-gates').innerHTML=Object.entries({truth_invariant:'Pravidla vyhodnocení',runtime:'Provozní omezení',evidence:'Integrita záznamů'}).map(([source,label])=>'<section><h2>'+label+'</h2>'+data.policy_gates.filter(gate=>gate.source===source).map(gate=>fact(gate.name,gate.source,gate.status)).join('')+'</section>').join('')}
+async function loadVerifier(){ $('verifier-list').textContent='Výsledky ověření dosud nebyly načteny.';const data=await controlRoom();$('verifier-rule').textContent=data.verifier_center.separation_rule;$('verifier-list').innerHTML=data.verifier_center.recent_checks.length?data.verifier_center.recent_checks.map(check=>{const canonical=check.source==='VERIFICATION_RESULT_V1';const reference=canonical?check.result_digest:(check.receipt_id||check.execution_id);const provenance=canonical?`Strength ${escapeHtml(check.verification_strength||'UNKNOWN')} · checked ${escapeHtml(check.checked_at||'TIME_NOT_AVAILABLE')}`:'No durable independent VerificationResult/v1 is bound to this receipt.';return `<article class="receipt-card"><header><strong>${escapeHtml(canonical?'VerificationResult/v1':'Legacy receipt')} · ${escapeHtml(reference)}</strong>${status(check.verification_status)}</header><p>Execution ${escapeHtml(check.execution_id)} · ${escapeHtml(check.execution_status)}</p><p class="muted">${provenance}</p></article>`}).join(''):'<article class="panel muted">Independent verification zatím nemá runtime výsledek.</article>'}
+function showStopState(active, environment) {
+  $('activate-stop').disabled = active !== false;
+  $('clear-stop').disabled = active !== true;
+  $('activate-stop').hidden = active === true;
+  $('clear-stop').hidden = active === false;
+  const label = active === true ? 'Aktivní' : active === false ? 'Vypnuto' : 'Stav neověřen';
+  $('stop-state').textContent = environment ? label + ' · ' + environment : label;
+}
+async function loadRuntimeHealth() {
+  showStopState(null);
+  const data = await controlRoom();
+  $('health-summary').innerHTML = data.runtime_health.map(item => fact(item.name, item.detail, item.status)).join('');
+  $('health-json').textContent = JSON.stringify(data.runtime_health, null, 2);
+  showStopState(data.overview?.emergency_stop, data.overview?.environment);
+}
+async function loadLearning(){const data=await controlRoom();$('learning-signals').innerHTML=data.learning_intelligence.signals.map(item=>fact(item.name === 'Execution success rate' ? 'Úspěšnost dokončených běhů (n = '+String(data.learning_intelligence.completed_sample ?? 'neuvedeno')+')' : item.name,item.value,item.status)).join('');$('learning-router').textContent=data.learning_intelligence.scoring_router}
 async function loadProjectMap(){
   const banner=$('projectmap-status');
+  $('projectmap-details').hidden=true;
   banner.textContent='Načítám SHA-256 ověřený snapshot. Nejedná se o živé Git údaje.';
   $('projectmap-projects').textContent='';
   $('projectmap-relations').textContent='';
@@ -304,18 +339,31 @@ async function loadProjectMap(){
         <p><strong>Porovnání:</strong> ${status(p.head_comparison)} · <strong>Working tree:</strong> ${escapeHtml(p.worktree)}</p>
       </article>`;
     }).join('');
+    $('projectmap-details').hidden=false;
     $('projectmap-relations').innerHTML=data.relationships.map(r=>
       `<li><strong>${escapeHtml(r.from)}</strong> → <strong>${escapeHtml(r.to)}</strong>
       <span class="muted">${escapeHtml(r.kind)} · ${escapeHtml(r.status)}</span></li>`).join('');
     $('projectmap-gaps').innerHTML=data.known_gaps.map(g=>`<li>${escapeHtml(g)}</li>`).join('');
   }catch(error){
-    banner.textContent='UNAVAILABLE / UNVERIFIED — mapový snapshot není nakonfigurován, je neplatný nebo se nepodařilo načtení. Žádné údaje nebyly považovány za aktuální.';
+    banner.textContent=error.message==='project control map snapshot not configured'?'UNAVAILABLE / UNVERIFIED — chybí konfigurace ověřeného snímku.':error.statusCode===403?'Pro tuto mapu chybí oprávnění.':'UNAVAILABLE / UNVERIFIED — mapový snapshot není nakonfigurován, je neplatný nebo se nepodařilo načtení. Žádné údaje nebyly považovány za aktuální.';
     $('projectmap-projects').textContent='';
     $('projectmap-relations').textContent='';
     $('projectmap-gaps').textContent='';
   }
 }
-async function loadGovernance(){const data=await controlRoom();$('governance-grid').innerHTML=Object.entries(data.governance).map(([key,value])=>fact(key.replaceAll('_',' '),Array.isArray(value)?value.join(', ')||'NONE':String(value),typeof value==='boolean'?(value?'ENABLED':'DISABLED'):'OBSERVED')).join('')}
+async function loadGovernance(){
+  $('governance-time').textContent='Načítám konfiguraci prostředí.';
+  $('governance-grid').textContent='';
+  const data=await controlRoom();
+  const priority=['environment','production_effects_enabled'];
+  const keys=[...new Set([...priority.filter(key=>key in data.governance),...Object.keys(data.governance)])];
+  $('governance-grid').innerHTML=keys.map(key=>{
+    const value=data.governance[key];
+    const display=Array.isArray(value)?value.join(', ')||'Žádné':String(value);
+    return '<div class="fact"><span>'+escapeHtml(key.replaceAll('_',' '))+'</span><strong>'+escapeHtml(display)+'</strong></div>';
+  }).join('');
+  $('governance-time').textContent='Načteno '+new Date().toLocaleTimeString('cs-CZ');
+}
 async function loadCommand(){const data=await api('/command-center');$('environment-badge').textContent=data.environment.toUpperCase();$('health-badge').textContent=data.trust_state;$('health-badge').className=`status ${data.trust_state}`;const kpis=[['Trust state',data.trust_state],['Active executions',data.executions.RUNNING||0],['Pending approvals',data.pending_approvals],['Production effects',data.production_effects_enabled?'ENABLED':'DISABLED']];$('command-kpis').innerHTML=kpis.map(x=>`<div class="kpi"><span>${escapeHtml(x[0])}</span><strong>${escapeHtml(x[1])}</strong></div>`).join('');$('risk-overview').innerHTML=['R0','R1','R2','R3','R4'].map(r=>`<p><strong>${r}</strong> · ${escapeHtml(data.risk[r]||0)}</p>`).join('');$('integrity-overview').innerHTML=`<p>Receipts: ${status(data.receipt_integrity.valid?'PASS':'FAIL')}</p><p>Audit: ${status(data.audit_integrity.valid?'PASS':'FAIL')}</p><p>Emergency stop: ${status(data.emergency_stop?'ACTIVE':'INACTIVE')}</p>`;const evidenceState=data.receipt_integrity.valid&&data.audit_integrity.valid?'PASS':'FAIL';const policyFacts=[fact('Environment',String(data.environment||'UNKNOWN').toUpperCase(),String(data.environment||'UNKNOWN').toUpperCase()),fact('Production effects',data.production_effects_enabled?'ENABLED':'DISABLED',data.production_effects_enabled?'ENABLED':'DISABLED'),fact('Emergency stop',data.emergency_stop?'ACTIVE':'INACTIVE',data.emergency_stop?'ACTIVE':'INACTIVE'),fact('Evidence integrity',evidenceState,evidenceState),fact('Approval policy metadata','NOT EXPOSED','UNKNOWN'),fact('Execution-plane isolation','NOT EXPOSED','UNKNOWN')];$('policy-overview').innerHTML=policyFacts.join('');$('policy-summary-status').textContent=data.trust_state;$('policy-summary-status').className=`status ${data.trust_state}`}
 $('new-change-button').addEventListener('click',()=>$('change-form-panel').classList.remove('hidden'))
 $('cancel-change-button').addEventListener('click',()=>$('change-form-panel').classList.add('hidden'))
@@ -365,5 +413,5 @@ $('plans-table').addEventListener('click',async event=>{
 })
 async function loadApprovals(){const rows=await api('/approvals?pending_only=true');$('approvals-list').innerHTML=rows.length?rows.map(r=>{const approved=Number(r.approved_count||0);const required=Number(r.required_count||0);const remaining=Math.max(required-approved,0);return `<article class="approval-card"><header><div><strong>${escapeHtml(r.title)}</strong><div class="mono muted">${escapeHtml(r.request_id)}</div></div>${status(r.risk)}</header><div class="approval-progress"><div><span>Approved</span><strong>${escapeHtml(approved)} / ${escapeHtml(required)}</strong></div><div><span>Remaining</span><strong>${escapeHtml(remaining)}</strong></div><div><span>Environment</span><strong>${escapeHtml(String(r.environment||'UNKNOWN').toUpperCase())}</strong></div></div><p class="muted">The API exposes the effective threshold for this request. Policy version and requester identity are not yet exposed.</p><div class="actions"><button data-decision="APPROVED" data-request-id="${escapeHtml(r.request_id)}">Approve once</button><button class="danger" data-decision="DENIED" data-request-id="${escapeHtml(r.request_id)}">Deny</button></div></article>`}).join(''):'<article class="panel">Žádná čekající schválení.</article>'}
 $('approvals-list').addEventListener('click',async event=>{if(!(event.target instanceof Element))return;const button=event.target.closest('button[data-decision]');if(!button)return;const reason=prompt('Důvod rozhodnutí:');if(!reason)return;try{await api(`/change-requests/${button.dataset.requestId}/decision`,{method:'POST',body:JSON.stringify({decision:button.dataset.decision,reason})});toast(`Rozhodnutí ${button.dataset.decision}`);await loadPlans()}catch(err){toast(err.message,true)}})
-async function setStop(active){const reason=$('stop-reason').value.trim();if(reason.length<3){toast('Vyplň důvod',true);return}try{await api('/system/emergency-stop',{method:'POST',body:JSON.stringify({active,reason})});toast(active?'Emergency stop aktivován':'Emergency stop zrušen');await loadHealth()}catch(err){toast(err.message,true)}}
+async function setStop(active){const reason=$('stop-reason').value.trim();if(reason.length<3){toast('Vyplň důvod',true);return}try{await api('/system/emergency-stop',{method:'POST',body:JSON.stringify({active,reason})});toast(active?'Emergency stop aktivován':'Emergency stop zrušen');await loadRuntimeHealth()}catch(err){toast(err.message,true)}}
 $('activate-stop').addEventListener('click',()=>setStop(true));$('clear-stop').addEventListener('click',()=>setStop(false));showApp();

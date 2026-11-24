@@ -116,13 +116,13 @@ async function test() {
   assert.match(el('plans-table').innerHTML, /READ DISABLED/);
   assert.doesNotMatch(
     el('plans-table').innerHTML.split('cr_g8_test_001')[1].split('</tr>')[0],
-    /Execute \(legacy\)/,
+    /Spustit schválenou operaci/,
   );
   runtimeReady = true;
   await run('loadPlans()');
   assert.match(el('plans-table').innerHTML, /data-change-action="canonical-read"/);
-  assert.match(el('plans-table').innerHTML, /Execute \(legacy\)/);
-  assert.doesNotMatch(el('plans-table').innerHTML.split('cr_github_write_001')[1].split('</tr>')[0], /Execute \(legacy\)|Canonical READ/);
+  assert.match(el('plans-table').innerHTML, /Spustit schválenou operaci/);
+  assert.doesNotMatch(el('plans-table').innerHTML.split('cr_github_write_001')[1].split('</tr>')[0], /Spustit schválenou operaci|Canonical READ/);
 
   const button = new Element('canonical-button');
   button.dataset = {changeAction: 'canonical-read', requestId};

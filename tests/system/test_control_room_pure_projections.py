@@ -40,6 +40,7 @@ def test_run_summary_preserves_visible_limit_and_counts_all_supplied_rows() -> N
         "adapter": "echo",
         "updated_at": "2026-10-10T00:00:00+00:00",
         "receipt_id": "receipt-1",
+        "request_id": None,
     }
     assert summary["recent"][1]["receipt_id"] is None
     assert summary["queue_depth"] == 3
@@ -63,6 +64,7 @@ def test_learning_projection_preserves_unknown_and_observed_states() -> None:
         None, change_requests=[], executions=[]
     )
     assert empty == {
+        "completed_sample": 0,
         "signals": [
             {"name": "Execution success rate", "value": "UNKNOWN", "status": "UNKNOWN"},
             {"name": "Failure pressure", "value": "0", "status": "UNKNOWN"},
@@ -85,8 +87,9 @@ def test_learning_projection_preserves_unknown_and_observed_states() -> None:
         ],
     )
     assert observed == {
+        "completed_sample": 2,
         "signals": [
-            {"name": "Execution success rate", "value": "33%", "status": "OBSERVED"},
+            {"name": "Execution success rate", "value": "50%", "status": "OBSERVED"},
             {"name": "Failure pressure", "value": "1", "status": "OBSERVED"},
             {"name": "Approval queue", "value": "2", "status": "OBSERVED"},
         ],
