@@ -235,6 +235,64 @@ async function test() {
   await g;
   assert.match(el('operation-passport-content').innerHTML,/neodpovídá vybranému běhu/);
   console.log('PASS: latest passport selection wins, identity/schema mismatch rejected, stale error ignored, close cancels display');
+  let evidenceRequests=[];
+  const normalFetch=ctx.fetch;
+  ctx.fetch=(url,options={})=>{
+    if(String(url)==='/api/v1/control-room'){
+      assert.equal(options.cache,'no-store');
+      return new Promise((resolve,reject)=>evidenceRequests.push({resolve,reject}));
+    }
+    return normalFetch(url,options);
+  };
+  const reply=(index,data)=>evidenceRequests[index].resolve({ok:true,status:200,json:async()=>data});
+  const verificationProjection=(id,verification_status,extra={})=>({verifier_center:{
+    separation_rule:'ExecutionReceipt != VerificationResult',recent_checks:[{
+      source:'VERIFICATION_RESULT_V1',execution_id:id,execution_status:'COMPLETED',
+      result_digest:'digest-'+id,verification_strength:'INDEPENDENT_PROVIDER_READBACK',
+      checked_at:'2026-11-25T20:00:00Z',verification_status,...extra
+    }]
+  }});
+  const oldVerifier=run('loadVerifier()'), currentVerifier=run('loadVerifier()');
+  reply(1,verificationProjection('exec_new','NOT_VERIFIED'));
+  await currentVerifier;
+  reply(0,verificationProjection('exec_old','VERIFIED'));
+  await oldVerifier;
+  assert.match(el('verifier-list').innerHTML,/exec_new/);
+  assert.match(el('verifier-list').innerHTML,/NOT_VERIFIED/);
+  assert.doesNotMatch(el('verifier-list').innerHTML,/exec_old/);
+  assert.match(el('verifier-list').innerHTML,/data-verifier-passport-execution-id="exec_new"/);
+  const staleVerifier=run('loadVerifier()'), failedVerifier=run('loadVerifier()');
+  evidenceRequests[3].reject(Error('offline'));
+  await assert.rejects(failedVerifier,/offline/);
+  reply(2,verificationProjection('exec_old','VERIFIED'));
+  await staleVerifier;
+  assert.match(el('verifier-list').textContent,/UNKNOWN/);
+  const incomplete=run('loadVerifier()');
+  reply(4,verificationProjection('exec_missing','VERIFIED',{result_digest:null}));
+  await incomplete;
+  assert.match(el('verifier-list').innerHTML,/class="status UNKNOWN"/);
+  assert.doesNotMatch(el('verifier-list').innerHTML,/class="status VERIFIED"/);
+  const legacyVerifier=run('loadVerifier()');
+  reply(5,verificationProjection('exec_legacy','VERIFIED',{source:'LEGACY_RECEIPT'}));
+  await legacyVerifier;
+  assert.match(el('verifier-list').innerHTML,/Legacy receipt/);
+  assert.match(el('verifier-list').innerHTML,/class="status UNKNOWN"/);
+  assert.doesNotMatch(el('verifier-list').innerHTML,/data-verifier-passport-execution-id/);
+  el('timeline-filter').value='all';
+  const oldTimeline=run('loadTimeline()'), newTimeline=run('loadTimeline()');
+  const timeline=title=>({evidence_timeline:[{title,kind:'OBSERVATION',status:'OBSERVED',source:'AUDIT',detail:'synthetic'}]});
+  reply(7,timeline('new-evidence'));
+  await newTimeline;
+  reply(6,timeline('old-evidence'));
+  await oldTimeline;
+  assert.match(el('timeline-list').innerHTML,/new-evidence/);
+  assert.doesNotMatch(el('timeline-list').innerHTML,/old-evidence/);
+  const failedTimeline=run('loadTimeline()');
+  evidenceRequests[8].reject(Error('offline'));
+  await assert.rejects(failedTimeline,/offline/);
+  assert.match(el('timeline-list').textContent,/UNKNOWN/);
+  ctx.fetch=normalFetch;
+  console.log('PASS: verifier/timeline latest refresh wins, outage is UNKNOWN, incomplete/legacy evidence cannot prove verification, exact Passport link');
   console.log('OPERATOR_CANONICAL_READ_UX_PASS RUNTIME_FAIL_CLOSED_APPROVAL_DENIAL_CANCEL_AMBIGUITY_SAME_IDEMPOTENCY_VERIFIER_PASSPORT');
 }
 test().catch(error => {console.error(error); process.exitCode = 1;});

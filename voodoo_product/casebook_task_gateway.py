@@ -81,6 +81,7 @@ class CasebookTaskGateway:
     composition: ProductComposition
     scopes: tuple[TaskScope, ...]
     reader: Callable[[str], dict[str, Any]]
+    passport_correlation_enabled: bool = False
     _bound: Mapping[str, TaskScope] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -107,6 +108,15 @@ class CasebookTaskGateway:
                 raise CasebookTaskAccessDenied(
                     "local CASEBOOK runtime requires a source-pinned evidence reader"
                 )
+        if type(self.passport_correlation_enabled) is not bool:
+            raise ValueError("CASEBOOK correlation opt-in must be explicit")
+        if self.passport_correlation_enabled:
+            from .casebook_pinned_task_reader import PinnedCasebookTaskReader
+
+            if not isinstance(self.reader, PinnedCasebookTaskReader):
+                raise CasebookTaskAccessDenied("correlation requires pinned CASEBOOK source")
+            if self.composition.service.config.database_backend != "sqlite":
+                raise CasebookTaskAccessDenied("correlation requires native SQLite")
         if not isinstance(self.scopes, tuple) or not self.scopes:
             raise ValueError("at least one explicit task scope is required")
         if any(not isinstance(item, TaskScope) for item in self.scopes):
@@ -126,34 +136,74 @@ class CasebookTaskGateway:
             MappingProxyType({scope.session_id: scope for scope in self.scopes}),
         )
 
-    def read(self, *, principal: Principal, session_id: str) -> dict[str, Any]:
+    @staticmethod
+    def _require_principal(principal: Principal) -> None:
         if not isinstance(principal, Principal):
             raise CasebookTaskAccessDenied("native authenticated principal required")
         if not principal.can("evidence.read"):
             raise CasebookTaskAccessDenied("evidence.read required")
+
+    def list_bound(self, *, principal: Principal) -> dict[str, Any]:
+        """Discover only explicitly bound sessions with current native authority.
+
+        A binding is not proof that its journal is readable or that a run exists.
+        Never query the private reader, filesystem or journal for discovery.
+        """
+        self._require_principal(principal)
+        items: list[dict[str, str]] = []
+        for scope in sorted(self._bound.values(), key=lambda item: item.session_id):
+            try:
+                allowed = self._scope_authorized(principal, scope)
+            except (ValueError, LookupError, RuntimeError, sqlite3.Error) as exc:
+                raise CasebookTaskUnavailable("CASEBOOK scope authority unavailable") from exc
+            if not allowed:
+                continue
+            items.append({
+                "session_id": scope.session_id,
+                "workspace_id": scope.workspace_id,
+                "environment": scope.environment,
+                "project": scope.project,
+            })
+            if len(items) == 51:
+                break
+        return {
+            "schema": "voodoo-casebook/bound-task-index/v1",
+            "items": items[:50],
+            "has_more": len(items) > 50,
+            "journal_integrity": "NOT_CHECKED_BY_INDEX",
+        }
+
+    def _scope_authorized(
+        self, principal: Principal, scope: TaskScope, *, permission: str = "evidence.read",
+    ) -> bool:
+        query = PermissionQuery(
+            actor_id=principal.user_id,
+            workspace_id=scope.workspace_id,
+            environment=scope.environment,
+            permission=permission,
+        )
+        decision = self.composition.database_permission_authority.decide(query)
+        return (
+            decision.granted is True
+            and decision.actor_id == principal.user_id
+            and decision.workspace_id == scope.workspace_id
+            and decision.environment == scope.environment
+            and decision.permission == permission
+        )
+
+    def read(self, *, principal: Principal, session_id: str) -> dict[str, Any]:
+        self._require_principal(principal)
         if not isinstance(session_id, str) or SESSION.fullmatch(session_id) is None:
             raise LookupError("CASEBOOK task not found")
         # Do not reveal whether an unknown session lives in another workspace.
         scope = self._bound.get(session_id)
         if scope is None:
             raise LookupError("CASEBOOK task not found")
-        query = PermissionQuery(
-            actor_id=principal.user_id,
-            workspace_id=scope.workspace_id,
-            environment=scope.environment,
-            permission="evidence.read",
-        )
         try:
-            decision = self.composition.database_permission_authority.decide(query)
-        except (ValueError, LookupError, RuntimeError) as exc:
+            allowed = self._scope_authorized(principal, scope)
+        except (ValueError, LookupError, RuntimeError, sqlite3.Error) as exc:
             raise CasebookTaskAccessDenied("current workspace permission unavailable") from exc
-        if (
-            decision.granted is not True
-            or decision.actor_id != principal.user_id
-            or decision.workspace_id != scope.workspace_id
-            or decision.environment != scope.environment
-            or decision.permission != "evidence.read"
-        ):
+        if not allowed:
             raise CasebookTaskAccessDenied("current workspace evidence.read denied")
 
         try:
@@ -162,7 +212,81 @@ class CasebookTaskGateway:
             # The reader may contain private paths, SQLite errors or user text.
             # Do not reflect any such messages into HTTP errors.
             raise CasebookTaskUnavailable("CASEBOOK evidence is unavailable") from exc
-        return _validate_projection(projection, scope)
+        result = _validate_projection(projection, scope)
+        result["passport_correlation_available"] = self.passport_correlation_enabled
+        return result
+
+    def correlate_passport(
+        self, *, principal: Principal, session_id: str, execution_id: str,
+    ) -> dict[str, Any]:
+        """Explicitly attached, read-only correlation; never an execution route."""
+        from .casebook_handoff_verifier import (
+            CasebookHandoffRejected,
+            correlate_casebook_passport,
+            verify_casebook_handoff,
+        )
+        from .casebook_pinned_task_reader import PinnedCasebookTaskReader
+
+        self._require_principal(principal)
+        if not principal.can("read"):
+            raise CasebookTaskAccessDenied("read required")
+        if not self.passport_correlation_enabled or not isinstance(
+            self.reader, PinnedCasebookTaskReader,
+        ):
+            raise CasebookTaskUnavailable("CASEBOOK correlation is not configured")
+        if not isinstance(execution_id, str) or not re.fullmatch(
+            r"[A-Za-z0-9._:-]{5,80}", execution_id,
+        ):
+            raise LookupError("CASEBOOK correlation not found")
+        task = self.read(principal=principal, session_id=session_id)
+        scope = self._bound[session_id]
+        try:
+            if not self._scope_authorized(principal, scope, permission="read"):
+                raise CasebookTaskAccessDenied("current workspace read denied")
+            service = self.composition.operation_passport_service
+            if service.db is not self.composition.service.db:
+                raise CasebookTaskUnavailable("native Passport owner mismatch")
+            passport = service.get(execution_id)
+            if (
+                passport.operation.get("workspace_id") != scope.workspace_id
+                or passport.operation.get("environment") != scope.environment
+            ):
+                raise LookupError("CASEBOOK correlation not found")
+            handoff = verify_casebook_handoff(
+                vone_database=self.composition.service.config.database_path,
+                casebook_database=self.reader.data_root / "casebook.sqlite3",
+                execution_id=execution_id,
+                workspace_id=scope.workspace_id,
+                session_id=session_id,
+            )
+            correlation = correlate_casebook_passport(handoff=handoff, passport=passport)
+            # A structural event must also belong to the independently validated,
+            # exact session/project view. Never infer a binding from prose.
+            if not any(
+                event["event_hash"] == handoff.casebook_event_hash
+                and event["type"] == "CONTEXT"
+                for event in task["timeline"]
+            ):
+                raise CasebookTaskUnavailable("CASEBOOK event not in selected session")
+            # Refresh native authorization and pinned journal integrity before disclosure.
+            refreshed = self.read(principal=principal, session_id=session_id)
+            if (
+                not self._scope_authorized(principal, scope, permission="read")
+                or not any(
+                    event["event_hash"] == handoff.casebook_event_hash
+                    and event["type"] == "CONTEXT"
+                    for event in refreshed["timeline"]
+                )
+            ):
+                raise CasebookTaskAccessDenied("CASEBOOK scope changed")
+            return {
+                **correlation,
+                "passport": passport.to_dict(),
+            }
+        except (CasebookTaskAccessDenied, CasebookTaskUnavailable, LookupError):
+            raise
+        except (CasebookHandoffRejected, ValueError, OSError, sqlite3.Error, RuntimeError) as exc:
+            raise CasebookTaskUnavailable("CASEBOOK correlation unavailable") from exc
 
 
 def _validate_projection(value: object, scope: TaskScope) -> dict[str, Any]:
@@ -274,6 +398,7 @@ def attach_casebook_task_gateway(
     *, app: FastAPI, composition: ProductComposition,
     reader: Callable[[str], dict[str, Any]],
     scopes: Iterable[TaskScope],
+    passport_correlation_enabled: bool = False,
 ) -> CasebookTaskGateway:
     """Explicit local-only attachment; never called by the default installer.
 
@@ -295,6 +420,7 @@ def attach_casebook_task_gateway(
         composition=composition,
         scopes=tuple(scopes),
         reader=reader,
+        passport_correlation_enabled=passport_correlation_enabled,
     )
     app.state.voodoo_casebook_task_gateway = gateway
     return gateway

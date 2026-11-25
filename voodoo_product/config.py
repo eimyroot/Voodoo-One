@@ -47,6 +47,7 @@ class CasebookReadBinding:
     workspace_id: str
     session_id: str
     project: str
+    passport_correlation_enabled: bool = False
 
     def __post_init__(self) -> None:
         if (
@@ -58,6 +59,7 @@ class CasebookReadBinding:
             or not re.fullmatch(r"[A-Za-z0-9_-]{5,128}", self.workspace_id)
             or not isinstance(self.project, str)
             or not 1 <= len(self.project) <= 120
+            or type(self.passport_correlation_enabled) is not bool
         ):
             raise ValueError("CASEBOOK read binding must specify exact source/data/scope")
 
@@ -71,7 +73,10 @@ def _casebook_read_binding_from_env() -> CasebookReadBinding | None:
         "project": "VOODOO_CASEBOOK_READ_PROJECT",
     }
     values = {field: os.environ.get(key, "").strip() for field, key in keys.items()}
-    if not any(values.values()):
+    correlation = os.getenv("VOODOO_CASEBOOK_READ_PASSPORT_CORRELATION", "0").strip()
+    if correlation not in {"0", "1"}:
+        raise ValueError("CASEBOOK Passport correlation requires explicit 0 or 1")
+    if not any(values.values()) and correlation == "0":
         return None
     if not all(values.values()):
         raise ValueError("CASEBOOK read configuration must contain all five exact fields")
@@ -81,6 +86,7 @@ def _casebook_read_binding_from_env() -> CasebookReadBinding | None:
         workspace_id=values["workspace_id"],
         session_id=values["session_id"],
         project=values["project"],
+        passport_correlation_enabled=correlation == "1",
     )
 
 

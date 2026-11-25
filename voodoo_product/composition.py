@@ -239,6 +239,7 @@ def install_composed_product_platform(
                 environment="local",
                 project=binding.project,
             )],
+            passport_correlation_enabled=binding.passport_correlation_enabled,
         )
 
     app.include_router(

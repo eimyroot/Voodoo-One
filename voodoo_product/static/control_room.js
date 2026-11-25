@@ -9,7 +9,7 @@ async function showApp(){if(!(await authReady())){showAuth();return}$('auth-scre
 function showAuth(){$('app-shell').classList.add('hidden');$('auth-screen').classList.remove('hidden');api('/bootstrap/status').then(x=>$('bootstrap-panel').open=x.required).catch(()=>{})}
 $('login-form').addEventListener('submit',async e=>{e.preventDefault();try{const result=await api('/auth/login',{method:'POST',body:JSON.stringify({username:$('login-username').value,password:$('login-password').value})});state.token=result.token;sessionStorage.setItem('voodoo_token',result.token);$('auth-error').textContent='';await showApp()}catch(err){$('auth-error').textContent=err.message}})
 $('bootstrap-form').addEventListener('submit',async e=>{e.preventDefault();try{const result=await api('/auth/bootstrap',{method:'POST',body:JSON.stringify({username:$('bootstrap-username').value,password:$('bootstrap-password').value,bootstrap_token:$('bootstrap-token').value})});state.token=result.token;sessionStorage.setItem('voodoo_token',result.token);await showApp()}catch(err){$('auth-error').textContent=err.message}})
-$('logout-button').addEventListener('click',async()=>{let warning='';try{await api('/auth/logout', { method: 'POST' })}catch(err){console.warn('Server-side logout failed; clearing local session',err);warning='Serverové odvolání relace se nepodařilo potvrdit. Lokální token byl odstraněn.'}finally{state.token='';sessionStorage.removeItem('voodoo_token');clearCasebookTask();$('casebook-session-id').value='';showAuth();$('auth-error').textContent=warning}})
+$('logout-button').addEventListener('click',async()=>{let warning='';try{await api('/auth/logout', { method: 'POST' })}catch(err){console.warn('Server-side logout failed; clearing local session',err);warning='Serverové odvolání relace se nepodařilo potvrdit. Lokální token byl odstraněn.'}finally{state.token='';sessionStorage.removeItem('voodoo_token');clearCasebookTask();clearCasebookIndex();$('casebook-session-id').value='';showAuth();$('auth-error').textContent=warning}})
 document.querySelectorAll('.nav').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.view)))
 document.querySelectorAll('[data-refresh]').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.refresh)))
 function revealActiveNavOnCompactViewport(name){
@@ -23,17 +23,67 @@ function revealActiveNavOnCompactViewport(name){
 async function loadView(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){toast(err.message,true)}}
 const casebookSessionIdPattern=/^[A-Za-z0-9_-]{5,128}$/;
 let casebookRequestGeneration=0;
+let casebookCorrelationGeneration=0;
+let casebookCorrelationSession=null;
 function clearCasebookTask(){
   casebookRequestGeneration+=1;
+  ++casebookCorrelationGeneration;
+  casebookCorrelationSession=null;
+  $('casebook-correlation-panel').classList.add('hidden');
+  $('casebook-correlation-id').value='';
+  $('casebook-correlation-feedback').textContent='';
   $('casebook-task-detail').classList.add('hidden');
   $('casebook-task-state').replaceChildren();
   $('casebook-task-timeline').replaceChildren();
   $('casebook-task-goal').textContent='';
+  $('casebook-task-meta').textContent='';
+  $('casebook-task-next').textContent='';
+  $('casebook-task-signals').replaceChildren();
 }
-function loadCasebookTasks(){
+let casebookIndexGeneration=0;
+function clearCasebookIndex(){
+  ++casebookIndexGeneration;
+  $('casebook-bound-session').replaceChildren();
+  $('casebook-bound-open').disabled=true;
+  $('casebook-index-feedback').textContent='';
+}
+async function loadCasebookTasks(){
   clearCasebookTask();
-  $('casebook-task-feedback').textContent='Zadejte existující CASEBOOK session ID. Stav čtení dosud není ověřen.';
+  clearCasebookIndex();
+  const generation=casebookIndexGeneration;
+  const bearer=state.token;
+  $('casebook-task-feedback').textContent='Vyberte autorizovanou relaci nebo zadejte její přesné ID.';
+  $('casebook-index-feedback').textContent='Ověřuji dostupné vazby…';
+  try{
+    const data=await api('/casebook/tasks',{cache:'no-store'});
+    if(generation!==casebookIndexGeneration||bearer!==state.token)return;
+    if(data?.schema!=='voodoo-casebook/bound-task-index/v1'
+      ||data.journal_integrity!=='NOT_CHECKED_BY_INDEX'
+      ||typeof data.has_more!=='boolean'||!Array.isArray(data.items)||data.items.length>50
+      ||!data.items.every(item=>typeof item.session_id==='string'
+        &&casebookSessionIdPattern.test(item.session_id)
+        &&typeof item.project==='string'&&typeof item.workspace_id==='string'
+        &&['local','development','staging'].includes(item.environment)))
+      throw new Error('Neúplný seznam autorizovaných vazeb.');
+    $('casebook-bound-session').innerHTML=data.items.map(item=>
+      '<option value="'+escapeHtml(item.session_id)+'">'+escapeHtml(item.project+' · '+item.session_id)+'</option>'
+    ).join('');
+    $('casebook-bound-open').disabled=!data.items.length;
+    $('casebook-index-feedback').textContent=data.items.length
+      ?'Dostupné vazby: '+data.items.length+(data.has_more?'+':'')+'. Integrita se ověří až při otevření relace.'
+      :'Žádné aktuálně dostupné autorizované vazby.';
+  }catch(err){
+    if(generation!==casebookIndexGeneration||bearer!==state.token)return;
+    $('casebook-index-feedback').textContent='UNKNOWN · seznam vazeb není dostupný. Lze zkusit přesné ID relace.';
+  }
 }
+$('casebook-bound-form').addEventListener('submit',event=>{
+  event.preventDefault();
+  const id=$('casebook-bound-session').value;
+  if(!casebookSessionIdPattern.test(id))return;
+  $('casebook-session-id').value=id;
+  loadCasebookTask(id);
+});
 async function loadCasebookTask(sessionId){
   clearCasebookTask();
   const generation=casebookRequestGeneration;
@@ -45,7 +95,7 @@ async function loadCasebookTask(sessionId){
   }
   feedback.textContent='Ověřuji oprávnění a integritu CASEBOOK journalu…';
   try{
-    const data=await api('/casebook/tasks/'+encodeURIComponent(sessionId));
+    const data=await api('/casebook/tasks/'+encodeURIComponent(sessionId),{cache:'no-store'});
     if(generation!==casebookRequestGeneration || bearer!==state.token)return;
     if(data?.schema!=='voodoo-casebook/task-view/v1'
       ||data.session_id!==sessionId
@@ -62,16 +112,33 @@ async function loadCasebookTask(sessionId){
     }
     feedback.textContent='Čtení: pouze lokální integrita journalu ověřena. Externí schválení, Runner a Verifier nejsou doloženy.';
     $('casebook-task-goal').textContent=data.goal;
+    $('casebook-task-meta').textContent=[data.project,data.workspace_id,data.session_id].filter(Boolean).join(' · ');
+    const nextSteps=new Map([
+      ['PREPARE_AND_AUTHORIZE_CASER_HANDOFF','Připravit předání CASERu a získat příslušné schválení.'],
+      ['AUTHORIZE_AND_EXECUTE_THROUGH_VOODOO_ONE','Ověřit oprávnění a provést operaci řízeným postupem VOODOO One.'],
+      ['VERIFY_NATIVE_APPROVAL_EXECUTION_AND_INDEPENDENT_RESULT','Doložit nativní schválení, skutečný běh a nezávislé ověření.'],
+    ]);
+    $('casebook-task-next').textContent=nextSteps.get(data.next_action)||'Další krok není doložen.';
+    const groups=[
+      ['Rozhodnutí',['DECISION']],
+      ['Otevřené překážky a rizika',['BLOCKER','ISSUE','RISK'],'OPEN'],
+      ['Otevřené úkoly',['TODO'],'OPEN'],
+      ['Poznatky',['LEARNING']],
+    ];
+    $('casebook-task-signals').innerHTML=groups.map(([label,types,claim])=>{
+      const events=data.timeline.filter(event=>types.includes(event.type)&&(!claim||event.status_claim===claim));
+      const latest=events.at(-1);
+      return '<div class="casebook-signal"><span>'+escapeHtml(label)+'</span><strong>'+events.length+'</strong><p>'+
+        escapeHtml(latest?.summary||'Žádný odpovídající zápis')+'</p></div>';
+    }).join('');
     const facts=[
       ['Stav',data.display_state],
-      ['Poslední zápis',data.timeline.at(-1)?.summary||'Žádný zápis'],
-      ['Workspace',data.workspace_id],
+      ['Počet událostí',data.timeline.length],
       ['CASER handoff',data.handoff],
       ['Schválení',data.native_approval],
       ['Runner',data.isolated_runner_execution],
       ['Verifier',data.independent_verifier],
       ['Výsledek',data.result],
-      ['Další krok',data.next_action],
     ];
     $('casebook-task-state').innerHTML=facts.map(([label,value])=>
       '<div class="fact"><span>'+escapeHtml(label)+'</span><strong>'+escapeHtml(value)+'</strong></div>'
@@ -83,8 +150,12 @@ async function loadCasebookTask(sessionId){
         escapeHtml(event.seq)+'</span></header><time>'+
         escapeHtml(event.timestamp)+'</time><p class="muted">'+
         escapeHtml(event.source_claim)+' · '+escapeHtml(event.status_claim)+
-      '</p></div></article>'
+      '</p><details class="casebook-event-source"><summary>Původ zápisu</summary><p>ID: '+escapeHtml(event.event_id||'UNKNOWN')+'</p><p class="mono">Hash: '+escapeHtml(event.event_hash||'UNKNOWN')+'</p></details></div></article>'
     ).join('');
+    if(data.passport_correlation_available===true){
+      casebookCorrelationSession=sessionId;
+      $('casebook-correlation-panel').classList.remove('hidden');
+    }
     $('casebook-task-detail').classList.remove('hidden');
   }catch(err){
     if(generation!==casebookRequestGeneration || bearer!==state.token)return;
@@ -95,6 +166,46 @@ async function loadCasebookTask(sessionId){
 $('casebook-task-form').addEventListener('submit',event=>{
   event.preventDefault();
   loadCasebookTask($('casebook-session-id').value.trim());
+});
+
+$('casebook-correlation-id').addEventListener('input',()=>{
+  ++casebookCorrelationGeneration;
+  $('casebook-correlation-feedback').textContent='';
+});
+$('casebook-correlation-form').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const sessionId=casebookCorrelationSession;
+  const executionId=$('casebook-correlation-id').value.trim();
+  const generation=++casebookCorrelationGeneration;
+  const bearer=state.token;
+  const feedback=$('casebook-correlation-feedback');
+  if(!sessionId||!canonicalReadRequestPattern.test(executionId)){
+    feedback.textContent='Zadejte přesné ID existujícího běhu.';
+    return;
+  }
+  feedback.textContent='Ověřuji vazbu relace a Passportu…';
+  try{
+    const data=await api('/casebook/tasks/'+encodeURIComponent(sessionId)+'/passport/'+encodeURIComponent(executionId),{cache:'no-store'});
+    if(generation!==casebookCorrelationGeneration||bearer!==state.token||casebookCorrelationSession!==sessionId)return;
+    if(data?.schema!=='voodoo-one/casebook-passport-correlation/v1'
+      ||data.verdict!=='LOCAL_STRUCTURAL_PASSPORT_MATCH'
+      ||data.session_id!==sessionId||data.execution_id!==executionId
+      ||data.execution_authorized_by_this_view!==false
+      ||data.execution_verified_by_this_view!==false||data.resume_authorized!==false
+      ||data.passport?.schema!=='vone.operation-passport/v1'
+      ||data.passport.execution_id!==executionId
+      ||data.passport.operation?.request_id!==data.request_id)
+      throw new Error('Vazba Passportu není doložena.');
+    feedback.textContent='Lokální strukturální shoda. Obnovení běhu nebylo autorizováno.';
+    const loading=loadView('runs');
+    ++passportSelectionEpoch;
+    $('operation-passport-panel').classList.remove('hidden');
+    renderOperationPassport(data.passport);
+    await loading;
+  }catch(err){
+    if(generation!==casebookCorrelationGeneration||bearer!==state.token)return;
+    feedback.textContent='UNKNOWN · vazba není ověřena. Nebyla spuštěna žádná operace.';
+  }
 });
 
 function canonicalReadReady(runtime){
@@ -373,11 +484,13 @@ async function loadPlans(){
   }
 }
 async function loadRegistry(){const data=await controlRoom();$('registry-summary').innerHTML=[fact('Fail-closed default',String(data.capability_registry.fail_closed_default),data.capability_registry.fail_closed_default?'ENFORCED':'FAIL'),fact('Production effects',data.capability_registry.production_effects_enabled?'ENABLED':'DISABLED',data.capability_registry.production_effects_enabled?'ENABLED':'DISABLED')].join('');$('registry-cards').innerHTML=data.capability_registry.items.map(item=>`<article class="panel"><header class="panel-heading"><strong>${escapeHtml(item.id)}</strong>${status(item.runtime_status)}</header><p>${escapeHtml(item.surface)} · ${escapeHtml(item.effect)}</p><p class="muted">Verification: ${escapeHtml(item.verification)}</p></article>`).join('')}
-async function loadTimeline(){const data=await controlRoom();const filter=$('timeline-filter').value;
+let timelineRefreshEpoch=0;
+async function loadTimeline(){const epoch=++timelineRefreshEpoch;$('timeline-list').textContent='Načítám aktuální důkazy…';try{const data=await api('/control-room',{cache:'no-store'});if(epoch!==timelineRefreshEpoch)return;if(!Array.isArray(data?.evidence_timeline))throw new Error('Neúplná projekce důkazů.');const filter=$('timeline-filter').value;
   const items=data.evidence_timeline.filter(item=>filter==='all'||(filter==='access')===(item.title==='session.issue'));
-  $('timeline-list').innerHTML=items.length?items.map(item=>{const canonical=item.source==='OPERATION_PASSPORT';const drilldown=canonical&&item.execution_id?`<button class="secondary compact-button" type="button" data-evidence-passport-execution-id="${escapeHtml(item.execution_id)}">Passport</button>`:'';return `<article class="receipt-card"><header><strong>${escapeHtml(item.kind)} · ${escapeHtml(item.title==='session.issue'?'Vydání přístupové relace':item.title)}</strong>${status(item.status)}</header><p>${escapeHtml(item.detail)}</p><p class="muted">${escapeHtml(item.source||'UNKNOWN_SOURCE')} · ${escapeHtml(item.timestamp && Number.isFinite(Date.parse(item.timestamp)) ? new Date(item.timestamp).toLocaleString('cs-CZ') : 'Čas neuveden')}</p>${drilldown}</article>`}).join(''):'<article class="panel muted">Žádná evidence.</article>'}
+  $('timeline-list').innerHTML=items.length?items.map(item=>{const canonical=item.source==='OPERATION_PASSPORT';const drilldown=canonical&&item.execution_id?`<button class="secondary compact-button" type="button" data-evidence-passport-execution-id="${escapeHtml(item.execution_id)}">Passport</button>`:'';return `<article class="receipt-card"><header><strong>${escapeHtml(item.kind)} · ${escapeHtml(item.title==='session.issue'?'Vydání přístupové relace':item.title)}</strong>${status(item.status)}</header><p>${escapeHtml(item.detail)}</p><p class="muted">${escapeHtml(item.source||'UNKNOWN_SOURCE')} · ${escapeHtml(item.timestamp && Number.isFinite(Date.parse(item.timestamp)) ? new Date(item.timestamp).toLocaleString('cs-CZ') : 'Čas neuveden')}</p>${drilldown}</article>`}).join(''):'<article class="panel muted">Žádná evidence.</article>'}catch(err){if(epoch!==timelineRefreshEpoch)return;$('timeline-list').textContent='UNKNOWN · aktuální důkazy nejsou dostupné.';throw err}}
 $('timeline-filter').addEventListener('change',()=>loadView('evidence'));
-$('timeline-list').addEventListener('click',async event=>{if(!(event.target instanceof Element))return;const button=event.target.closest('button[data-evidence-passport-execution-id]');if(!button)return;await loadView('runs');await loadOperationPassport(button.dataset.evidencePassportExecutionId)})
+async function openEvidencePassport(executionId){if(!canonicalReadRequestPattern.test(executionId||''))return;const loading=loadView('runs');await loadOperationPassport(executionId);await loading}
+$('timeline-list').addEventListener('click',async event=>{if(!(event.target instanceof Element))return;const button=event.target.closest('button[data-evidence-passport-execution-id]');if(!button)return;await openEvidencePassport(button.dataset.evidencePassportExecutionId)})
 for (const view of ['authority','lifecycle','lineage']) {
   $('view-'+view).addEventListener('click',async event=>{
     if (!(event.target instanceof Element)) return;
@@ -390,7 +503,43 @@ for (const view of ['authority','lifecycle','lineage']) {
   });
 }
 async function loadPolicy(){const data=await controlRoom();$('policy-gates').innerHTML=Object.entries({truth_invariant:'Pravidla vyhodnocení',runtime:'Provozní omezení',evidence:'Integrita záznamů'}).map(([source,label])=>'<section><h2>'+label+'</h2>'+data.policy_gates.filter(gate=>gate.source===source).map(gate=>fact(gate.name,gate.source,gate.status)).join('')+'</section>').join('')}
-async function loadVerifier(){ $('verifier-list').textContent='Výsledky ověření dosud nebyly načteny.';const data=await controlRoom();$('verifier-rule').textContent=data.verifier_center.separation_rule;$('verifier-list').innerHTML=data.verifier_center.recent_checks.length?data.verifier_center.recent_checks.map(check=>{const canonical=check.source==='VERIFICATION_RESULT_V1';const reference=canonical?check.result_digest:(check.receipt_id||check.execution_id);const provenance=canonical?`Strength ${escapeHtml(check.verification_strength||'UNKNOWN')} · checked ${escapeHtml(check.checked_at||'TIME_NOT_AVAILABLE')}`:'No durable independent VerificationResult/v1 is bound to this receipt.';return `<article class="receipt-card"><header><strong>${escapeHtml(canonical?'VerificationResult/v1':'Legacy receipt')} · ${escapeHtml(reference)}</strong>${status(check.verification_status)}</header><p>Execution ${escapeHtml(check.execution_id)} · ${escapeHtml(check.execution_status)}</p><p class="muted">${provenance}</p></article>`}).join(''):'<article class="panel muted">Independent verification zatím nemá runtime výsledek.</article>'}
+let verifierRefreshEpoch=0;
+async function loadVerifier(){
+  const epoch=++verifierRefreshEpoch;
+  $('verifier-list').textContent='Načítám aktuální výsledky ověření…';
+  $('verifier-rule').textContent='ExecutionReceipt != VerificationResult';
+  try{
+    const data=await api('/control-room',{cache:'no-store'});
+    if(epoch!==verifierRefreshEpoch)return;
+    const center=data?.verifier_center;
+    if(!Array.isArray(center?.recent_checks)||center.separation_rule!=='ExecutionReceipt != VerificationResult')
+      throw new Error('Neúplná projekce ověření.');
+    $('verifier-list').innerHTML=center.recent_checks.length?center.recent_checks.map(check=>{
+      const canonical=check.source==='VERIFICATION_RESULT_V1';
+      const legacy=check.source==='LEGACY_RECEIPT';
+      const bound=canonical&&typeof check.execution_id==='string'&&canonicalReadRequestPattern.test(check.execution_id);
+      const reference=canonical?check.result_digest:(check.receipt_id||check.execution_id);
+      const evidencePresent=bound&&typeof check.result_digest==='string'&&!!check.result_digest
+        &&typeof check.verification_strength==='string'&&!!check.verification_strength
+        &&typeof check.checked_at==='string'&&Number.isFinite(Date.parse(check.checked_at));
+      const verdict=evidencePresent?(check.verification_status||'UNKNOWN'):'UNKNOWN';
+      const provenance=canonical?`Strength ${escapeHtml(check.verification_strength||'UNKNOWN')} · checked ${escapeHtml(check.checked_at||'TIME_NOT_AVAILABLE')}`:
+        'No durable independent VerificationResult/v1 is bound to this receipt.';
+      const drilldown=bound?`<button class="secondary compact-button" type="button" data-verifier-passport-execution-id="${escapeHtml(check.execution_id)}">Passport</button>`:'';
+      return `<article class="receipt-card"><header><strong>${escapeHtml(canonical?'VerificationResult/v1':legacy?'Legacy receipt':'UNKNOWN_SOURCE')} · ${escapeHtml(reference||'NOT_AVAILABLE')}</strong>${status(verdict)}</header><p>Execution ${escapeHtml(check.execution_id)} · ${escapeHtml(check.execution_status)}</p><p class="muted">${provenance}</p>${drilldown}</article>`;
+    }).join(''):'<article class="panel muted">Independent verification zatím nemá runtime výsledek.</article>';
+  }catch(err){
+    if(epoch!==verifierRefreshEpoch)return;
+    $('verifier-list').textContent='UNKNOWN · aktuální výsledky ověření nejsou dostupné.';
+    throw err;
+  }
+}
+$('verifier-list').addEventListener('click',async event=>{
+  if(!(event.target instanceof Element))return;
+  const button=event.target.closest('button[data-verifier-passport-execution-id]');
+  if(!button)return;
+  await openEvidencePassport(button.dataset.verifierPassportExecutionId);
+});
 function showStopState(active, environment) {
   $('activate-stop').disabled = active !== false;
   $('clear-stop').disabled = active !== true;

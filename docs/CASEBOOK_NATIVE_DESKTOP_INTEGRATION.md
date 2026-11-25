@@ -28,6 +28,16 @@ následující **konkrétní skutečně schválené** hodnoty, které dodá oper
 | `VOODOO_CASEBOOK_READ_SESSION_ID` | Přesné ID jedné schválené a existující CASEBOOK relace. |
 | `VOODOO_CASEBOOK_READ_PROJECT` | Přesný název projektu z CASEBOOK session, kontrolovaný při čtení. |
 
+Volitelný přepínač `VOODOO_CASEBOOK_READ_PASSPORT_CORRELATION=1` připojuje
+read-only korelaci k téže nativní kompozici. Výchozí hodnota je `0`;
+jiné hodnoty jsou odmítnuty. Zapnutí bez všech pěti přesných vazeb
+selže při startu. Endpoint
+`GET /api/v1/casebook/tasks/{session_id}/passport/{execution_id}`
+kontroluje aktuální oprávnění, lokální CASEBOOK a přesnou návaznost
+kanonického Passportu. Neautorizuje resume ani žádnou exekuci.
+Pro vypnutí samotné korelace použít `0` nebo proměnnou odstranit.
+Tato konfigurace je kandidát, nikoli důkaz aktivace používaného desktopu.
+
 Konfiguraci aplikovat přes již existující bezpečný způsob nastavování
 proměnných prostředí služby, neukládat neveřejné cesty, účty nebo hodnoty do
 repozitáře. Obsahují-li hodnoty citlivé lokální cesty, chraňte i konfiguraci.
@@ -74,7 +84,7 @@ Před schválením feature merge je nutné:
 ## Rollback
 
 V nenasazeném stavu: žádný. Při budoucím povoleném lokálním nasazení
-odstranit pět `VOODOO_CASEBOOK_READ_*` proměnných a restartovat **jen**
+odstranit pět vazeb `VOODOO_CASEBOOK_READ_*` i volitelný přepínač korelace a restartovat **jen**
 konkrétní schválenou V-One službu. Zcela nepřipojený CASEBOOK je
 default; nebyla potřeba žádná schema migrace ani úprava skutečného CASEBOOK
 journalu. Případný source rollback se provede řízeným Git revertem

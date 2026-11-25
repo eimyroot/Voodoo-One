@@ -297,18 +297,27 @@
       <section id="view-casebook" class="view" aria-label="CASEBOOK Task Status">
         <div class="page-head">
           <div>
-            <p class="eyebrow">Session memory / read-only</p>
-            <h1>Deník úkolu · CASEBOOK</h1>
+            <p class="eyebrow">Living Core / operační paměť</p>
+            <h1>Deník úkolů · CASEBOOK</h1>
             <p>Stav uloženého úkolu. Zápis v CASEBOOKu není důkazem skutečného vykonání nebo nezávislého ověření.</p>
           </div>
         </div>
         <article class="panel casebook-finder">
+          <form id="casebook-bound-form" class="inline-controls">
+            <label for="casebook-bound-session">Dostupné relace</label>
+            <select id="casebook-bound-session" aria-describedby="casebook-index-feedback"></select>
+            <button id="casebook-bound-open" type="submit" disabled>Otevřít úkol</button>
+          </form>
+          <p id="casebook-index-feedback" class="muted" role="status" aria-live="polite">Seznam vazeb dosud nenačten.</p>
+          <details>
+            <summary>Otevřít pomocí přesného ID</summary>
           <form id="casebook-task-form" class="inline-controls">
             <label for="casebook-session-id">CASEBOOK session ID</label>
             <input id="casebook-session-id" maxlength="128" autocomplete="off"
                    placeholder="caser-… / ses_…" required />
             <button type="submit">Načíst stav</button>
           </form>
+          </details>
           <p class="muted">Přístup je omezen na konkrétní relace přiřazené k vašemu workspace. Žádný příkaz se nespouští.</p>
         </article>
         <article class="panel" id="casebook-task-feedback" role="status" aria-live="polite">
@@ -316,13 +325,37 @@
         </article>
         <section id="casebook-task-detail" class="hidden" aria-label="CASEBOOK task detail">
           <div class="panel casebook-task-hero">
-            <p class="eyebrow">Recorded journal state</p>
+            <p class="eyebrow">Zaznamenaný záměr</p>
+            <p id="casebook-task-meta" class="casebook-task-meta mono"></p>
             <h2 id="casebook-task-goal"></h2>
-            <div id="casebook-task-state" class="fact-grid"></div>
+            <div class="casebook-resume">
+              <p class="eyebrow">Doporučený další krok · pouze čtení</p>
+              <p id="casebook-task-next"></p>
+            </div>
+            <section id="casebook-correlation-panel" class="casebook-resume hidden">
+              <p class="eyebrow">Vazba na běh · pouze čtení</p>
+              <form id="casebook-correlation-form" class="inline-controls">
+                <label for="casebook-correlation-id">Execution ID</label>
+                <input id="casebook-correlation-id" maxlength="80" autocomplete="off" required />
+                <button type="submit">Ověřit a otevřít Passport</button>
+              </form>
+              <p id="casebook-correlation-feedback" role="status" aria-live="polite"></p>
+            </section>
+            <details class="casebook-attestation">
+              <summary>Stav záznamu a hranice ověření</summary>
+              <div id="casebook-task-state" class="fact-grid"></div>
+            </details>
           </div>
-          <article class="panel">
+          <article class="panel casebook-insights">
             <div class="panel-heading"><div>
-              <h2>Recorded timeline</h2>
+              <h2>Kontext pro pokračování</h2>
+              <p>Počty a poslední odpovídající zápisy v načtené relaci; nejde o ověřený stav práce.</p>
+            </div></div>
+            <div id="casebook-task-signals" class="casebook-signal-grid"></div>
+          </article>
+          <article class="panel casebook-story">
+            <div class="panel-heading"><div>
+              <h2>Příběh úkolu</h2>
               <p>Uložené události. Souhrny a statusy jsou tvrzení zdroje, nikoli potvrzení Verifieru.</p>
             </div></div>
             <div class="timeline" id="casebook-task-timeline"></div>

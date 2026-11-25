@@ -51,7 +51,7 @@ def test_casebook_is_disabled_by_default_in_native_composition(tmp_path: Path):
 
 
 def test_explicit_casebook_env_binding_requires_all_fields(monkeypatch):
-    for key in CASEBOOK_ENV:
+    for key in (*CASEBOOK_ENV, "VOODOO_CASEBOOK_READ_PASSPORT_CORRELATION"):
         monkeypatch.delenv(key, raising=False)
     # Use the public ProductConfig.from_env parser without external secrets.
     import voodoo_product.config as config_mod
@@ -67,6 +67,25 @@ def test_explicit_casebook_env_binding_requires_all_fields(monkeypatch):
     assert result.session_id == SESSION
     assert result.project == PROJECT
     assert result.workspace_id == "wrk_12345678901"
+
+
+def test_passport_correlation_requires_explicit_complete_binding(monkeypatch):
+    import voodoo_product.config as config_mod
+
+    flag = "VOODOO_CASEBOOK_READ_PASSPORT_CORRELATION"
+    for key in CASEBOOK_ENV:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv(flag, "1")
+    with pytest.raises(ValueError, match="all five"):
+        config_mod._casebook_read_binding_from_env()
+    for key, value in CASEBOOK_ENV.items():
+        monkeypatch.setenv(key, value)
+    assert config_mod._casebook_read_binding_from_env().passport_correlation_enabled is True
+    monkeypatch.setenv(flag, "0")
+    assert config_mod._casebook_read_binding_from_env().passport_correlation_enabled is False
+    monkeypatch.setenv(flag, "typo")
+    with pytest.raises(ValueError, match="explicit 0 or 1"):
+        config_mod._casebook_read_binding_from_env()
 
 
 def test_casebook_binding_is_local_only_and_effects_disabled(tmp_path: Path):
@@ -133,8 +152,10 @@ def approved_source(tmp_path: Path):
     return root
 
 
+@pytest.mark.parametrize("correlation_enabled", [False, True])
 def test_actual_native_composition_reads_only_bound_real_sqlite_journal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, approved_source: Path,
+    correlation_enabled: bool,
 ):
     monkeypatch.setattr(source_gate, "EVIDENCE_SHELF", tmp_path)
     workspace_id = _prepared_native_product(tmp_path)
@@ -155,6 +176,7 @@ def test_actual_native_composition_reads_only_bound_real_sqlite_journal(
     binding = CasebookReadBinding(
         source_root=approved_source, data_root=evidence,
         workspace_id=workspace_id, session_id=SESSION, project=PROJECT,
+        passport_correlation_enabled=correlation_enabled,
     )
     app = FastAPI()
     product = install_composed_product_platform(
@@ -178,6 +200,10 @@ def test_actual_native_composition_reads_only_bound_real_sqlite_journal(
         assert response.json()["display_state"] == "RESULT_RECORDED_UNVERIFIED"
         assert response.json()["execution_verified_by_this_view"] is False
         assert response.json()["independent_verifier"] == "NOT_ATTESTED"
+        assert response.json()["passport_correlation_available"] is correlation_enabled
+        assert client.get(
+            uri + "/passport/exec_unknown", headers={"Authorization": "Bearer " + token},
+        ).status_code == (404 if correlation_enabled else 503)
         assert client.get(
             "/api/v1/casebook/tasks/caser-other-project",
             headers={"Authorization": "Bearer " + token},
