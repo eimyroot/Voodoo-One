@@ -355,6 +355,11 @@ def create_product_router(
         # A workspace viewer must not inherit read access to unrelated private repos.
         _: Principal = Depends(require_permission("*")),
     ) -> JSONResponse:
+        if not service.config.project_control_map_snapshot_path or not service.config.project_control_map_snapshot_sha256:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="project control map snapshot not configured",
+            )
         try:
             projection = project_control_map_projection(
                 service.config.project_control_map_snapshot_path,

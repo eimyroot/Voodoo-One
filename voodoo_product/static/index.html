@@ -73,17 +73,17 @@
 
     <aside class="sidebar">
       <div class="sidebar-group-label">LIVING CORE</div>
-      <button data-view="overview" class="nav active">Overview</button>
-      <button data-view="runs" class="nav">Active Delivery</button>
-      <button data-view="registry" class="nav">Control Plane</button>
+      <button data-view="overview" class="nav active">Přehled</button>
+      <button data-view="runs" class="nav">Běhy a fronta</button>
+      <button data-view="registry" class="nav">Registr schopností</button>
       <button class="nav" type="button" disabled aria-disabled="true" title="Roster agentů není v současném API dostupný">Agents · Nedostupné</button>
       <button class="nav" type="button" disabled aria-disabled="true" title="Katalog skills není v současném API dostupný">Skills · Nedostupné</button>
       <button data-view="plans" class="nav" title="Schvalování a případné spuštění oprávněného požadavku">Požadavky a schválení</button>
-      <button data-view="verifier" class="nav">Verification</button>
-      <button data-view="evidence" class="nav">Evidence</button>
-      <button data-view="casebook" class="nav">CASEBOOK Tasks</button>
-      <button data-view="health" class="nav">Monitor</button>
-      <button data-view="governance" class="nav">Settings</button>
+      <button data-view="verifier" class="nav">Ověření výsledků</button>
+      <button data-view="evidence" class="nav">Historie událostí</button>
+      <button data-view="casebook" class="nav">Deník úkolu · CASEBOOK</button>
+      <button data-view="health" class="nav">Stav systému</button>
+      <button data-view="governance" class="nav">Konfigurace prostředí</button>
       <details class="sidebar-more">
         <summary>Další pohledy</summary>
         <button data-view="ecosystem" class="nav">Ecosystem Map</button>
@@ -91,9 +91,9 @@
         <button data-view="authority" class="nav">Authority &amp; Safety</button>
         <button data-view="lineage" class="nav">Evidence Chain</button>
         <button data-view="overlays" class="nav">Project Overlays</button>
-        <button data-view="policy" class="nav">Policy Gates</button>
-        <button data-view="learning" class="nav">Learning Intelligence</button>
-        <button data-view="projectmap" class="nav">Project Control Map</button>
+        <button data-view="policy" class="nav">Pravidla a omezení</button>
+        <button data-view="learning" class="nav">Provozní statistiky</button>
+        <button data-view="projectmap" class="nav">Vazby mezi projekty</button>
       </details>
     </aside>
 
@@ -168,7 +168,7 @@
 
         <div class="lc-dashboard-grid">
           <article class="panel lc-panel lc-delivery">
-            <div class="panel-heading"><div><p class="lc-kicker">Runs · actual projection</p><h2>Active Delivery</h2></div><button type="button" class="secondary" data-refresh="runs">Otevřít běhy</button></div>
+            <div class="panel-heading"><div><p class="lc-kicker">Runs · actual projection</p><h2>Běhy a fronta</h2></div><button type="button" class="secondary" data-refresh="runs">Otevřít běhy</button></div>
             <div id="lc-delivery-content" class="lc-list"><p class="muted">Načítám běhy z Control Roomu…</p></div>
           </article>
           <article class="panel lc-panel lc-approvals">
@@ -176,7 +176,7 @@
             <div id="lc-approvals-content" class="lc-list"><p class="muted">Načítám schvalovací frontu…</p></div>
           </article>
           <article class="panel lc-panel lc-verification">
-            <div class="panel-heading"><div><p class="lc-kicker">Verifier Center</p><h2>Verification</h2></div><button type="button" class="secondary" data-refresh="verifier">Otevřít verifier</button></div>
+            <div class="panel-heading"><div><p class="lc-kicker">Verifier Center</p><h2>Ověření výsledků</h2></div><button type="button" class="secondary" data-refresh="verifier">Otevřít verifier</button></div>
             <div id="lc-verification-content" class="lc-list"><p class="muted">Načítám výsledky ověření…</p></div>
           </article>
           <article class="panel lc-panel lc-evidence-panel">
@@ -203,7 +203,7 @@
         <div class="page-head">
           <div>
             <p class="eyebrow">Execution</p>
-            <h1>Runs</h1>
+            <h1>Běhy a fronta</h1>
             <p>Poslední execution běhy a jejich fronta.</p>
           </div>
           <button data-refresh="runs">Obnovit</button>
@@ -243,11 +243,11 @@
         </div>
         <div id="canonical-read-feedback" class="panel hidden" role="status" aria-live="polite"></div>
         <div class="grid-two responsive-stack">
-          <article class="panel table-panel"><table><thead><tr><th>Risk</th><th>Request</th><th>Status</th><th>Approvals</th><th>Environment</th><th>Akce</th></tr></thead><tbody id="plans-table"></tbody></table></article>
           <article class="panel">
-            <div class="panel-heading"><div><h2>Approval Inbox</h2><p>Čekající rozhodnutí a jejich prahy.</p></div><button data-refresh="plans">Obnovit</button></div>
+            <div class="panel-heading"><div><h2>Čeká na rozhodnutí</h2><p>Čekající rozhodnutí a jejich prahy.</p></div><button data-refresh="plans">Obnovit</button></div>
             <div id="approvals-list" class="cards"></div>
           </article>
+          <article class="panel table-panel"><table><thead><tr><th>Risk</th><th>Request</th><th>Status</th><th>Approvals</th><th>Environment</th><th>Akce</th></tr></thead><tbody id="plans-table"></tbody></table></article>
         </div>
       </section>
 
@@ -255,8 +255,8 @@
         <div class="page-head">
           <div>
             <p class="eyebrow">Capabilities</p>
-            <h1>Capability Registry</h1>
-            <p>Aktivní execution plochy a canonical runtime dostupnost.</p>
+            <h1>Registr schopností</h1>
+            <p>Účinek schopnosti, dostupnost a požadovaný doklad. Oprávnění ke spuštění se posuzuje u konkrétní žádosti.</p>
           </div>
           <button data-refresh="registry">Obnovit</button>
         </div>
@@ -268,12 +268,13 @@
         <div class="page-head">
           <div>
             <p class="eyebrow">Evidence</p>
-            <h1>Evidence Timeline</h1>
+            <h1>Historie událostí</h1>
             <p>Audit, receipts, runs a plány v jedné časové ose.</p>
           </div>
           <button data-refresh="evidence">Obnovit</button>
         </div>
         <div id="evidence-summary" class="kpi-grid compact"></div>
+        <label>Zobrazit události <select id="timeline-filter"><option value="all">Všechny</option><option value="access">Přístupové relace</option><option value="operations">Ostatní provoz</option></select></label>
         <div id="timeline-list" class="timeline"></div>
       </section>
 
@@ -281,7 +282,7 @@
         <div class="page-head">
           <div>
             <p class="eyebrow">Session memory / read-only</p>
-            <h1>CASEBOOK Tasks</h1>
+            <h1>Deník úkolu · CASEBOOK</h1>
             <p>Stav uloženého úkolu. Zápis v CASEBOOKu není důkazem skutečného vykonání nebo nezávislého ověření.</p>
           </div>
         </div>
@@ -317,7 +318,7 @@
         <div class="page-head">
           <div>
             <p class="eyebrow">Policy</p>
-            <h1>Policy Gates</h1>
+            <h1>Pravidla a omezení</h1>
             <p>Fail-closed stav a integritní pravidla vystavená z runtime.</p>
           </div>
           <button data-refresh="policy">Obnovit</button>
@@ -329,7 +330,7 @@
         <div class="page-head">
           <div>
             <p class="eyebrow">Verifier</p>
-            <h1>Verifier Center</h1>
+            <h1>Ověření výsledků</h1>
             <p>Oddělení execution receipt od nezávislého ověření.</p>
           </div>
           <button data-refresh="verifier">Obnovit</button>
@@ -344,20 +345,20 @@
         <div class="page-head">
           <div>
             <p class="eyebrow">Runtime</p>
-            <h1>Runtime Health</h1>
+            <h1>Stav systému</h1>
             <p>API, databáze, canonical runtime a bezpečnostní provozní stav.</p>
           </div>
           <button data-refresh="health">Obnovit</button>
         </div>
         <div id="health-summary" class="fact-grid health-summary"></div>
-        <details class="panel raw-health"><summary>Raw health payload</summary><pre id="health-json"></pre></details>
+        <details class="panel raw-health"><summary>Údaje provozní kontroly</summary><pre id="health-json"></pre></details>
         <article class="panel danger-zone">
-          <h2>Emergency Control</h2>
+          <h2>Nouzové zastavení</h2><p id="stop-state" role="status">Stav se načítá.</p>
           <p>Zastaví nové execution operace a vytvoří auditní událost.</p>
           <div class="inline-controls">
             <input id="stop-reason" placeholder="Povinný důvod" />
-            <button id="activate-stop" class="danger">Aktivovat emergency stop</button>
-            <button id="clear-stop" class="secondary">Zrušit emergency stop</button>
+            <button disabled id="activate-stop" class="danger">Aktivovat emergency stop</button>
+            <button disabled id="clear-stop" class="secondary">Zrušit emergency stop</button>
           </div>
         </article>
       </section>
@@ -366,7 +367,7 @@
         <div class="page-head">
           <div>
             <p class="eyebrow">Learning</p>
-            <h1>Learning Intelligence</h1>
+            <h1>Provozní statistiky</h1>
             <p>Observed signály z provozu a explicitně oddělené neexponované scoring vrstvy.</p>
           </div>
           <button data-refresh="learning">Obnovit</button>
@@ -379,7 +380,7 @@
         <div class="page-head">
           <div>
             <p class="eyebrow">Architecture Atlas / evidence projection</p>
-            <h1>Project Control Map</h1>
+            <h1>Vazby mezi projekty</h1>
             <p>Ověřený snapshot, nikoli živé Git řídicí centrum. Žádná práva ani operace.</p>
           </div>
           <button data-refresh="projectmap" type="button">Obnovit</button>
@@ -388,7 +389,7 @@
           Snapshot nebyl načten. Stav UNKNOWN.
         </article>
         <div class="projectmap-grid" id="projectmap-projects"></div>
-        <div class="grid-two">
+        <div class="grid-two" hidden id="projectmap-details">
           <article class="panel">
             <h2>Vazby mezi projekty</h2>
             <ul class="projectmap-list" id="projectmap-relations"></ul>
@@ -404,12 +405,12 @@
         <div class="page-head">
           <div>
             <p class="eyebrow">Governance</p>
-            <h1>Governance & Settings</h1>
-            <p>Aktuální konfigurační hranice a runtime policy metadata.</p>
+            <h1>Konfigurace prostředí</h1>
+            <p>Nastavení prostředí pouze pro čtení.</p>
           </div>
           <button data-refresh="governance">Obnovit</button>
         </div>
-        <div id="governance-grid" class="fact-grid"></div>
+        <p id="governance-time" role="status"></p><div id="governance-grid" class="fact-grid"></div>
       </section>
     </main>
     <div id="toast" class="toast hidden"></div>

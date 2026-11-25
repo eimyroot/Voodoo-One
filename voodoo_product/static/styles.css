@@ -78,3 +78,9 @@ linear-gradient(135deg,#090b0f,#0e151c 55%,#121922)}
 #casebook-task-timeline .timeline-body strong{font-size:14px;line-height:1.4}
 #casebook-task-timeline .timeline-marker .status{white-space:normal;overflow-wrap:anywhere}
 @media(max-width:860px){.casebook-finder .inline-controls{grid-template-columns:1fr}.casebook-task-hero .fact-grid{grid-template-columns:1fr}}
+
+[hidden] { display: none !important; }
+
+#registry-cards .panel { padding-block: .65rem; }
+#registry-cards .panel p, #timeline-list .receipt-card p { margin-block: .3rem; }
+#policy-gates .fact { margin-block: .4rem; }

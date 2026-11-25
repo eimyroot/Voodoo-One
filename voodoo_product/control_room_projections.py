@@ -33,6 +33,7 @@ def summarize_runs(
             "adapter": item["adapter"],
             "updated_at": execution_presentation_timestamp(item),
             "receipt_id": item.get("receipt_id"),
+            "request_id": item.get("request_id"),
         }
         for item in executions[:limit]
     ]
@@ -104,14 +105,16 @@ def summarize_learning_intelligence(
     total_executions = len(executions)
     succeeded = sum(1 for item in executions if item["status"] == "SUCCEEDED")
     failed = sum(1 for item in executions if item["status"] == "FAILED")
+    completed = succeeded + failed
     return {
+        "completed_sample": completed,
         "signals": [
             {
                 "name": "Execution success rate",
-                "value": f"{round((succeeded / total_executions) * 100)}%"
-                if total_executions
+                "value": f"{round((succeeded / completed) * 100)}%"
+                if completed
                 else "UNKNOWN",
-                "status": "OBSERVED" if total_executions else "UNKNOWN",
+                "status": "OBSERVED" if completed else "UNKNOWN",
             },
             {
                 "name": "Failure pressure",

@@ -20,7 +20,7 @@ const boardStats = items =>
   '<div class="wb-stat"><span>' + boardSafe(label) + '</span><strong>' +
   boardSafe(value) + '</strong><small>' + boardSafe(hint || '') + '</small></div>').join('') + '</div>';
 const boardModelSections = new Set(["VOODOO Workflow","Task lifecycle · referenční model","Rozhodovací hranice","Trust boundaries","Hard stop","Evidence lineage · referenční proces","Shared workflow","Referenční projekty"]);
-const boardLiveSections = new Set(["Skutečné architektonické projekce","Aktuální běhy","Runtime policy gates","Safety kernel","Evidence timeline","Independent verification","Připojené workspaces"]);
+const boardLiveSections = new Set(["Skutečné architektonické projekce","Poslední běhy","Runtime policy gates","Safety kernel","Evidence timeline","Independent verification","Připojené workspaces"]);
 const boardPanel = (title, subtitle, content, extra = '') => {
   const kind = boardModelSections.has(title) ? 'model' : boardLiveSections.has(title) ? 'live' : '';
   const provenance = kind === 'model'
@@ -87,10 +87,10 @@ function loadEcosystemBoard() {
         ['Pending approvals', boardNumber(data.plans?.pending_approvals), 'API projection']]) +
       boardPanel('Legenda', 'Návrhové a runtime hranice',
         '<div class="wb-legend"><p>' + boardBadge('MODEL', 'warn') + ' logické umístění komponent</p><p>' +
-        boardBadge('RUNTIME', 'good') + ' jen ověřené API hodnoty</p><p>' +
+        boardBadge('RUNTIME', 'good') + ' údaje vrácené API</p><p>' +
         boardBadge('UNKNOWN', 'neutral') + ' žádné falešné health indikátory</p></div>') +
       '</aside></div>';
-    return boardHead('VOODOO Ecosystem Map', 'Kdo je kdo a jak spolu vrstvy souvisí.', '/api/v1/control-room · architecture') +
+    return boardHead('VOODOO Ecosystem Map', 'Role vysvětluje referenční mapa. Dostupnost jednotlivých částí READ cesty uvádí API níže.', '/api/v1/control-room · architecture') +
       html + boardNotice('Rook, Relore a další propojení jsou vizuální referenční model. Jejich stav není tímto API potvrzen.');
   });
 }
@@ -111,7 +111,7 @@ function loadLifecycleBoard() {
     const runs = recent.length ? recent.slice(0, 9).map(run =>
       '<article class="wb-item"><div><strong>' + boardSafe(run.title || run.id) +
       '</strong><small>' + boardSafe(run.id) + ' · ' + boardSafe(run.environment) +
-      ' · ' + boardSafe(run.adapter) + '</small></div>' + boardTruth(run.status) + '</article>').join('') :
+      ' · ' + boardSafe(run.adapter) + '</small></div><button type="button" data-board-passport="'+boardSafe(run.id)+'">Doklady běhu</button>' + boardTruth(run.status) + '</article>').join('') :
       boardEmpty('Nebyly vráceny žádné nedávné běhy', 'Toto je skutečný prázdný stav API.');
     return boardHead('VOODOO Task Lifecycle', 'Od cíle po důkaz. Horní pipeline představuje procesní model.', '/api/v1/control-room · runs') +
       boardStats([['Active', boardNumber(data.runs?.active_count), 'live API'],
@@ -122,7 +122,7 @@ function loadLifecycleBoard() {
         '<p class="wb-scroll-hint">← Diagram lze posouvat vodorovně →</p><div class="wb-steps" tabindex="0" role="region" aria-label="Devět kroků referenčního životního cyklu; lze vodorovně posouvat">' + stages.map(([a,b],i)=>boardStep(i+1,a,b)).join('') + '</div>' +
         '<div class="wb-branch"><span>Verification failed → bounded retry</span><span>Policy denied → STOP</span><span>Approval needed → HUMAN</span></div>') +
       '<div class="wb-columns">' +
-      boardPanel('Aktuální běhy', 'Reálné záznamy z ProductService', '<div class="wb-items">'+runs+'</div>') +
+      boardPanel('Poslední běhy', 'Reálné záznamy z ProductService', '<div class="wb-items">'+runs+'</div>') +
       boardPanel('Rozhodovací hranice', 'Žádné automatické udělení authority',
         '<div class="wb-item"><strong>Worker → independent verification</strong>' + boardBadge('REQUIRED', 'info') + '</div>' +
         '<div class="wb-item"><strong>Experiment → production</strong>' + boardBadge('BLOCKED BY DESIGN', 'danger') + '</div>' +
@@ -132,7 +132,7 @@ function loadLifecycleBoard() {
 }
 function loadAuthorityBoard() {
   return boardLoad('authority', data => {
-    const gates = boardArray(data.policy_gates);
+    const gates = boardArray(data.policy_gates).filter(gate => gate.status === 'BLOCKED' || gate.status === 'FAIL' || ['Emergency stop','Production effects'].includes(gate.name));
     const cards = gates.length ? gates.map(gate =>
       '<article class="wb-gate"><div><strong>' + boardSafe(gate.name) +
       '</strong><small>' + boardSafe(gate.source) + '</small></div>' +
@@ -149,7 +149,7 @@ function loadAuthorityBoard() {
         boardTile('Independent Verifier','Výstup ≠ potvrzený důkaz','✓') +
         boardTile('Human Operator','Schválení významných a produkčních účinků','♙') + '</div>') +
       boardPanel('Runtime policy gates', 'Živé stavy ze serverové projekce',
-        '<div class="wb-gates">'+cards+'</div>') + '</div>' +
+        '<div class="wb-gates">'+cards+'</div><button type="button" data-board-policy>Úplný přehled pravidel</button>') + '</div>' +
       '<aside class="wb-aside">' + boardPanel('Safety kernel', 'Aktuální hodnoty',
         '<div class="wb-kernel">' +
         '<div><span>Fail-closed default</span>' + boardTruth(boardBoolean(data.capability_registry?.fail_closed_default, 'ENFORCED', 'NOT_ENFORCED')) + '</div>' +
@@ -168,7 +168,7 @@ function loadLineageBoard() {
       '<article class="wb-item"><div><strong>' + boardSafe(item.kind) +
       ' · ' + boardSafe(item.title) + '</strong><small>' + boardSafe(item.timestamp) +
       ' · ' + boardSafe(item.source || 'UNKNOWN_SOURCE') + '</small><p>' +
-      boardSafe(item.detail || '') + '</p></div>' + boardTruth(item.status) + '</article>').join('') :
+      boardSafe(item.detail || '') + '</p>' + (item.source==='OPERATION_PASSPORT' && item.execution_id ? '<button type="button" data-board-passport="'+boardSafe(item.execution_id)+'">Doklady běhu</button>' : '') + '</div>' + boardTruth(item.status) + '</article>').join('') :
       boardEmpty('Evidence timeline je prázdná', 'Absence pozorovaného důkazu není důkazem absence skutečnosti.');
     const results = checks.length ? checks.slice(0,8).map(item =>
       '<article class="wb-item"><div><strong>' + boardSafe(item.source || 'UNKNOWN_SOURCE') +
@@ -212,13 +212,13 @@ function loadOverlaysBoard() {
       '<p><span>Verification mode</span><strong>UNKNOWN</strong></p>' +
       '<p><span>Evidence focus</span><strong>NOT MAPPED</strong></p></div></article>').join('');
     return boardHead('Project-Specific Overlays', 'Jednotné workflow a oddělené projektové hranice.', '/api/v1/workspaces + /api/v1/control-room') +
+      boardPanel('Připojené workspaces', 'Autorizovaný seznam z existujícího produktu',
+        '<div class="wb-profiles">'+owned+'</div>') +
       boardPanel('Shared workflow', 'Projektové profily nesmějí přepisovat canonical authority',
         '<p class="wb-scroll-hint">← Diagram lze posouvat vodorovně →</p><div class="wb-steps wb-shared" tabindex="0" role="region" aria-label="Pět kroků referenčního workflow; lze vodorovně posouvat">' + [['Research','Kontext'],['Orchestrate','Oprávnění'],
         ['Execute','Scoped work'],['Evaluate','Verifier'],['Evidence','Audit']].map(([x,y],i)=>boardStep(i+1,x,y)).join('') + '</div>') +
-      boardPanel('Připojené workspaces', 'Autorizovaný seznam z existujícího produktu',
-        '<div class="wb-profiles">'+owned+'</div>') +
-      boardPanel('Referenční projekty', 'Návrhové profily; žádné smyšlené integrace nebo živé stavy',
-        '<div class="wb-profiles">'+references+'</div>') +
+      '<details><summary>Referenční projekty</summary>' + boardPanel('Referenční projekty', 'Návrhové profily; žádné smyšlené integrace nebo živé stavy',
+        '<div class="wb-profiles">'+references+'</div>') + '</details>' +
       boardNotice('Projektový overlay není authority owner. Skutečné konfigurace a identity budou napojeny až po nezávislém kontraktačním ověření.');
   });
 }
