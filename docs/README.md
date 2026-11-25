@@ -21,6 +21,7 @@ normative authority remains governed separately by adopted records and repositor
 | What gate controls the first current bounded GitHub CREATE_REF write canary? | [`adr/ADR-0027-bounded-github-create-ref-write-activation.md`](adr/ADR-0027-bounded-github-create-ref-write-activation.md) — PROPOSED candidate; live effect BLOCKED |
 | What should it support later? | [`product/TARGET_CAPABILITIES.md`](product/TARGET_CAPABILITIES.md) |
 | What is the Control Room CURRENT → TARGET gap? | [`product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md`](product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md) |
+| What operator-facing information architecture governs the menu redesign? | [`product/OPERATOR_WORKSPACE_INFORMATION_ARCHITECTURE.md`](product/OPERATOR_WORKSPACE_INFORMATION_ARCHITECTURE.md) |
 | What is the security overview? | [`product/SECURITY_OVERVIEW.md`](product/SECURITY_OVERVIEW.md) |
 | What is the Security Intelligence R-SI1.1 authority ceiling? | [`product/SECURITY_INTELLIGENCE_RSI1_BOUNDARY.md`](product/SECURITY_INTELLIGENCE_RSI1_BOUNDARY.md) |
 | What is the MVP delivery map? | [`product/MVP_DELIVERY_MAP.md`](product/MVP_DELIVERY_MAP.md) |

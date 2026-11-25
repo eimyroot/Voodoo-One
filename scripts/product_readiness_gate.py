@@ -310,8 +310,11 @@ def repository_paths() -> list[str]:
 
 WORKFLOW_UI_REQUIRED = (
     "voodoo_product/static/control_room.js",
+    "voodoo_product/static/request_workflow.css",
     "voodoo_product/static/workflow_boards.js",
     "voodoo_product/static/workflow_boards.css",
+    "tests/system/test_operator_request_workflow.cjs",
+    "tests/system/test_operator_request_workflow_http.py",
     "tests/system/test_workflow_boards_surface.py",
     "tests/system/test_workflow_boards_render.cjs",
     "tests/system/test_operator_canonical_read.cjs",

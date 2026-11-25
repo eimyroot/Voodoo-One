@@ -62,7 +62,9 @@ const plans = {
   ]},
   runs: {queue_depth: 0, active_count: 0, completed_count: 0, failed_count: 0, recent: []},
 };
+const deferredPassports = new Map();
 const passport = {
+  schema: 'vone.operation-passport/v1',
   execution_id: executionId, operation: {}, authority: {}, dispatch: {}, runtime: {},
   verification: {status: 'NOT_PERSISTED', verdict: 'UNKNOWN', independent_verification_exposed: false},
   integrity: {canonical_json_validated: true, lineage_bindings_validated: true,
@@ -94,7 +96,8 @@ async function fetchStub(url, options = {}) {
       verification: {verdict, strength_class: 'INDEPENDENT_PROVIDER_READBACK',
         result_digest: 'v1-digest'},
     };
-  } else if (pathname === '/operations/' + executionId + '/passport') body = passport;
+  } else if (deferredPassports.has(pathname)) return new Promise((resolve,reject)=>deferredPassports.set(pathname,{resolve,reject}));
+  else if (pathname === '/operations/' + executionId + '/passport') body = passport;
   else throw Error('Unexpected API call: ' + method + ' ' + pathname);
   return {ok: true, status: 200, json: async () => body};
 }
@@ -194,6 +197,44 @@ async function test() {
   assert.ok(requests.some(x => x.pathname === '/operations/' + executionId + '/passport'));
   assert.equal(requests.filter(x=>x.method==='POST' && x.pathname.includes('/change-requests/') && x.pathname.endsWith('/execute')).length, 0);
   assert.ok(confirmCalls >= 3);
+  const pathFor = id => '/operations/'+id+'/passport';
+  const startPassport = id => {
+    deferredPassports.set(pathFor(id),null);
+    return run('loadOperationPassport('+JSON.stringify(id)+')');
+  };
+  const resolvePassport = (id, body) => deferredPassports.get(pathFor(id)).resolve({
+    ok:true,status:200,json:async()=>body,
+  });
+  const a=startPassport('exec_A'), b=startPassport('exec_B');
+  resolvePassport('exec_B',{...passport,execution_id:'exec_B'});
+  await b;
+  resolvePassport('exec_A',{...passport,execution_id:'exec_A'});
+  await a;
+  assert.match(el('operation-passport-content').innerHTML,/exec_B/);
+  assert.doesNotMatch(el('operation-passport-content').innerHTML,/exec_A/);
+  const c=startPassport('exec_C');
+  resolvePassport('exec_C',{...passport,execution_id:'exec_D'});
+  await c;
+  assert.match(el('operation-passport-content').innerHTML,/neodpovídá vybranému běhu/);
+  assert.doesNotMatch(el('operation-passport-content').innerHTML,/exec_D/);
+  const d=startPassport('exec_D'), e=startPassport('exec_E');
+  resolvePassport('exec_E',{...passport,execution_id:'exec_E'});
+  await e;
+  deferredPassports.get(pathFor('exec_D')).reject(Error('stale error'));
+  await d;
+  assert.match(el('operation-passport-content').innerHTML,/exec_E/);
+  assert.doesNotMatch(el('operation-passport-content').innerHTML,/stale error/);
+  const f=startPassport('exec_F');
+  el('close-passport-button').listeners.click();
+  resolvePassport('exec_F',{...passport,execution_id:'exec_F'});
+  await f;
+  assert.equal(el('operation-passport-panel').classList.contains('hidden'),true);
+  assert.equal(el('operation-passport-content').innerHTML,'');
+  const g=startPassport('exec_G');
+  resolvePassport('exec_G',{...passport,execution_id:'exec_G',schema:'unexpected'});
+  await g;
+  assert.match(el('operation-passport-content').innerHTML,/neodpovídá vybranému běhu/);
+  console.log('PASS: latest passport selection wins, identity/schema mismatch rejected, stale error ignored, close cancels display');
   console.log('OPERATOR_CANONICAL_READ_UX_PASS RUNTIME_FAIL_CLOSED_APPROVAL_DENIAL_CANCEL_AMBIGUITY_SAME_IDEMPOTENCY_VERIFIER_PASSPORT');
 }
 test().catch(error => {console.error(error); process.exitCode = 1;});

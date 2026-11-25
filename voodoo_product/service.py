@@ -539,7 +539,9 @@ class ProductService:
         )
         return {
             "overview": overview,
-            "runs": self._summarize_runs(change_requests, executions),
+            "runs": self._summarize_runs(
+                change_requests, executions, canonical_passports=canonical_passports,
+            ),
             "plans": self._summarize_plans(change_requests, approvals),
             "architecture": self._architecture_projection(canonical_runtime_enabled),
             "capability_registry": self._capability_registry(canonical_runtime_enabled),
@@ -584,8 +586,13 @@ class ProductService:
         self,
         change_requests: list[dict[str, Any]],
         executions: list[dict[str, Any]],
+        *,
+        canonical_passports: list[OperationPassport] | None = None,
     ) -> dict[str, Any]:
-        return summarize_runs(change_requests, executions, limit=CONTROL_ROOM_LIMIT)
+        return summarize_runs(
+            change_requests, executions, limit=CONTROL_ROOM_LIMIT,
+            canonical_passports=canonical_passports,
+        )
 
     def _summarize_plans(
         self,

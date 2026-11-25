@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/console/assets/styles.css" />
   <link rel="stylesheet" href="/console/assets/workflow_boards.css" />
   <link rel="stylesheet" href="/console/assets/living_core.css" />
+  <link rel="stylesheet" href="/console/assets/request_workflow.css" />
 </head>
 <body>
   <div id="auth-screen" class="auth-shell">
@@ -75,10 +76,9 @@
       <div class="sidebar-group-label">LIVING CORE</div>
       <button data-view="overview" class="nav active">Přehled</button>
       <button data-view="runs" class="nav">Běhy a fronta</button>
-      <button data-view="registry" class="nav">Registr schopností</button>
       <button class="nav" type="button" disabled aria-disabled="true" title="Roster agentů není v současném API dostupný">Agents · Nedostupné</button>
       <button class="nav" type="button" disabled aria-disabled="true" title="Katalog skills není v současném API dostupný">Skills · Nedostupné</button>
-      <button data-view="plans" class="nav" title="Schvalování a případné spuštění oprávněného požadavku">Požadavky a schválení</button>
+      <button data-view="plans" class="nav" title="Vytvoření, posouzení a schválení řízeného požadavku">Požadavky</button>
       <button data-view="verifier" class="nav">Ověření výsledků</button>
       <button data-view="evidence" class="nav">Historie událostí</button>
       <button data-view="casebook" class="nav">Deník úkolu · CASEBOOK</button>
@@ -224,8 +224,8 @@
         <div class="page-head">
           <div>
             <p class="eyebrow">Planning</p>
-            <h1>Požadavky a schválení</h1>
-            <p>Zde se požadavky posuzují a schvalují. Spuštění je dostupné jen u způsobilého požadavku a podléhá serverové kontrole oprávnění.</p>
+            <h1>Požadavky</h1>
+            <p>Vytvoření záměru, kontrola dopadu a rozhodnutí. Spuštění zůstává dostupné jen u způsobilého požadavku a podléhá serverové kontrole oprávnění.</p>
           </div>
           <button id="new-change-button">Nový požadavek</button>
         </div>
@@ -238,16 +238,32 @@
             <label>Adapter<select id="change-adapter"><option>echo</option><option>write_artifact</option><option>run_validation</option><option value="github-read-ref">GitHub READ · canonical</option></select></label>
             <label class="wide">Popis<textarea id="change-description"></textarea></label>
             <label class="wide">Payload JSON<textarea id="change-payload">{"message":"VOODOO One ready"}</textarea></label>
-            <div class="wide actions"><button type="submit">Vytvořit</button><button type="button" id="cancel-change-button" class="secondary">Zrušit</button></div>
+            <div class="wide actions">
+              <button type="button" id="change-review-button" class="secondary">Zkontrolovat dopad</button>
+              <button type="submit" id="change-create-button" disabled>Vytvořit požadavek</button>
+              <button type="button" id="cancel-change-button" class="secondary">Zrušit</button>
+            </div>
           </form>
+          <section id="change-review" class="request-review hidden" role="status" aria-live="polite">
+            <div class="panel-heading"><div><p class="eyebrow">Před vytvořením</p><h2>Kontrola dopadu</h2></div><span id="change-review-state" class="status UNKNOWN">NEZKONTROLOVÁNO</span></div>
+            <div id="change-review-facts" class="fact-grid"></div>
+            <p id="change-review-note" class="muted"></p>
+          </section>
         </div>
         <div id="canonical-read-feedback" class="panel hidden" role="status" aria-live="polite"></div>
+        <article class="panel request-capability-panel">
+          <div class="panel-heading">
+            <div><h2>Dostupné schopnosti</h2><p>Živý kontext z registru. Dostupnost schopnosti sama o sobě není oprávněním ke spuštění.</p></div>
+            <button type="button" class="secondary" data-refresh="registry">Technický registr</button>
+          </div>
+          <div id="request-capability-context" class="capability-strip"></div>
+        </article>
         <div class="grid-two responsive-stack">
           <article class="panel">
-            <div class="panel-heading"><div><h2>Čeká na rozhodnutí</h2><p>Čekající rozhodnutí a jejich prahy.</p></div><button data-refresh="plans">Obnovit</button></div>
+            <div class="panel-heading"><div><h2>Čeká na rozhodnutí</h2><p>Přesný cíl, účinek a požadované ověření před rozhodnutím.</p></div><button data-refresh="plans">Obnovit</button></div>
             <div id="approvals-list" class="cards"></div>
           </article>
-          <article class="panel table-panel"><table><thead><tr><th>Risk</th><th>Request</th><th>Status</th><th>Approvals</th><th>Environment</th><th>Akce</th></tr></thead><tbody id="plans-table"></tbody></table></article>
+          <article class="panel table-panel"><table><caption>Všechny požadavky</caption><thead><tr><th>Risk</th><th>Request</th><th>Status</th><th>Approvals</th><th>Environment</th><th>Akce</th></tr></thead><tbody id="plans-table"></tbody></table></article>
         </div>
       </section>
 
