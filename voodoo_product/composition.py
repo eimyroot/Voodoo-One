@@ -211,14 +211,14 @@ def install_composed_product_platform(
 
     if resolved_config.casebook_read_binding is not None:
         # Optional native attachment, never a separate server or implicit
-        # permission. It is local-only, read-only and tied to one explicitly
+        # permission. It is read-only and tied to one explicitly
         # selected session, project and existing workspace.
         from .casebook_pinned_task_reader import PinnedCasebookTaskReader
         from .casebook_task_gateway import TaskScope, attach_casebook_task_gateway
 
         binding = resolved_config.casebook_read_binding
         if not any(
-            row["id"] == binding.workspace_id and row["environment"] == "local"
+            row["id"] == binding.workspace_id and row["environment"] == resolved_config.environment
             for row in service.list_workspaces()
         ):
             raise RuntimeError("CASEBOOK read workspace binding does not exist")
@@ -236,7 +236,7 @@ def install_composed_product_platform(
             scopes=[TaskScope(
                 session_id=binding.session_id,
                 workspace_id=binding.workspace_id,
-                environment="local",
+                environment=resolved_config.environment,
                 project=binding.project,
             )],
             passport_correlation_enabled=binding.passport_correlation_enabled,

@@ -311,13 +311,13 @@ def _assert_casebook_passport_http(tmp_path, subject, native, monkeypatch):
 
     from fastapi.testclient import TestClient
 
+    from voodoo_product import casebook_pinned_task_reader as source_gate
     from voodoo_product.casebook_handoff_verifier import HANDOFF_SCHEMA
     from voodoo_product.casebook_pinned_task_reader import (
         EVIDENCE_SHELF,
         PINNED_PACKAGE_DIGESTS,
-        PinnedCasebookTaskReader,
     )
-    from voodoo_product.casebook_task_gateway import TaskScope, attach_casebook_task_gateway
+    from voodoo_product.config import CasebookReadBinding
 
     source = EVIDENCE_SHELF / "VOODOO-CASEBOOK" / "TASK_TIMELINE_CANDIDATE_20261123"
     if not (source / "voodoo_casebook").is_dir():
@@ -351,18 +351,18 @@ def _assert_casebook_passport_http(tmp_path, subject, native, monkeypatch):
     journal.append(session_id=session, event_type="CONTEXT", source="system",
                    status="OPEN", summary="Synthetic handoff", metadata=metadata)
     before = hashlib.sha256(journal.database.read_bytes()).hexdigest()
-    app = FastAPI()
-    composition = install_composed_product_platform(
-        app, config=replace(subject, environment="test"), repository_root=tmp_path,
+    # Reopen the actual disposable staging database through the same native
+    # configuration path used by the desktop, without a second runtime or grant.
+    monkeypatch.setattr(source_gate, "EVIDENCE_SHELF", tmp_path.resolve())
+    binding = CasebookReadBinding(
+        source_root=copied.resolve(), data_root=journal.root,
+        workspace_id=native.operation["workspace_id"], session_id=session,
+        project="synthetic/voodoo", passport_correlation_enabled=True,
     )
-    reader = PinnedCasebookTaskReader(source_root=copied.resolve(), data_root=journal.root)
-    attach_casebook_task_gateway(
-        app=app, composition=composition, reader=reader,
-        scopes=[TaskScope(
-            session_id=session, workspace_id=native.operation["workspace_id"],
-            environment=native.operation["environment"], project="synthetic/voodoo",
-        )],
-        passport_correlation_enabled=True,
+    app = FastAPI()
+    install_composed_product_platform(
+        app, config=replace(subject, casebook_read_binding=binding),
+        repository_root=tmp_path,
     )
     with TestClient(app) as client:
         uri = f"/api/v1/casebook/tasks/{session}/passport/{native.execution_id}"

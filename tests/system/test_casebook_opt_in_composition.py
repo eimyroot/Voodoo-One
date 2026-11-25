@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import shutil
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from voodoo_product import casebook_pinned_task_reader as source_gate
+from voodoo_product.casebook_task_gateway import CasebookTaskAccessDenied
 from voodoo_product.composition import install_composed_product_platform
 from voodoo_product.config import CasebookReadBinding, ProductConfig
 
@@ -93,9 +95,9 @@ def test_casebook_binding_is_local_only_and_effects_disabled(tmp_path: Path):
         source_root=tmp_path / "code", data_root=tmp_path / "private",
         workspace_id="wrk_12345678901", session_id=SESSION, project=PROJECT,
     )
-    with pytest.raises(ValueError, match="local-only"):
+    with pytest.raises(ValueError, match="restricted to"):
         product_config(tmp_path, binding=binding, environment="production")
-    with pytest.raises(ValueError, match="local-only"):
+    with pytest.raises(ValueError, match="restricted to"):
         product_config(tmp_path, binding=binding, environment="test")
     with pytest.raises(ValueError, match="exact source"):
         CasebookReadBinding(
@@ -104,11 +106,11 @@ def test_casebook_binding_is_local_only_and_effects_disabled(tmp_path: Path):
         )
 
 
-def _prepared_native_product(tmp_path: Path):
+def _prepared_native_product(tmp_path: Path, environment="local"):
     """Create one disposable local native account/workspace without CASEBOOK."""
     app = FastAPI()
     product = install_composed_product_platform(
-        app, config=product_config(tmp_path), repository_root=tmp_path,
+        app, config=product_config(tmp_path, environment=environment), repository_root=tmp_path,
     )
     with TestClient(app) as client:
         result = client.post("/api/v1/auth/bootstrap", json={
@@ -118,7 +120,7 @@ def _prepared_native_product(tmp_path: Path):
         })
         assert result.status_code == 201, result.text
     workspace = next(w for w in product.service.list_workspaces()
-                     if w["environment"] == "local")
+                     if w["environment"] == environment)
     return workspace["id"]
 
 
@@ -152,13 +154,14 @@ def approved_source(tmp_path: Path):
     return root
 
 
+@pytest.mark.parametrize("environment", ["local", "staging"])
 @pytest.mark.parametrize("correlation_enabled", [False, True])
 def test_actual_native_composition_reads_only_bound_real_sqlite_journal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, approved_source: Path,
-    correlation_enabled: bool,
+    correlation_enabled: bool, environment: str,
 ):
     monkeypatch.setattr(source_gate, "EVIDENCE_SHELF", tmp_path)
-    workspace_id = _prepared_native_product(tmp_path)
+    workspace_id = _prepared_native_product(tmp_path, environment)
     # Separate, SHA-pinned code supplies CASEBOOK's actual SQLite journal.
     monkeypatch.syspath_prepend(str(approved_source))
     from voodoo_casebook import CasebookStore
@@ -180,11 +183,17 @@ def test_actual_native_composition_reads_only_bound_real_sqlite_journal(
     )
     app = FastAPI()
     product = install_composed_product_platform(
-        app, config=product_config(tmp_path, binding=binding),
+        app, config=product_config(tmp_path, binding=binding, environment=environment),
         repository_root=tmp_path,
     )
     assert getattr(app.state, "voodoo_casebook_task_gateway", None) is not None
     assert product.database_permission_authority is not None
+    if environment == "staging":
+        gateway = app.state.voodoo_casebook_task_gateway
+        with pytest.raises(CasebookTaskAccessDenied, match="staging CASEBOOK binding mismatch"):
+            replace(gateway, passport_correlation_enabled=not correlation_enabled)
+        with pytest.raises(CasebookTaskAccessDenied, match="staging CASEBOOK binding mismatch"):
+            replace(gateway, scopes=(replace(gateway.scopes[0], session_id="caser-other-task"),))
 
     with TestClient(app) as client:
         result = client.post("/api/v1/auth/login", json={

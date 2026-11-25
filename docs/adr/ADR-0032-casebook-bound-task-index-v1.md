@@ -2,7 +2,7 @@
 
 Status: PROPOSED — isolated implementation candidate; exact owner adoption and independent review pending.
 Date: 2026-11-25
-Scope: local/test CASEBOOK read-only discoverability, R2 presentation / R3 authorization review.
+Scope: local/staging CASEBOOK read-only discoverability (test fixtures only in test), R2 presentation / R3 authorization review.
 
 ## Decision
 

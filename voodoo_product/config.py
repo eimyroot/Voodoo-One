@@ -179,8 +179,8 @@ class ProductConfig:
         if self.casebook_read_binding is not None:
             if not isinstance(self.casebook_read_binding, CasebookReadBinding):
                 raise ValueError("CASEBOOK read binding must be typed")
-            if self.environment != "local" or self.production_effects_enabled:
-                raise ValueError("CASEBOOK read attachment is local-only with effects disabled")
+            if self.environment not in {"local", "staging"} or self.production_effects_enabled:
+                raise ValueError("CASEBOOK read attachment is restricted to local or staging with effects disabled")
         if self.production_effects_enabled and self.environment != "production":
             raise ValueError("production effects require VOODOO_ENV=production")
         for origin in self.cors_origins:

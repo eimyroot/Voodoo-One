@@ -89,12 +89,13 @@ class CasebookTaskGateway:
 
         if not isinstance(self.composition, ProductComposition):
             raise ValueError("CASEBOOK requires the canonical ProductComposition")
-        if self.composition.service.config.environment not in {"local", "test"}:
-            raise CasebookTaskAccessDenied("CASEBOOK task pane is local/test only")
+        config = self.composition.service.config
+        if config.environment not in {"local", "staging", "test"}:
+            raise CasebookTaskAccessDenied("CASEBOOK task pane is restricted to local, staging or test")
         if not callable(self.reader):
             raise ValueError("CASEBOOK reader must be an explicit callable")
-        if self.composition.service.config.environment == "local":
-            # Test fixtures may inject synthetic projections; a real local
+        if config.environment in {"local", "staging"}:
+            # Test fixtures may inject synthetic projections; a deployed
             # ProductComposition must only attach an exact source-pinned
             # reader with its data root under the private evidence shelf.
             from .casebook_pinned_task_reader import (
@@ -106,7 +107,7 @@ class CasebookTaskGateway:
                 or EVIDENCE_SHELF not in self.reader.data_root.parents
             ):
                 raise CasebookTaskAccessDenied(
-                    "local CASEBOOK runtime requires a source-pinned evidence reader"
+                    "CASEBOOK runtime requires a source-pinned evidence reader"
                 )
         if type(self.passport_correlation_enabled) is not bool:
             raise ValueError("CASEBOOK correlation opt-in must be explicit")
@@ -121,6 +122,21 @@ class CasebookTaskGateway:
             raise ValueError("at least one explicit task scope is required")
         if any(not isinstance(item, TaskScope) for item in self.scopes):
             raise ValueError("CASEBOOK task scopes must be typed")
+        if config.environment == "staging":
+            binding = config.casebook_read_binding
+            if binding is None or config.production_effects_enabled:
+                raise CasebookTaskAccessDenied("explicit staging CASEBOOK binding required")
+            expected = TaskScope(
+                session_id=binding.session_id, workspace_id=binding.workspace_id,
+                environment="staging", project=binding.project,
+            )
+            if (
+                self.scopes != (expected,)
+                or self.reader.data_root != binding.data_root
+                or self.reader.source_root != binding.source_root
+                or self.passport_correlation_enabled is not binding.passport_correlation_enabled
+            ):
+                raise CasebookTaskAccessDenied("staging CASEBOOK binding mismatch")
         if len({item.session_id for item in self.scopes}) != len(self.scopes):
             raise ValueError("duplicate CASEBOOK task session binding")
         db = self.composition.service.db

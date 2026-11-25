@@ -16,7 +16,7 @@ výsledek. Server bez aktivního nastavení nijak neotvírá CASEBOOK zdroj.
 
 ## Konfigurace povoleného lokálního READ
 
-Aktivace je záměrně povolená jen pokud `VOODOO_ENV=local` a
+Aktivace je záměrně povolená jen pokud `VOODOO_ENV=local` nebo `staging` a
 `VOODOO_ALLOW_PRODUCTION_EFFECTS` je vypnuté. Služba potřebuje všechny
 následující **konkrétní skutečně schválené** hodnoty, které dodá operátor:
 
@@ -24,7 +24,7 @@ následující **konkrétní skutečně schválené** hodnoty, které dodá oper
 |---|---|
 | `VOODOO_CASEBOOK_READ_SOURCE_ROOT` | Existující absolutní cesta ke schválenému kandidátu CASEBOOKu, jehož tři Python soubory odpovídají pinned SHA256. |
 | `VOODOO_CASEBOOK_READ_DATA_ROOT` | Existující privátní evidence root; žádná cesta z HTTP klienta. Musí ležet pod `0_EVIDENCE` skutečného OS uživatele. |
-| `VOODOO_CASEBOOK_READ_WORKSPACE_ID` | Přesné ID existujícího lokálního workspace ze stejné databáze VOODOO One. |
+| `VOODOO_CASEBOOK_READ_WORKSPACE_ID` | Přesné ID existujícího workspace ve shodném prostředí ze stejné databáze VOODOO One. |
 | `VOODOO_CASEBOOK_READ_SESSION_ID` | Přesné ID jedné schválené a existující CASEBOOK relace. |
 | `VOODOO_CASEBOOK_READ_PROJECT` | Přesný název projektu z CASEBOOK session, kontrolovaný při čtení. |
 
@@ -98,3 +98,7 @@ Schválený lokální evidence shelf se odvozuje ze skutečného OS uživatele
 přepsaného `$HOME` v automatizovaném bridge prostředí. Jestliže hostitel
 nepodporuje unixové `pwd`, pak je tato nyní lokálně macOS/Linux specifická
 funkce neaktivovatelná, nikoli otevřená na libovolný adresář.
+
+### Reconciliation with the running desktop staging source
+
+The candidate retains the exact one-workspace/session/project/source/data binding of desktop revision cd54834b73ae9f1002b2d5fc4b1b78ddb73762d7 for local or staging with production effects disabled. In staging the correlation flag must match the native configuration. No production or test environment binding is accepted by the native installer. Direct synthetic test attachment remains test-only. Runtime activation and independent review remain separate.
