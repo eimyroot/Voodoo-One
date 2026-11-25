@@ -1,6 +1,6 @@
-* @nulleimy
+* @eimyroot
 
-/.github/ @nulleimy
-/voodoo_product/security.py @nulleimy
-/voodoo_product/db.py @nulleimy
-/voodoo_product/adapters.py @nulleimy
+/.github/ @eimyroot
+/voodoo_product/security.py @eimyroot
+/voodoo_product/db.py @eimyroot
+/voodoo_product/adapters.py @eimyroot
