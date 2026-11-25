@@ -13,6 +13,15 @@ assert.match(index,/assets\/living_core\.js/);
 assert.ok(index.indexOf('assets\/control_room.js')<index.indexOf('assets\/living_core.js'));
 const ids=[...index.matchAll(/id="([^"]+)"/g)].map(match=>match[1]);
 assert.equal(new Set(ids).size,ids.length,'HTML IDs must be unique');
+
+const plansNav=[...index.matchAll(/<button\b[^>]*data-view="plans"[^>]*class="nav"[^>]*>([^<]*)<\/button>/g)];
+assert.equal(plansNav.length,1,'Approvals and JIT must be a single navigation destination');
+assert.equal(plansNav[0][1],'Požadavky a schválení');
+assert.doesNotMatch(index,/data-view="plans"[^>]*>JIT Execution<\/button>/);
+assert.match(index,/<h1>Požadavky a schválení<\/h1>/);
+assert.match(index,/Spuštění je dostupné jen u způsobilého požadavku a podléhá serverové kontrole oprávnění\./);
+assert.match(index,/id="plans-table"/,'native request execution surface must remain available');
+
 assert.ok(css.includes('@media (prefers-reduced-motion:reduce)'));
 assert.match(css,/@media \(max-width:560px\)[\s\S]*?\.sidebar \{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/,'small screens must use a wrapping nav instead of horizontal overflow');
 assert.ok(css.includes('@supports not (backdrop-filter:blur(1px))'));
