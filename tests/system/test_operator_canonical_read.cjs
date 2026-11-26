@@ -23,6 +23,7 @@ class Element {
     };
   }
   addEventListener(name, listener) { this.listeners[name] = listener; }
+  replaceChildren() { this.innerHTML = ''; this.textContent = ''; this.value = ''; }
   closest(selector) { return selector === 'button[data-change-action]' ? this : null; }
 }
 const elements = new Map();
@@ -293,6 +294,101 @@ async function test() {
   assert.match(el('timeline-list').textContent,/UNKNOWN/);
   ctx.fetch=normalFetch;
   console.log('PASS: verifier/timeline latest refresh wins, outage is UNKNOWN, incomplete/legacy evidence cannot prove verification, exact Passport link');
+  const deferred=new Map();
+  const indexPath='/api/v1/casebook/tasks';
+  const taskId='caser-demo-123';
+  const taskPath=indexPath+'/'+taskId;
+  const correlationPath=taskPath+'/passport/'+executionId;
+  const logoutPath='/api/v1/auth/logout';
+  const indexPayload={schema:'voodoo-casebook/bound-task-index/v1',journal_integrity:'NOT_CHECKED_BY_INDEX',
+    has_more:false,items:[{session_id:taskId,project:'PRIVATE_PROJECT',workspace_id:'wrk-1',environment:'local'}]};
+  const taskPayload={schema:'voodoo-casebook/task-view/v1',session_id:taskId,project:'PRIVATE_PROJECT',
+    goal:'PRIVATE_GOAL',workspace_id:'wrk-1',journal_integrity:'LOCAL_HASH_CHAIN_VERIFIED_ONLY',
+    native_approval:'NOT_ATTESTED',isolated_runner_execution:'NOT_ATTESTED',independent_verifier:'NOT_ATTESTED',
+    timeline:[],passport_correlation_available:true};
+  const correlationPayload={schema:'voodoo-one/casebook-passport-correlation/v1',verdict:'LOCAL_STRUCTURAL_PASSPORT_MATCH',
+    session_id:taskId,execution_id:executionId,request_id:requestId,
+    execution_authorized_by_this_view:false,execution_verified_by_this_view:false,resume_authorized:false,
+    passport:{...passport,operation:{request_id:requestId}}};
+  ctx.fetch=(url,options={})=>{
+    if(deferred.has(url))return new Promise((resolve,reject)=>deferred.set(url,{resolve,reject,options}));
+    return normalFetch(url,options);
+  };
+  const start=(url,expression)=>{deferred.set(url,null);return run(expression)};
+  const settle=(url,data)=>{const pending=deferred.get(url);assert.ok(pending);deferred.delete(url);
+    pending.resolve({ok:true,status:200,json:async()=>data})};
+  const openIndex=start(indexPath,"loadView('casebook')");
+  await run("loadView('runs')");
+  settle(indexPath,indexPayload);assert.equal(await openIndex,false);
+  assert.equal(el('casebook-bound-session').innerHTML,'');
+  const detail=start(taskPath,'loadCasebookTask('+JSON.stringify(taskId)+')');
+  await run("loadView('runs')");
+  settle(taskPath,taskPayload);await detail;
+  assert.equal(el('casebook-task-goal').textContent,'');
+  let open=start(taskPath,'loadCasebookTask('+JSON.stringify(taskId)+')');
+  settle(taskPath,taskPayload);await open;
+  el('casebook-correlation-id').value=executionId;
+  deferred.set(correlationPath,null);
+  const correlate=el('casebook-correlation-form').listeners.submit({preventDefault(){}});
+  await run("loadView('runs')");
+  settle(correlationPath,correlationPayload);await correlate;
+  assert.equal(el('casebook-correlation-feedback').textContent,'');
+  assert.doesNotMatch(el('operation-passport-content').innerHTML,new RegExp(executionId));
+  // A matching correlation is still usable when navigation was not superseded.
+  open=start(taskPath,'loadCasebookTask('+JSON.stringify(taskId)+')');
+  settle(taskPath,taskPayload);await open;
+  el('casebook-correlation-id').value=executionId;
+  deferred.set(correlationPath,null);
+  const good=el('casebook-correlation-form').listeners.submit({preventDefault(){}});
+  settle(correlationPath,correlationPayload);await good;
+  assert.match(el('operation-passport-content').innerHTML,new RegExp(executionId));
+  const lateIndex=start(indexPath,'loadCasebookTasks()');
+  const lateDetail=start(taskPath,'loadCasebookTask('+JSON.stringify(taskId)+')');
+  const latePassport=start(pathFor('exec_logout').replace(/^/,'/api/v1'),'loadOperationPassport("exec_logout")');
+  // Normal stub uses its own deferred passport map; above request intercepted by ctx.fetch.
+  storage.set('voodoo_token','test-token');
+  el('app-shell').classList.remove('hidden');
+  deferred.set(logoutPath,null);
+  const logout=el('logout-button').listeners.click();
+  assert.equal(run('state.token'),'');
+  assert.equal(storage.has('voodoo_token'),false);
+  assert.equal(el('app-shell').classList.contains('hidden'),true);
+  assert.equal(el('casebook-task-goal').textContent,'');
+  assert.equal(el('operation-passport-content').innerHTML,'');
+  assert.equal(el('passport-raw-json').textContent,'');
+  assert.equal(deferred.get(logoutPath).options.headers.Authorization,'Bearer test-token');
+  settle(indexPath,indexPayload);settle(taskPath,taskPayload);
+  settle('/api/v1'+pathFor('exec_logout'),{...passport,execution_id:'exec_logout'});
+  await Promise.all([lateIndex,lateDetail,latePassport]);
+  assert.equal(el('casebook-bound-session').innerHTML,'');
+  assert.equal(el('casebook-task-goal').textContent,'');
+  assert.equal(el('operation-passport-content').innerHTML,'');
+  run("state.token='new-session'");
+  storage.set('voodoo_token','new-session');
+  el('app-shell').classList.remove('hidden');
+  const revocation=deferred.get(logoutPath);deferred.delete(logoutPath);revocation.reject(Error('delayed failure'));
+  await logout;
+  assert.equal(run('state.token'),'new-session');
+  assert.equal(storage.get('voodoo_token'),'new-session');
+  assert.equal(el('app-shell').classList.contains('hidden'),false);
+  assert.equal(el('auth-error').textContent,'');
+  open=start(taskPath,'loadCasebookTask('+JSON.stringify(taskId)+')');
+  settle(taskPath,taskPayload);await open;
+  el('casebook-correlation-id').value=executionId;
+  deferred.set(correlationPath,null);
+  const lateCorrelation=el('casebook-correlation-form').listeners.submit({preventDefault(){}});
+  deferred.set(logoutPath,null);
+  const secondLogout=el('logout-button').listeners.click();
+  assert.equal(deferred.get(logoutPath).options.headers.Authorization,'Bearer new-session');
+  settle(correlationPath,correlationPayload);await lateCorrelation;
+  assert.equal(el('operation-passport-content').innerHTML,'');
+  assert.equal(el('casebook-correlation-feedback').textContent,'');
+  const secondRevocation=deferred.get(logoutPath);deferred.delete(logoutPath);
+  secondRevocation.reject(Error('current revocation failure'));await secondLogout;
+  assert.match(el('auth-error').textContent,/Serverové odvolání relace se nepodařilo potvrdit/);
+  assert.equal(run('state.token'),'');
+  assert.equal(el('app-shell').classList.contains('hidden'),true);
+  console.log('PASS: CASEBOOK navigation invalidates index/detail/correlation; logout clears immediately, preserves captured revocation bearer and rejects late old-session responses');
   console.log('OPERATOR_CANONICAL_READ_UX_PASS RUNTIME_FAIL_CLOSED_APPROVAL_DENIAL_CANCEL_AMBIGUITY_SAME_IDEMPOTENCY_VERIFIER_PASSPORT');
 }
 test().catch(error => {console.error(error); process.exitCode = 1;});

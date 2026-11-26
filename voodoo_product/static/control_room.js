@@ -1,15 +1,36 @@
 const state={token:sessionStorage.getItem('voodoo_token')||'',me:null,workspaces:[],capabilities:[]};
 const $=id=>document.getElementById(id);
+let viewEpoch=0;
 function toast(message,error=false){const el=$('toast');el.textContent=message;el.classList.toggle('toast-error',error);el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),3500)}
-async function api(path,options={}){const headers={'Content-Type':'application/json',...(options.headers||{})};if(state.token)headers.Authorization=`Bearer ${state.token}`;const response=await fetch(`/api/v1${path}`,{...options,headers});let body={};try{body=await response.json()}catch{}if(!response.ok){const error=new Error(body.detail||`HTTP ${response.status}`);error.statusCode=response.status;throw error}return body}
+async function api(path,options={}){const bearer=state.token;const headers={'Content-Type':'application/json',...(options.headers||{})};if(bearer)headers.Authorization=`Bearer ${bearer}`;const response=await fetch(`/api/v1${path}`,{...options,headers});let body={};try{body=await response.json()}catch{}if(bearer&&bearer!==state.token)throw new Error('Relace se změnila.');if(!response.ok){const error=new Error(body.detail||`HTTP ${response.status}`);error.statusCode=response.status;throw error}return body}
 function status(value){const text=String(value??'UNKNOWN');const className=/^[A-Z][A-Z0-9_]{0,31}$/.test(text)?text:'UNKNOWN';return `<span class="status ${className}">${escapeHtml(text)}</span>`}
 function escapeHtml(value){return String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]))}
-async function authReady(){if(!state.token)return false;try{state.me=await api('/me');$('current-user').textContent=`${state.me.username} · ${state.me.role}`;return true}catch{sessionStorage.removeItem('voodoo_token');state.token='';return false}}
-async function showApp(){if(!(await authReady())){showAuth();return}$('auth-screen').classList.add('hidden');$('app-shell').classList.remove('hidden');await loadWorkspaces();await loadView('overview')}
+async function authReady(){const bearer=state.token;if(!bearer)return false;try{const me=await api('/me');if(bearer!==state.token)return false;state.me=me;$('current-user').textContent=`${me.username} · ${me.role}`;return true}catch{if(bearer===state.token){sessionStorage.removeItem('voodoo_token');state.token=''}return false}}
+async function showApp(){const bearer=state.token;if(!(await authReady())){if(!state.token)showAuth();return}if(bearer!==state.token)return;$('auth-screen').classList.add('hidden');$('app-shell').classList.remove('hidden');await loadWorkspaces();if(bearer===state.token)await loadView('overview')}
 function showAuth(){$('app-shell').classList.add('hidden');$('auth-screen').classList.remove('hidden');api('/bootstrap/status').then(x=>$('bootstrap-panel').open=x.required).catch(()=>{})}
 $('login-form').addEventListener('submit',async e=>{e.preventDefault();try{const result=await api('/auth/login',{method:'POST',body:JSON.stringify({username:$('login-username').value,password:$('login-password').value})});state.token=result.token;sessionStorage.setItem('voodoo_token',result.token);$('auth-error').textContent='';await showApp()}catch(err){$('auth-error').textContent=err.message}})
 $('bootstrap-form').addEventListener('submit',async e=>{e.preventDefault();try{const result=await api('/auth/bootstrap',{method:'POST',body:JSON.stringify({username:$('bootstrap-username').value,password:$('bootstrap-password').value,bootstrap_token:$('bootstrap-token').value})});state.token=result.token;sessionStorage.setItem('voodoo_token',result.token);await showApp()}catch(err){$('auth-error').textContent=err.message}})
-$('logout-button').addEventListener('click',async()=>{let warning='';try{await api('/auth/logout', { method: 'POST' })}catch(err){console.warn('Server-side logout failed; clearing local session',err);warning='Serverové odvolání relace se nepodařilo potvrdit. Lokální token byl odstraněn.'}finally{state.token='';sessionStorage.removeItem('voodoo_token');clearCasebookTask();clearCasebookIndex();$('casebook-session-id').value='';showAuth();$('auth-error').textContent=warning}})
+$('logout-button').addEventListener('click',async()=>{
+  const bearer=state.token;
+  const epoch=++viewEpoch;
+  state.token='';state.me=null;state.workspaces=[];state.capabilities=[];
+  sessionStorage.removeItem('voodoo_token');
+  $('app-shell').classList.add('hidden');
+  $('current-user').textContent='';
+  ++requestContextEpoch;++timelineRefreshEpoch;++verifierRefreshEpoch;
+  clearCasebookContext();clearOperationPassport();
+  $('canonical-read-result').textContent='';$('canonical-read-result').classList.add('hidden');
+  $('canonical-read-feedback').textContent='';$('canonical-read-feedback').classList.add('hidden');
+  showAuth();$('auth-error').textContent='';
+  if(!bearer)return;
+  try{
+    // The old bearer is used only for revocation; local logout never waits for it.
+    await api('/auth/logout',{method:'POST',headers:{Authorization:`Bearer ${bearer}`}});
+  }catch{
+    if(!state.token&&epoch===viewEpoch)
+      $('auth-error').textContent='Serverové odvolání relace se nepodařilo potvrdit. Lokální token byl odstraněn.';
+  }
+})
 document.querySelectorAll('.nav').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.view)))
 document.querySelectorAll('[data-refresh]').forEach(button=>button.addEventListener('click',()=>loadView(button.dataset.refresh)))
 function revealActiveNavOnCompactViewport(name){
@@ -20,7 +41,7 @@ function revealActiveNavOnCompactViewport(name){
     current.scrollIntoView({block:'nearest',inline:'center',behavior:'auto'});
   }
 }
-async function loadView(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){toast(err.message,true)}}
+async function loadView(name){const bearer=state.token;if(!bearer)return false;const epoch=++viewEpoch;if(name!=='casebook')clearCasebookContext();if(name!=='runs')clearOperationPassport();document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return false}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){if(epoch===viewEpoch&&bearer===state.token)toast(err.message,true)}return epoch===viewEpoch&&bearer===state.token}
 const casebookSessionIdPattern=/^[A-Za-z0-9_-]{5,128}$/;
 let casebookRequestGeneration=0;
 let casebookCorrelationGeneration=0;
@@ -44,10 +65,17 @@ let casebookIndexGeneration=0;
 function clearCasebookIndex(){
   ++casebookIndexGeneration;
   $('casebook-bound-session').replaceChildren();
+  $('casebook-bound-session').value='';
   $('casebook-bound-open').disabled=true;
   $('casebook-index-feedback').textContent='';
 }
+function clearCasebookContext(){
+  clearCasebookTask();clearCasebookIndex();
+  $('casebook-session-id').value='';
+  $('casebook-task-feedback').textContent='';
+}
 async function loadCasebookTasks(){
+  if(!state.token)return;
   clearCasebookTask();
   clearCasebookIndex();
   const generation=casebookIndexGeneration;
@@ -85,6 +113,7 @@ $('casebook-bound-form').addEventListener('submit',event=>{
   loadCasebookTask(id);
 });
 async function loadCasebookTask(sessionId){
+  if(!state.token)return;
   clearCasebookTask();
   const generation=casebookRequestGeneration;
   const bearer=state.token;
@@ -179,6 +208,7 @@ $('casebook-correlation-form').addEventListener('submit',async event=>{
   const generation=++casebookCorrelationGeneration;
   const bearer=state.token;
   const feedback=$('casebook-correlation-feedback');
+  if(!bearer)return;
   if(!sessionId||!canonicalReadRequestPattern.test(executionId)){
     feedback.textContent='Zadejte přesné ID existujícího běhu.';
     return;
@@ -361,7 +391,8 @@ function canonicalReadFeedback(message,error=false){
   el.classList.remove('hidden');
 }
 async function runCanonicalRead(requestId,button){
-  if(!canonicalReadRequestPattern.test(requestId)||canonicalReadPending.has(requestId))return;
+  const bearer=state.token;
+  if(!bearer||!canonicalReadRequestPattern.test(requestId)||canonicalReadPending.has(requestId))return;
   canonicalReadPending.add(requestId);
   let approvalExpired=false;
   button.disabled=true;
@@ -373,6 +404,7 @@ async function runCanonicalRead(requestId,button){
       api('/operations/status',{cache:'no-store'}),
       api(`/change-requests/${encodeURIComponent(requestId)}`,{cache:'no-store'})
     ]);
+    if(bearer!==state.token)return;
     if(!canonicalReadReady(runtime))throw new Error('Kanonický READ runtime není dostupný. Nic nebylo spuštěno.');
     if(request?.id!==requestId||request.adapter!=='github-read-ref'||request.status!=='APPROVED'
       ||!['local','development','staging'].includes(request.environment)
@@ -396,6 +428,7 @@ async function runCanonicalRead(requestId,button){
     const result=await api(`/operations/${encodeURIComponent(requestId)}/read`,{
       method:'POST',headers:{'Idempotency-Key':key},body:JSON.stringify({correlation_id:key})
     });
+    if(bearer!==state.token)return;
     if(result?.schema!=='vone.canonical-operation-read/v1'||result.operation?.request_id!==requestId
       ||!canonicalReadRequestPattern.test(result.operation?.execution_id||'')
       ||result.execution?.status!=='SUCCEEDED'||result.verification?.verdict!=='VERIFIED'
@@ -405,12 +438,13 @@ async function runCanonicalRead(requestId,button){
     }
     const executionId=result.operation.execution_id;
     canonicalReadFeedback('Kanonický READ: nezávislý VERIFIER odpověděl VERIFIED. Otevírám Passport.');
-    await loadView('runs');
+    if(!(await loadView('runs'))||bearer!==state.token)return;
     const receipt=$('canonical-read-result');
     receipt.textContent=`READ API: VERIFIED · ${executionId} · ${result.verification.strength_class} · digest ${result.verification.result_digest}. Passport uvádí pouze vlastní dostupnou durable evidenci.`;
     receipt.classList.remove('hidden');
     await loadOperationPassport(executionId);
   }catch(err){
+    if(bearer!==state.token)return;
     canonicalReadFeedback(`Kanonický READ: UNKNOWN / NEOVĚŘENO — ${err.message}. Bez automatického opakování; ověř stav a Passport podle request ID ${requestId}.`,true);
   }finally{
     canonicalReadPending.delete(requestId);
@@ -444,9 +478,15 @@ function passportTimelineEvent(label,timestamp,reference,stateValue='OBSERVED'){
 function passportEvidenceTimeline({snapshot,grant,consumption,outbox,runtime,verification}){const events=[];if(snapshot.authorized_at)events.push(passportTimelineEvent('Authorization snapshot',snapshot.authorized_at,snapshot.snapshot_digest));if(grant.issued_at)events.push(passportTimelineEvent('Execution grant issued',grant.issued_at,grant.grant_digest));if(consumption.consumed_at)events.push(passportTimelineEvent('Execution grant consumed',consumption.consumed_at,consumption.consumption_digest));if(outbox.created_at)events.push(passportTimelineEvent('Dispatch outbox recorded',outbox.created_at,outbox.entry_digest));if(runtime.completed_at||runtime.updated_at)events.push(passportTimelineEvent('Runtime state',runtime.completed_at||runtime.updated_at,runtime.completion_digest||runtime.execution_capsule_digest,runtime.status||'UNKNOWN'));if(verification.independent_verification_exposed)events.push(passportTimelineEvent('Independent verification',verification.checked_at,verification.result_digest,verification.verdict||'UNKNOWN'));else events.push(passportTimelineEvent('Independent verification',null,'NOT_PERSISTED','UNKNOWN'));return `<section class="passport-group"><h3>Canonical evidence timeline</h3><p class="muted">Derived only from validated Operation Passport facts. Missing evidence remains explicit.</p><div class="timeline passport-evidence-timeline">${events.join('')}</div></section>`}
 function renderOperationPassport(data){const operation=data.operation||{};const authority=data.authority||{};const snapshot=authority.snapshot||{};const grant=authority.grant||{};const consumption=authority.consumption||{};const dispatch=data.dispatch||{};const outbox=dispatch.outbox||{};const inbox=dispatch.inbox||{};const runtime=data.runtime||{};const lease=runtime.current_lease||{};const verification=data.verification||{};const integrity=data.integrity||{};const verificationState=verification.verdict||'UNKNOWN';$('operation-passport-content').innerHTML=`<div class="passport-hero"><div><span class="mono muted">${escapeHtml(data.execution_id)}</span><h3>${escapeHtml(operation.capability||'Canonical operation')}</h3></div>${status(data.lifecycle_stage)}</div>${passportGroup('Intent & target',[['Request',operation.request_id],['Actor',operation.actor_id],['Workspace',operation.workspace_id],['Environment',operation.environment,String(operation.environment||'UNKNOWN').toUpperCase()],['Target kind',operation.target_kind],['Target digest',operation.target_digest],['Reviewed content SHA-256',operation.review_content_sha256]])}${passportGroup('Bounded authority',[['Snapshot',snapshot.snapshot_digest],['Policy version',snapshot.policy_version],['Authorized at',snapshot.authorized_at],['Approval valid until',snapshot.approval_valid_until],['Grant',grant.grant_digest||'NOT_ISSUED',grant.grant_digest?'OBSERVED':'UNKNOWN'],['Grant use',grant.use_semantics||'NOT_ISSUED',grant.use_semantics?'OBSERVED':'UNKNOWN'],['Grant expiry',grant.expires_at||'NOT_ISSUED',grant.expires_at?'OBSERVED':'UNKNOWN'],['Consumed at',consumption.consumed_at||'NOT_CONSUMED',consumption.consumed_at?'OBSERVED':'UNKNOWN']])}${passportGroup('Dispatch & runtime',[['Outbox',outbox.entry_digest||'NOT_ENQUEUED',outbox.entry_digest?'OBSERVED':'UNKNOWN'],['Inbox',inbox.admission_digest||'NOT_ADMITTED',inbox.admission_digest?'OBSERVED':'UNKNOWN'],['Runtime',runtime.status||'UNKNOWN',runtime.status||'UNKNOWN'],['Execution epoch',runtime.execution_epoch],['Runner class',runtime.runner_class],['Capsule digest',runtime.execution_capsule_digest],['Lease expiry',lease.expires_at||'NO_ACTIVE_LEASE',lease.expires_at?'OBSERVED':'UNKNOWN'],['Completed at',runtime.completed_at||'NOT_COMPLETED',runtime.completed_at?'OBSERVED':'UNKNOWN']])}<section class="passport-group verification-block"><div class="panel-heading"><div><h3>Independent verification</h3><p>${escapeHtml(verification.reason||'No verification explanation is available.')}</p></div>${status(verificationState)}</div><div class="fact-grid">${passportFact('Persistence status',verification.status||'UNKNOWN',verification.status||'UNKNOWN')}${passportFact('Verdict',verification.verdict||'UNKNOWN',verificationState)}${passportFact('Verification strength',verification.verification_strength_class||'NOT_AVAILABLE',verification.independent_verification_exposed?'VERIFIED':'UNKNOWN')}${passportFact('Checked at',verification.checked_at||'NOT_AVAILABLE',verification.independent_verification_exposed?'VERIFIED':'UNKNOWN')}${passportFact('Independent result exposed',verification.independent_verification_exposed?'YES':'NO',verification.independent_verification_exposed?'VERIFIED':'UNKNOWN')}${passportFact('Result digest',verification.result_digest||'NOT_AVAILABLE',verification.result_digest?'OBSERVED':'UNKNOWN')}</div></section>${passportEvidenceTimeline({snapshot,grant,consumption,outbox,runtime,verification})}${passportGroup('Integrity',[['Canonical JSON',integrity.canonical_json_validated?'VALIDATED':'UNKNOWN',integrity.canonical_json_validated?'VERIFIED':'UNKNOWN'],['Lineage bindings',integrity.lineage_bindings_validated?'VALIDATED':'UNKNOWN',integrity.lineage_bindings_validated?'VERIFIED':'UNKNOWN'],['Independent verification',integrity.independent_verification_validated?'VALIDATED':'NOT_VALIDATED',integrity.independent_verification_validated?'VERIFIED':'UNKNOWN']])}<details class="passport-raw"><summary>Raw canonical passport</summary><pre id="passport-raw-json"></pre></details>`;$('passport-raw-json').textContent=JSON.stringify(data,null,2)}
 let passportSelectionEpoch=0;
-async function loadOperationPassport(executionId){const epoch=++passportSelectionEpoch;const panel=$('operation-passport-panel');panel.classList.remove('hidden');$('operation-passport-content').innerHTML='<p class="muted">Načítám canonical Operation Passport…</p>';try{const data=await api(`/operations/${encodeURIComponent(executionId)}/passport`);if(epoch!==passportSelectionEpoch)return;if(data?.schema!=='vone.operation-passport/v1'||data.execution_id!==executionId)throw new Error('Passport neodpovídá vybranému běhu.');renderOperationPassport(data)}catch(err){if(epoch!==passportSelectionEpoch)return;const missing=err.statusCode===404;const title=missing?'Canonical passport není pro tento execution dostupný.':'Canonical passport se nepodařilo bezpečně načíst.';const note=missing?'Runs obsahují i legacy execution záznamy. Absence canonical lineage se zobrazuje explicitně a není nahrazena domněnkou.':'Chyba čtení nebo konflikt canonical lineage se nesmí interpretovat jako prostá absence. Stav zůstává UNKNOWN, dokud není příčina ověřena.';$('operation-passport-content').innerHTML=`<article class="passport-unavailable"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(err.message)}</p><p class="muted">${escapeHtml(note)}</p></article>`}}
+function clearOperationPassport(){
+  ++passportSelectionEpoch;
+  $('passport-raw-json')?.replaceChildren?.();
+  $('operation-passport-panel').classList.add('hidden');
+  $('operation-passport-content').innerHTML='';
+}
+async function loadOperationPassport(executionId){const bearer=state.token;if(!bearer)return;const epoch=++passportSelectionEpoch;const panel=$('operation-passport-panel');panel.classList.remove('hidden');$('operation-passport-content').innerHTML='<p class="muted">Načítám canonical Operation Passport…</p>';try{const data=await api(`/operations/${encodeURIComponent(executionId)}/passport`);if(epoch!==passportSelectionEpoch||bearer!==state.token)return;if(data?.schema!=='vone.operation-passport/v1'||data.execution_id!==executionId)throw new Error('Passport neodpovídá vybranému běhu.');renderOperationPassport(data)}catch(err){if(epoch!==passportSelectionEpoch||bearer!==state.token)return;const missing=err.statusCode===404;const title=missing?'Canonical passport není pro tento execution dostupný.':'Canonical passport se nepodařilo bezpečně načíst.';const note=missing?'Runs obsahují i legacy execution záznamy. Absence canonical lineage se zobrazuje explicitně a není nahrazena domněnkou.':'Chyba čtení nebo konflikt canonical lineage se nesmí interpretovat jako prostá absence. Stav zůstává UNKNOWN, dokud není příčina ověřena.';$('operation-passport-content').innerHTML=`<article class="passport-unavailable"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(err.message)}</p><p class="muted">${escapeHtml(note)}</p></article>`}}
 $('runs-table').addEventListener('click',event=>{if(!(event.target instanceof Element))return;const button=event.target.closest('button[data-passport-execution-id]');if(!button)return;loadOperationPassport(button.dataset.passportExecutionId)})
-$('close-passport-button').addEventListener('click',()=>{++passportSelectionEpoch;$('operation-passport-panel').classList.add('hidden');$('operation-passport-content').innerHTML='';$('passport-raw-json')?.replaceChildren?.()})
+$('close-passport-button').addEventListener('click',clearOperationPassport)
 async function loadPlans(){
   const epoch=++requestContextEpoch;
   clearRequestContext('Načítám aktuální požadavky…');
@@ -497,8 +537,7 @@ for (const view of ['authority','lifecycle','lineage']) {
     const button=event.target.closest('button');
     if (button?.hasAttribute('data-board-policy')) await loadView('policy');
     if (button?.dataset.boardPassport) {
-      await loadView('runs');
-      await loadOperationPassport(button.dataset.boardPassport);
+      if(await loadView('runs'))await loadOperationPassport(button.dataset.boardPassport);
     }
   });
 }

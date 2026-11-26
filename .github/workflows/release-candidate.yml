@@ -31,6 +31,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           persist-credentials: false
+          fetch-depth: 0  # exact adopted-content commit ancestry verification
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12.13"
@@ -63,8 +64,8 @@ jobs:
           node --check tests/system/test_operator_canonical_read.cjs
           node tests/system/test_operator_canonical_read.cjs
           python scripts/verify_architecture_atlas.py
+          python scripts/product_readiness_gate.py --require-casebook-adoption
           python -m pytest -q
-          python scripts/product_readiness_gate.py
           python -m pip_audit --disable-pip --strict -r requirements-product.lock --require-hashes
       - name: Build product image
         env:

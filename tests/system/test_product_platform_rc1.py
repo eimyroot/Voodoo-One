@@ -296,7 +296,7 @@ def test_console_and_openapi_are_available(tmp_path: Path) -> None:
     javascript = client.get("/console/assets/control_room.js")
     assert javascript.status_code == 200
     assert "syncChangeEnvironment" in javascript.text
-    assert "api('/auth/logout', { method: 'POST' })" in javascript.text
+    assert "api('/auth/logout',{method:'POST',headers:{Authorization:" in javascript.text
     assert "Serverové odvolání relace se nepodařilo potvrdit" in javascript.text
     assert "data.architecture.flows" in javascript.text
     for invented_label in ("Intent Compiler", "Capability Router", "Dynamic DAG"):

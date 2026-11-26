@@ -200,7 +200,7 @@
       return;
     }
     // Reuse the native scoped CASEBOOK reader and its validation, authorization and truth rules.
-    await window.loadView('casebook');
+    if(!(await window.loadView('casebook')))return;
     const target=$('casebook-session-id');
     if(!target){if(hint)hint.textContent='CASEBOOK formulář není dostupný.';return}
     target.value=sessionId;

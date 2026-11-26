@@ -4,7 +4,7 @@
 - Date: 2026-11-25
 - Scope: non-production, read-only correlation of V-One execution evidence with CASEBOOK
 - Decision class: T2 trust boundary / persistence evidence
-- Runtime effect: NONE
+- Runtime effect: NONE by this proposal; the opt-in native local/staging route is implemented in the candidate but not activated or authorized by this document
 - Release / deploy effect: NONE
 - Production effect: NONE
 
@@ -77,9 +77,7 @@ readiness must include the verifier and its tests.
 ## Rollback
 
 Before adoption, delete/revert the verifier, its test, this ADR, its decision
-card, documentation index entry, and readiness inventory entries. No database
-or external state exists to undo because the slice has no writer or runtime
-composition.
+card, documentation index entry, and readiness inventory entries. No database or external state exists to undo in the original pure-verifier slice. For the unactivated integration candidate, revert the optional route/composition changes as well; no journal mutation is authorized.
 
 ## Adoption boundary
 
@@ -89,6 +87,6 @@ production effect. Those remain separate gates.
 
 ## Isolated integration follow-through
 
-The operator-workspace candidate strengthens every shared grant/consumption binding and adds a pure correlation against the existing native OperationPassport. It compares exact execution, request, workspace, environment, grant and consumption digests and requires validated Passport lineage. LOCAL_STRUCTURAL_PASSPORT_MATCH is not independent attestation or resume permission. This source-only integration does not attach a reader, expose a route, select a session or activate execution. The original candidate remains untouched. Native authorization, durable resume preconditions, owner adoption and independent review remain separate prerequisites.
+The operator-workspace candidate strengthens every shared grant/consumption binding and adds a pure correlation against the existing native OperationPassport. It compares exact execution, request, workspace, environment, grant and consumption digests and requires validated Passport lineage. LOCAL_STRUCTURAL_PASSPORT_MATCH is not independent attestation or resume permission. The original source-only integration did not attach a reader, expose a route, select a session or activate execution; the later opt-in candidate below extends that source boundary without activating it. The original candidate remains untouched. Native authorization, durable resume preconditions, owner adoption and independent review remain separate prerequisites.
 
 A proposed follow-through candidate adds an explicitly opt-in, disabled-by-default read-only Passport route through CasebookTaskGateway. It requires a source-pinned reader, exact bound session/project/workspace/environment, fresh native evidence.read and read decisions, canonical Passport service owned by the same database, and exact matching event hash. The route returns the already scoped Passport without a second unrestricted lookup; no POST or execution route is added. The native installer propagates the typed explicit local binding flag (default false; environment opt-in VOODOO_CASEBOOK_READ_PASSPORT_CORRELATION=1). This does not change any running instance. This candidate is not adopted or activated, and is subject to the same R3 independent review and rollback gate.

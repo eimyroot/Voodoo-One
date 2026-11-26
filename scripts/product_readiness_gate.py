@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import argparse
 import ast
+import hashlib
 import json
 import os
 import re
@@ -485,8 +487,117 @@ def current_vop_registry_check() -> dict[str, object]:
     }
 
 
-def main() -> int:
+CASEBOOK_ADOPTION_DOCUMENTS = (
+    "docs/adr/ADR-0031-casebook-handoff-structural-verifier-v1.md",
+    "docs/adr/ADR-0032-casebook-bound-task-index-v1.md",
+)
+ADOPTION_REGISTER = "docs/governance/AUTHORITY_AND_ADOPTION_REGISTER.md"
+
+
+def adopted_content_commit_matches(root: Path, document: str, commit: str, digest: str) -> bool:
+    """Fail closed unless the recorded content commit is an ancestor and contains the exact bytes."""
+    if not re.fullmatch(r"[0-9a-f]{40}", commit):
+        return False
+    try:
+        ancestry = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", commit, "HEAD"],
+            cwd=root, capture_output=True, check=False, timeout=10,
+        )
+        if ancestry.returncode != 0:
+            return False
+        content = subprocess.run(
+            ["git", "show", f"{commit}:{document}"],
+            cwd=root, capture_output=True, check=False, timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return content.returncode == 0 and hashlib.sha256(content.stdout).hexdigest() == digest
+
+
+def casebook_adoption_check(root: Path) -> dict[str, object]:
+    """Check exact-content records in the canonical register, not self-declared ADR status.
+
+    A matching record is evidence of recorded adoption only. Independent review,
+    merge, release, and runtime activation are still separate decisions.
+    """
+    try:
+        register = (root / ADOPTION_REGISTER).read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return {"ok": False, "reason": "ADOPTION_REGISTER_UNAVAILABLE", "documents": []}
+    fence = chr(96) * 3
+    blocks = re.findall(
+        rf"^{fence}text[ \t]*\n(.*?)^{fence}[ \t]*$", register, re.MULTILINE | re.DOTALL,
+    )
+    documents = []
+    for document in CASEBOOK_ADOPTION_DOCUMENTS:
+        try:
+            digest = hashlib.sha256((root / document).read_bytes()).hexdigest()
+        except OSError:
+            documents.append({"document": document, "ok": False, "reason": "ADR_UNAVAILABLE"})
+            continue
+        matches = []
+        for block in blocks:
+            pairs = [line.split(":", 1) for line in block.splitlines() if ":" in line]
+            if not any(key.strip() == "DOCUMENT" and value.strip() == document for key, value in pairs):
+                continue
+            fields = {key.strip(): value.strip() for key, value in pairs}
+            matches.append((fields, len(fields) == len(pairs)))
+        ok = False
+        reason = "OWNER_ADOPTION_NOT_RECORDED"
+        if matches:
+            reason = "ADOPTION_RECORD_CONFLICT_OR_MISMATCH"
+        if len(matches) == 1:
+            fields, unique = matches[0]
+            ok = (
+                unique
+                and fields.get("DOCUMENT") == document
+                and fields.get("EFFECTIVE_STATUS") == "ADOPTED"
+                and fields.get("OWNER") == "project owner VOODOO — ENGINEERING"
+                and fields.get("CONTENT_SHA256") == digest
+                and bool(re.fullmatch(r"[0-9a-f]{40}", fields.get("ADOPTED_CONTENT_COMMIT", "")))
+                and bool(re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", fields.get("ADOPTION_DATE", "")))
+                and fields.get("ADOPTION_METHOD", "").startswith("explicit owner decision")
+                and adopted_content_commit_matches(
+                    root, document, fields["ADOPTED_CONTENT_COMMIT"], digest,
+                )
+            )
+            if ok:
+                reason = "EXACT_CONTENT_REGISTER_RECORD_MATCH"
+        documents.append({"document": document, "content_sha256": digest, "ok": ok, "reason": reason})
+    return {
+        "ok": all(item["ok"] for item in documents),
+        "reason": "RECORDED_ADOPTION_MATCH" if all(item["ok"] for item in documents) else "CASEBOOK_ADOPTION_BLOCKED",
+        "documents": documents,
+    }
+
+
+def readiness_report(checks: dict[str, object], passed: bool, adoption: dict[str, object]) -> dict[str, object]:
+    return {
+        "product": "VOODOO One",
+        "version": product_version(),
+        "scope": "TECHNICAL_CANDIDATE_READINESS_ONLY",
+        "passed": passed,
+        "checks": checks,
+        "casebook_adoption": adoption,
+        "release_admission": "OTHER_GATES_REQUIRED" if adoption["ok"] else "BLOCKED_CASEBOOK_ADOPTION",
+        "release_authorized": False,
+        "runtime_activation_authorized": False,
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Verify technical candidate readiness; never grant release authority.")
+    parser.add_argument(
+        "--require-casebook-adoption", action="store_true",
+        help="Fail closed before technical checks if exact CASEBOOK ADR adoption records are absent.",
+    )
+    args = parser.parse_args(argv)
     checks: dict[str, object] = {}
+    adoption = casebook_adoption_check(ROOT)
+    if args.require_casebook_adoption and not adoption["ok"]:
+        print(json.dumps(readiness_report(checks, False, adoption), indent=2, ensure_ascii=False), flush=True)
+        progress("casebook_adoption", "FAIL")
+        return 1
     progress("readiness", "START")
     progress("required_files", "START")
     missing = [item for item in REQUIRED if not (ROOT / item).is_file()]
@@ -568,12 +679,7 @@ def main() -> int:
 
     progress("production_fail_closed", "PASS" if checks["production_fail_closed"]["ok"] else "FAIL")
     passed = all(bool(value.get("ok")) for value in checks.values() if isinstance(value, dict))
-    report = {
-        "product": "VOODOO One",
-        "version": product_version(),
-        "passed": passed,
-        "checks": checks,
-    }
+    report = readiness_report(checks, passed, adoption)
     print(json.dumps(report, indent=2, ensure_ascii=False), flush=True)
     progress("readiness", "PASS" if passed else "FAIL")
     return 0 if passed else 1
