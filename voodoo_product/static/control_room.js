@@ -18,7 +18,7 @@ $('logout-button').addEventListener('click',async()=>{
   $('app-shell').classList.add('hidden');
   $('current-user').textContent='';
   ++requestContextEpoch;++timelineRefreshEpoch;++verifierRefreshEpoch;
-  clearCasebookContext();clearOperationPassport();clearOverviewContext({clearHeader:true});clearRuntimeHealthContext({clearReason:true});clearSettingsContext({resetPreference:true});
+  clearCasebookContext();clearOperationPassport();clearRunsContext();clearOverviewContext({clearHeader:true});clearRuntimeHealthContext({clearReason:true});clearSettingsContext({resetPreference:true});
   $('canonical-read-result').textContent='';$('canonical-read-result').classList.add('hidden');
   $('canonical-read-feedback').textContent='';$('canonical-read-feedback').classList.add('hidden');
   showAuth();$('auth-error').textContent='';
@@ -41,7 +41,7 @@ function revealActiveNavOnCompactViewport(name){
     current.scrollIntoView({block:'nearest',inline:'center',behavior:'auto'});
   }
 }
-async function loadView(name){const bearer=state.token;if(!bearer)return false;const epoch=++viewEpoch;if(name!=='governance')clearSettingsContext();if(name!=='health')clearRuntimeHealthContext({clearReason:true});if(name!=='overview')clearOverviewContext({clearHeader:true});if(name!=='casebook')clearCasebookContext();if(name!=='runs')clearOperationPassport();document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return false}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){if(epoch===viewEpoch&&bearer===state.token)toast(err.message,true)}return epoch===viewEpoch&&bearer===state.token}
+async function loadView(name){const bearer=state.token;if(!bearer)return false;const epoch=++viewEpoch;if(name!=='governance')clearSettingsContext();if(name!=='health')clearRuntimeHealthContext({clearReason:true});if(name!=='overview')clearOverviewContext({clearHeader:true});if(name!=='casebook')clearCasebookContext();if(name!=='runs'){clearOperationPassport();clearRunsContext()}document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return false}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){if(epoch===viewEpoch&&bearer===state.token)toast(err.message,true)}return epoch===viewEpoch&&bearer===state.token}
 const casebookSessionIdPattern=/^[A-Za-z0-9_-]{5,128}$/;
 let casebookRequestGeneration=0;
 let casebookCorrelationGeneration=0;
@@ -495,12 +495,59 @@ async function loadOverview(){
     throw error;
   }
 }
-async function loadRuns(){
+// Runs is a scoped, read-only view; old responses cannot repopulate it.
+let runsRefreshEpoch=0;
+// List identity and HTTP Passport path eligibility are distinct contracts.
+// Legacy persisted IDs need not satisfy the canonical HTTP path pattern.
+const passportPathIdPattern=/^[A-Za-z0-9._:-]{5,256}$/;
+function validRunProjectionRow(run){
+  if(!run||typeof run!=='object'||Array.isArray(run))return false;
+  const text=value=>typeof value==='string';
+  const nonempty=value=>text(value)&&value.length>0;
+  const nullable=value=>value===null||text(value);
+  if(!nonempty(run.id)||!text(run.title)
+    ||!['status','risk','environment','adapter'].every(key=>nonempty(run[key]))
+    ||!['updated_at','request_id','receipt_id'].every(key=>nullable(run[key])))return false;
+  if(run.source===undefined)return run.verification_status===undefined&&run.lifecycle_stage===undefined;
+  return run.source==='OPERATION_PASSPORT'&&Array.from(run.id).length<=256&&!run.id.includes('\0')
+    &&nonempty(run.request_id)&&run.receipt_id===null&&nonempty(run.lifecycle_stage)
+    &&['UNKNOWN','VERIFIED','NOT_VERIFIED'].includes(run.verification_status);
+}
+function runPassportButton(run){
+  return passportPathIdPattern.test(run.id)
+    ?`<button class="secondary compact-button" type="button" data-passport-execution-id="${escapeHtml(run.id)}">Passport</button>`
+    :'<span class="muted">Passport nedostupný pro formát ID.</span>';
+}
+
+function clearRunsContext({loading=false}={}){
+  ++runsRefreshEpoch;
+  $('runs-kpis').hidden=true;
   $('runs-kpis').textContent='';
-  $('runs-table').textContent='Data běhů nejsou ověřena.';
-  const data=await controlRoom();
-  $('runs-kpis').hidden=[data.runs.queue_depth,data.runs.active_count,data.runs.completed_count,data.runs.failed_count].every(count=>count===0);
-  $('runs-kpis').innerHTML=[['Queue',data.runs.queue_depth],['Active',data.runs.active_count],['Dokončeno',data.runs.completed_count],['Failed',data.runs.failed_count]].map(([label,value])=>`<div class="kpi"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('');$('runs-table').innerHTML=data.runs.recent.length?data.runs.recent.map(run=>`<tr><td>${status(run.status)}</td><td><strong>${escapeHtml(run.id)}</strong><br><span class="muted">${escapeHtml(run.title)}</span></td><td>${escapeHtml(run.request_id||'—')}</td><td>${escapeHtml(run.risk)}</td><td>${escapeHtml(run.environment)}</td><td>${escapeHtml(run.adapter)}</td><td>${escapeHtml(run.receipt_id??'—')}<br><small>Ověření: ${status(run.verification_status||'UNKNOWN')}</small>${run.source==='OPERATION_PASSPORT'?'<br><small class="muted">Kanonický Passport</small>':''}</td><td><button class="secondary compact-button" type="button" data-passport-execution-id="${escapeHtml(run.id)}">Passport</button></td></tr>`).join(''):'<tr><td colspan="8" class="muted">Žádné běhy.</td></tr>'}
+  $('runs-table').innerHTML='<tr><td colspan="8" class="muted">'+(loading?'Načítám aktuální běhy…':'UNKNOWN · aktuální běhy nejsou dostupné.')+'</td></tr>';
+}
+async function loadRuns(){
+  const bearer=state.token;
+  if(!bearer)return;
+  clearRunsContext({loading:true});
+  const generation=runsRefreshEpoch;
+  const epoch=viewEpoch;
+  const current=()=>bearer===state.token&&epoch===viewEpoch&&generation===runsRefreshEpoch&&$('view-runs').classList.contains('active');
+  try{
+    const data=await api('/control-room',{cache:'no-store'});
+    if(!current())return;
+    const runs=data?.runs;
+    const counts=['queue_depth','active_count','completed_count','failed_count'];
+    if(!runs||!counts.every(key=>Number.isSafeInteger(runs[key])&&runs[key]>=0)
+      ||!Array.isArray(runs.recent)||!runs.recent.every(validRunProjectionRow))
+      throw new Error('Neúplná nebo neplatná projekce běhů.');
+    $('runs-kpis').hidden=[data.runs.queue_depth,data.runs.active_count,data.runs.completed_count,data.runs.failed_count].every(count=>count===0);
+    $('runs-kpis').innerHTML=[['Queue',data.runs.queue_depth],['Active',data.runs.active_count],['Dokončeno',data.runs.completed_count],['Failed',data.runs.failed_count]].map(([label,value])=>`<div class="kpi"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('');$('runs-table').innerHTML=data.runs.recent.length?data.runs.recent.map(run=>`<tr><td>${status(run.status)}</td><td><strong>${escapeHtml(run.id)}</strong><br><span class="muted">${escapeHtml(run.title)}</span></td><td>${escapeHtml(run.request_id||'—')}</td><td>${escapeHtml(run.risk)}</td><td>${escapeHtml(run.environment)}</td><td>${escapeHtml(run.adapter)}</td><td>${escapeHtml(run.receipt_id??'—')}<br><small>Ověření: ${status(run.source==='OPERATION_PASSPORT'?run.verification_status:'UNKNOWN')}</small>${run.source==='OPERATION_PASSPORT'?'<br><small class="muted">Kanonický Passport</small>':''}</td><td>${runPassportButton(run)}</td></tr>`).join(''):'<tr><td colspan="8" class="muted">Žádné běhy.</td></tr>'
+  }catch(err){
+    if(!current())return;
+    clearRunsContext();
+    throw err;
+  }
+}
 function passportFact(label,value,stateValue='OBSERVED'){return `<div class="fact"><span>${escapeHtml(label)}</span>${status(stateValue)}<strong>${escapeHtml(value??'—')}</strong></div>`}
 function passportGroup(title,entries){return `<section class="passport-group"><h3>${escapeHtml(title)}</h3><div class="fact-grid">${entries.map(entry=>passportFact(entry[0],entry[1],entry[2]??'OBSERVED')).join('')}</div></section>`}
 function passportTimelineEvent(label,timestamp,reference,stateValue='OBSERVED'){return `<article class="timeline-item"><div class="timeline-marker">${status(stateValue)}</div><div class="timeline-body"><header><strong>${escapeHtml(label)}</strong><span class="mono muted">${escapeHtml(reference||'NO_REFERENCE')}</span></header><time>${escapeHtml(timestamp||'TIME_NOT_AVAILABLE')}</time></div></article>`}
@@ -514,7 +561,7 @@ function clearOperationPassport(){
   $('operation-passport-content').innerHTML='';
 }
 async function loadOperationPassport(executionId){const bearer=state.token;if(!bearer)return;const epoch=++passportSelectionEpoch;const panel=$('operation-passport-panel');panel.classList.remove('hidden');$('operation-passport-content').innerHTML='<p class="muted">Načítám canonical Operation Passport…</p>';try{const data=await api(`/operations/${encodeURIComponent(executionId)}/passport`);if(epoch!==passportSelectionEpoch||bearer!==state.token)return;if(data?.schema!=='vone.operation-passport/v1'||data.execution_id!==executionId)throw new Error('Passport neodpovídá vybranému běhu.');renderOperationPassport(data)}catch(err){if(epoch!==passportSelectionEpoch||bearer!==state.token)return;const missing=err.statusCode===404;const title=missing?'Canonical passport není pro tento execution dostupný.':'Canonical passport se nepodařilo bezpečně načíst.';const note=missing?'Runs obsahují i legacy execution záznamy. Absence canonical lineage se zobrazuje explicitně a není nahrazena domněnkou.':'Chyba čtení nebo konflikt canonical lineage se nesmí interpretovat jako prostá absence. Stav zůstává UNKNOWN, dokud není příčina ověřena.';$('operation-passport-content').innerHTML=`<article class="passport-unavailable"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(err.message)}</p><p class="muted">${escapeHtml(note)}</p></article>`}}
-$('runs-table').addEventListener('click',event=>{if(!(event.target instanceof Element))return;const button=event.target.closest('button[data-passport-execution-id]');if(!button)return;loadOperationPassport(button.dataset.passportExecutionId)})
+$('runs-table').addEventListener('click',event=>{if(!(event.target instanceof Element))return;const button=event.target.closest('button[data-passport-execution-id]');if(!button||!passportPathIdPattern.test(button.dataset.passportExecutionId||''))return;loadOperationPassport(button.dataset.passportExecutionId)})
 $('close-passport-button').addEventListener('click',clearOperationPassport)
 async function loadPlans(){
   const epoch=++requestContextEpoch;
