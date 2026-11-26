@@ -621,11 +621,46 @@ function showStopState(active, environment, canActivate=false, canClear=false) {
 let healthRefreshEpoch=0;
 let healthStopAuthority=null;
 let healthStopPending=null;
+// Local presentation safeguard, not a server-issued authorization or lease.
+// Measure from the start of the diagnostic read, including time spent waiting.
+const HEALTH_CLEAR_FRESHNESS_MS=30000;
+let healthClearExpiryTimer=null;
+function healthClock(){
+  return {wall:Date.now(),monotonic:typeof performance==='undefined'?NaN:performance.now()};
+}
+function healthClearRemaining(started){
+  const now=healthClock();
+  const wall=now.wall-started.wall,mono=now.monotonic-started.monotonic;
+  return Number.isFinite(wall)&&Number.isFinite(mono)&&wall>=0&&mono>=0
+    ?Math.max(0,HEALTH_CLEAR_FRESHNESS_MS-Math.max(wall,mono)):0;
+}
+function cancelHealthClearExpiry(){
+  if(healthClearExpiryTimer!==null)clearTimeout(healthClearExpiryTimer);
+  healthClearExpiryTimer=null;
+}
+function expireHealthClear(auth){
+  if(healthStopAuthority!==auth||auth.bearer!==state.token||auth.epoch!==viewEpoch
+    ||auth.generation!==healthRefreshEpoch||!healthViewActive())return;
+  cancelHealthClearExpiry();
+  healthStopAuthority=null;
+  $('clear-stop').disabled=true;
+  $('health-action-feedback').textContent='Platnost diagnostiky pro zrušení stop vypršela. Obnov diagnostiku; žádný požadavek nebyl odeslán.';
+}
+function scheduleHealthClearExpiry(auth){
+  const remaining=healthClearRemaining(auth.started);
+  if(!remaining){expireHealthClear(auth);return}
+  healthClearExpiryTimer=setTimeout(()=>{
+    if(healthStopAuthority!==auth)return;
+    healthClearExpiryTimer=null;
+    scheduleHealthClearExpiry(auth);
+  },remaining);
+}
 function healthViewActive(){
   return $('view-health').classList.contains('active');
 }
 function clearRuntimeHealthContext({loading=false,clearReason=false}={}){
   ++healthRefreshEpoch;
+  cancelHealthClearExpiry();
   healthStopAuthority=null;
   showStopState(null);
   if(clearReason)$('stop-reason').value='';
@@ -652,7 +687,7 @@ function renderRuntimeHealth(data,liveness,operations,principal,allowControls=tr
     throw new Error('Neplatná provozní projekce.');
   const o=data.overview;
   const rows=data.runtime_health.filter(healthRecord);
-  const byName=name=>rows.find(item=>item.name===name);
+  const byName=name=>{const matches=rows.filter(item=>item.name===name);return matches.length===1?matches[0]:undefined};
   const probe=healthRecord(liveness)?liveness:{};
   const runtime=healthRecord(operations)&&operations.schema==='vone.canonical-operation-api-status/v1'?operations:{};
   const env=healthString(o.environment);
@@ -687,8 +722,9 @@ function renderRuntimeHealth(data,liveness,operations,principal,allowControls=tr
   const canClear=allowControls&&eligible&&stop==='ACTIVE'&&trust==='INCIDENT'
     &&confirmedStop&&confirmedDb&&integrity==='PASS'&&!runtimeConflict;
   const observedStop=confirmedStop&&confirmedDb?o.emergency_stop:null;
-  const overall=trust==='INCIDENT'||integrity==='FAIL'||stop==='ACTIVE'||apiState==='EMERGENCY_STOP'||apiState==='UNAVAILABLE'||dbState==='UNAVAILABLE'?'INCIDENT':
-    trust==='HEALTHY'&&integrity==='PASS'&&stop==='INACTIVE'&&apiState==='HEALTHY'&&dbState==='HEALTHY'&&!conflictingApi&&!conflictingDb&&!runtimeConflict?'HEALTHY':'UNKNOWN';
+  const overall=trust==='INCIDENT'||integrity==='FAIL'||stop==='ACTIVE'||apiState==='EMERGENCY_STOP'||apiState==='UNAVAILABLE'||dbState==='UNAVAILABLE'
+    ||primaryApi==='EMERGENCY_STOP'||primaryApi==='UNAVAILABLE'||primaryDb==='UNAVAILABLE'?'INCIDENT':
+    trust==='HEALTHY'&&integrity==='PASS'&&stop==='INACTIVE'&&confirmedStop&&confirmedDb&&!runtimeConflict?'HEALTHY':'UNKNOWN';
   $('health-overall').textContent=overall;
   $('health-overall').className='status '+overall;
   $('health-time').textContent='Načteno v prohlížeči '+new Date().toLocaleTimeString()+' · '+env.toUpperCase()+' · není trvalý monitoring';
@@ -719,10 +755,10 @@ function renderRuntimeHealth(data,liveness,operations,principal,allowControls=tr
   const problems=[];
   if(stop==='ACTIVE'||apiState==='EMERGENCY_STOP')problems.push(['BLOCKED','Nouzové zastavení hlášeno','Prověř aktuální stav; aktivní stop blokuje nové execution operace.']);
   if(integrity==='FAIL')problems.push(['FAIL','Integrita evidence','Audit nebo receipt řetězec je neplatný. Prověř důkazy, nikoli pouze liveness.']);
-  if(apiState==='UNAVAILABLE'||dbState==='UNAVAILABLE')problems.push(['UNAVAILABLE','Liveness','API nebo databáze hlásí nedostupnost.']);
+  if(apiState==='UNAVAILABLE'||dbState==='UNAVAILABLE'||primaryApi==='UNAVAILABLE'||primaryDb==='UNAVAILABLE')problems.push(['UNAVAILABLE','Liveness','API nebo databáze hlásí nedostupnost.']);
   if(conflictingStop||conflictingApi||conflictingDb||runtimeConflict)problems.push(['UNKNOWN','Rozpor mezi čteními','Obnov diagnostiku. Údaje nejsou jedním atomickým snapshotem.']);
   if(trust==='INCIDENT'&&!problems.length)problems.push(['INCIDENT','Control Room hlásí incident','Příčina nebyla v projekci potvrzena.']);
-  if(trust==='UNKNOWN'||integrity==='UNKNOWN'||stop==='UNKNOWN'||apiState==='UNKNOWN'||dbState==='UNKNOWN')
+  if(trust==='UNKNOWN'||integrity==='UNKNOWN'||stop==='UNKNOWN'||apiState==='UNKNOWN'||dbState==='UNKNOWN'||primaryApi==='UNKNOWN'||primaryDb==='UNKNOWN')
     problems.push(['UNKNOWN','Neúplná diagnostika','Chybí platné měření nebo stav některého povinného signálu.']);
   if(readState==='UNKNOWN'||runtimeConflict||writeState==='UNKNOWN')
     problems.push(['UNKNOWN','Neověřená konfigurace canonical runtime','Chybí konzistentní výsledek /operations/status.']);
@@ -752,6 +788,7 @@ async function loadRuntimeHealth(){
   if(!bearer||!healthViewActive())return;
   clearRuntimeHealthContext({loading:true});
   const generation=healthRefreshEpoch;
+  const started=healthClock();
   // A read begun during a mutation is never a fresh action authority, even
   // if it completes after the POST. A new explicit refresh is required.
   const pendingAtStart=healthStopPending?.bearer===bearer;
@@ -771,8 +808,9 @@ async function loadRuntimeHealth(){
       live.reason?.statusCode===503?{status:'UNAVAILABLE'}:null;
     const observation=renderRuntimeHealth(primary.value,liveness,ops.status==='fulfilled'?ops.value:null,me.status==='fulfilled'?me.value:null,
       !pendingAtStart&&healthStopPending?.bearer!==bearer);
-    healthStopAuthority=observation.canActivate||observation.canClear?{...observation,bearer,epoch,generation}:null;
-    return observation.observedStop;
+    healthStopAuthority=observation.canActivate||observation.canClear?{...observation,bearer,epoch,generation,started}:null;
+    if(healthStopAuthority?.canClear)scheduleHealthClearExpiry(healthStopAuthority);
+    return healthClearRemaining(started)>0?observation.observedStop:null;
   }catch(error){
     if(!current())return;
     clearRuntimeHealthContext();
@@ -784,6 +822,7 @@ async function setStop(active){
   if(typeof active!=='boolean'||!auth||!bearer||auth.bearer!==bearer||auth.epoch!==viewEpoch
     ||auth.generation!==healthRefreshEpoch||!healthViewActive()||auth.active===active
     ||(active?!auth.canActivate:!auth.canClear)||healthStopPending?.bearer===bearer)return;
+  if(!active&&!healthClearRemaining(auth.started)){expireHealthClear(auth);return}
   const reason=$('stop-reason').value.trim();
   if(reason.length<3){toast('Vyplň důvod',true);return}
   const epoch=viewEpoch;

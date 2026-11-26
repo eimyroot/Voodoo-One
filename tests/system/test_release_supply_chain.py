@@ -139,6 +139,21 @@ def test_product_readiness_retains_g0_governance_evidence_surface() -> None:
     assert '"tests/system/test_workflow_boards_render.cjs"' in readiness
 
 
+def test_ci_and_release_checkout_preserve_adoption_commit_ancestry() -> None:
+    import yaml
+
+    for name in ("ci.yml", "release-candidate.yml"):
+        workflow = yaml.safe_load((ROOT / ".github/workflows" / name).read_text(encoding="utf-8"))
+        checkouts = [
+            step for job in workflow["jobs"].values() for step in job.get("steps", [])
+            if step.get("uses", "").startswith("actions/checkout@")
+        ]
+        assert checkouts
+        for checkout in checkouts:
+            assert checkout["with"]["fetch-depth"] == 0
+            assert checkout["with"]["persist-credentials"] is False
+
+
 def test_ci_and_release_gate_run_workflow_console_static_safety() -> None:
     ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     release = (ROOT / ".github/workflows/release-candidate.yml").read_text(encoding="utf-8")

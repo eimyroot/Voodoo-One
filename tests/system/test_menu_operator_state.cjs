@@ -53,10 +53,16 @@ function deferred(){
   return {promise,resolve,reject};
 }
 const storage=new Map();
+let wallNow=100000,monotonicNow=5000,timerId=0;
+const timers=new Map();
+const advance=ms=>{wallNow+=ms;monotonicNow+=ms};
 const context=vm.createContext({
   document:{getElementById:element,querySelectorAll:selector=>selector==='.view'?['view-health','view-overview','view-casebook','view-governance'].map(element):[]},
   sessionStorage:{getItem:key=>storage.get(key)??null,setItem:(key,val)=>storage.set(key,String(val)),removeItem:key=>storage.delete(key)},
-  setTimeout:()=>0,console,
+  Date:class extends Date{static now(){return wallNow}},
+  performance:{now:()=>monotonicNow},
+  setTimeout:fn=>{const id=++timerId;timers.set(id,fn);return id},
+  clearTimeout:id=>timers.delete(id),console,
   fetch:async(url,options={})=>{
     switch(url){
       case '/api/v1/bootstrap/status':return response({required:false});
@@ -130,9 +136,36 @@ const reset=()=>{
   snapshot.overview.audit_integrity={valid:true};live.database='UNAVAILABLE';await context.loadRuntimeHealth();buttonsDisabled();
   live.database='HEALTHY';snapshot.runtime_health[1].status='UNAVAILABLE';await context.loadRuntimeHealth();buttonsDisabled();
   snapshot.runtime_health[1].status='HEALTHY';await context.loadRuntimeHealth();assert.equal(element('clear-stop').disabled,false);
+  // Expiration is enforced synchronously even when the browser delays timers.
+  element('stop-reason').value='freshness test';advance(30000);
+  await context.setStop(false);buttonsDisabled();assert.equal(postCalls.length,0);
+  assert.equal(element('stop-reason').value,'freshness test');
+  assert.match(element('health-action-feedback').textContent,/vypršela/);
+  await context.loadRuntimeHealth();assert.equal(element('clear-stop').disabled,false);
+  const oldExpiry=timers.get(timerId);await context.loadRuntimeHealth();oldExpiry();
+  assert.equal(element('clear-stop').disabled,false,'old timer must not revoke new authority');
+  const expiry=timers.get(timerId);advance(30000);expiry();buttonsDisabled();
+  await context.setStop(false);assert.equal(postCalls.length,0);
+  await context.loadRuntimeHealth();assert.equal(element('clear-stop').disabled,false);
+  wallNow-=1;await context.setStop(false);buttonsDisabled();assert.equal(postCalls.length,0);
+  wallNow+=1;await context.loadRuntimeHealth();assert.equal(element('clear-stop').disabled,false);
+  // A slow diagnostic read cannot grant a new 30-second window on completion.
+  const slow=deferred();primaryDeferred=slow;const slowLoad=context.loadRuntimeHealth();
+  advance(30001);slow.resolve(response(snapshot));await slowLoad;buttonsDisabled();
+  await context.setStop(false);assert.equal(postCalls.length,0);
+  await context.loadRuntimeHealth();assert.equal(element('clear-stop').disabled,false);
   // Contradictory stop snapshots do not enable either control.
   live.status='HEALTHY';await context.loadRuntimeHealth();buttonsDisabled();
   assert.match(element('health-problems').innerHTML,/Rozpor mezi čteními/);
+  for(const missing of ['API','Database']){
+    reset();snapshot.runtime_health=snapshot.runtime_health.filter(row=>row.name!==missing);
+    await context.loadRuntimeHealth();assert.equal(element('health-overall').textContent,'UNKNOWN');
+    assert.match(element('health-problems').innerHTML,/Neúplná diagnostika/);
+  }
+  reset();snapshot.runtime_health.push({...snapshot.runtime_health[0]});
+  await context.loadRuntimeHealth();assert.equal(element('health-overall').textContent,'UNKNOWN');
+  reset();snapshot.runtime_health[1].status='UNAVAILABLE';
+  await context.loadRuntimeHealth();assert.equal(element('health-overall').textContent,'INCIDENT');
   reset();snapshot.overview.audit_integrity={valid:false};await context.loadRuntimeHealth();
   assert.equal(element('health-overall').textContent,'INCIDENT');
   assert.match(element('health-problems').innerHTML,/Integrita evidence/);
