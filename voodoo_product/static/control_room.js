@@ -18,7 +18,7 @@ $('logout-button').addEventListener('click',async()=>{
   $('app-shell').classList.add('hidden');
   $('current-user').textContent='';
   ++requestContextEpoch;++timelineRefreshEpoch;++verifierRefreshEpoch;
-  clearCasebookContext();clearOperationPassport();
+  clearCasebookContext();clearOperationPassport();clearOverviewContext({clearHeader:true});
   $('canonical-read-result').textContent='';$('canonical-read-result').classList.add('hidden');
   $('canonical-read-feedback').textContent='';$('canonical-read-feedback').classList.add('hidden');
   showAuth();$('auth-error').textContent='';
@@ -41,7 +41,7 @@ function revealActiveNavOnCompactViewport(name){
     current.scrollIntoView({block:'nearest',inline:'center',behavior:'auto'});
   }
 }
-async function loadView(name){const bearer=state.token;if(!bearer)return false;const epoch=++viewEpoch;if(name!=='casebook')clearCasebookContext();if(name!=='runs')clearOperationPassport();document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return false}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){if(epoch===viewEpoch&&bearer===state.token)toast(err.message,true)}return epoch===viewEpoch&&bearer===state.token}
+async function loadView(name){const bearer=state.token;if(!bearer)return false;const epoch=++viewEpoch;if(name!=='overview')clearOverviewContext({clearHeader:false});if(name!=='casebook')clearCasebookContext();if(name!=='runs')clearOperationPassport();document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return false}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){if(epoch===viewEpoch&&bearer===state.token)toast(err.message,true)}return epoch===viewEpoch&&bearer===state.token}
 const casebookSessionIdPattern=/^[A-Za-z0-9_-]{5,128}$/;
 let casebookRequestGeneration=0;
 let casebookCorrelationGeneration=0;
@@ -465,7 +465,36 @@ function fact(label,value,stateValue=value){return `<div class="fact"><span>${es
 async function controlRoom(){return api('/control-room')}
 function renderTable(target,rows,columns){$(target).innerHTML=rows.length?rows.map(row=>`<tr>${columns.map(column=>`<td>${column.status?status(row[column.key]):escapeHtml(row[column.key]??'—')}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${columns.length}" class="muted">Žádná data.</td></tr>`}
 function renderArchitectureFlow(flow){const nodes=flow.nodes.map((node,index)=>`<div class="architecture-node">${status(node.status)}<strong>${escapeHtml(node.label)}</strong><span>${escapeHtml(node.source)}</span>${node.note?`<small>${escapeHtml(node.note)}</small>`:''}</div>${index<flow.nodes.length-1?'<span class="graph-link">→</span>':''}`).join('');return `<article class="panel architecture-flow"><div class="panel-heading"><div><h2>${escapeHtml(flow.label)}</h2><p>${escapeHtml(flow.id)}</p></div>${status(flow.status)}</div><div class="architecture-path">${nodes}</div></article>`}
-async function loadOverview(){const data=await controlRoom();const overview=data.overview;$('environment-badge').textContent=overview.environment.toUpperCase();$('health-badge').textContent=overview.trust_state;$('health-badge').className=`status ${overview.trust_state}`;const kpis=[['Trust state',overview.trust_state],['Active runs',data.runs.active_count],['Pending approvals',data.plans.pending_approvals],['Evidence integrity',overview.receipt_integrity.valid&&overview.audit_integrity.valid?'PASS':'FAIL']];$('overview-kpis').innerHTML=kpis.map(([label,value])=>`<div class="kpi"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('');$('risk-overview').innerHTML=['R0','R1','R2','R3','R4'].map(risk=>`<p><strong>${risk}</strong> · ${escapeHtml(overview.risk[risk]||0)}</p>`).join('');$('integrity-overview').innerHTML=`<p>Receipts: ${status(overview.receipt_integrity.valid?'PASS':'FAIL')}</p><p>Audit: ${status(overview.audit_integrity.valid?'PASS':'FAIL')}</p><p>Emergency stop: ${status(overview.emergency_stop?'ACTIVE':'INACTIVE')}</p>`;$('orchestration-graph').innerHTML=data.architecture.flows.map(renderArchitectureFlow).join('')}
+// A single authenticated view owns Overview rendering. Other Control Room
+// readers must never refresh a hidden or newly opened Overview implicitly.
+let overviewRefreshEpoch=0;
+function overviewRenderer(){
+  return typeof window==='undefined'?null:window.voodooLivingCore;
+}
+function clearOverviewContext(options={}){
+  ++overviewRefreshEpoch;
+  overviewRenderer()?.renderUnavailable(options);
+}
+async function loadOverview(){
+  const bearer=state.token;
+  if(!bearer)return;
+  const epoch=viewEpoch;
+  const generation=++overviewRefreshEpoch;
+  const current=()=>bearer===state.token&&epoch===viewEpoch
+    &&generation===overviewRefreshEpoch&&$('view-overview').classList.contains('active');
+  overviewRenderer()?.renderUnavailable({loading:true});
+  try{
+    const data=await api('/control-room',{cache:'no-store'});
+    if(!current())return;
+    const renderer=overviewRenderer();
+    if(!renderer)throw new Error('Přehled není dostupný.');
+    renderer.renderProjection(data);
+  }catch(error){
+    if(!current())return;
+    overviewRenderer()?.renderUnavailable();
+    throw error;
+  }
+}
 async function loadRuns(){
   $('runs-kpis').textContent='';
   $('runs-table').textContent='Data běhů nejsou ověřena.';

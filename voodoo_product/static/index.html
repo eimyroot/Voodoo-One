@@ -107,7 +107,7 @@
         <header class="page-head lc-page-head">
           <div>
             <p class="eyebrow">VOODOO ONE · OPERATIONS CONTROL</p>
-            <h1 id="living-core-title">Living Core</h1>
+            <h1 id="living-core-title">Přehled · Living Core</h1>
             <p>Jedno přihlášené provozní rozhraní pro záměr, řízení, běh, ověření a důkaz.</p>
           </div>
           <button data-refresh="overview" type="button">Obnovit projekci</button>
@@ -127,9 +127,10 @@
           <article class="panel lc-casebook-card" aria-labelledby="lc-casebook-title">
             <p class="lc-kicker">CASEBOOK · SCOPED READ</p>
             <h2 id="lc-casebook-title">Kontext jedné relace</h2>
-            <p class="lc-casebook-desc">Otevře existující CASEBOOK Tasks. Lokální integrita journalu není důkaz Runneru ani nezávislé verifikace.</p>
+            <p class="lc-casebook-desc">Skutečné úkoly, rozhodnutí a překážky patří do autorizovaného Deníku. Lokální integrita journalu není důkaz Runneru ani nezávislé verifikace.</p>
+            <button type="button" class="secondary" data-refresh="casebook">Otevřít Deník úkolů</button>
             <form id="lc-casebook-form" class="lc-session-form">
-              <label for="lc-casebook-id">ID existující CASEBOOK relace</label>
+              <label for="lc-casebook-id">Volitelně: přesné ID existující CASEBOOK relace</label>
               <div class="lc-session-actions">
                 <input id="lc-casebook-id" type="text" maxlength="128" pattern="[A-Za-z0-9_-]{5,128}" autocomplete="off" placeholder="voodoo-one-…" required />
                 <button type="submit">Otevřít</button>
@@ -144,7 +145,7 @@
             <div><p class="lc-kicker">Provozní cyklus</p><h2 id="lc-cycle-title">Intent → Approval → JIT → Execution → Verification → Evidence</h2></div>
             <span id="lc-observed-at" class="lc-observed" role="status" aria-live="polite">Čekám na ověřenou projekci</span>
           </div>
-          <p class="lc-truth-note">Fáze jsou souhrnem samostatných záznamů z Control Roomu, nikoli tvrzením o jednom propojeném běhu.</p>
+          <p class="lc-truth-note">Fáze jsou souhrnem samostatných záznamů z Control Roomu, nikoli jedním propojeným během. Počty běhů a fronty vycházejí z omezeného výřezu; dokončený běh neznamená ověřený výsledek.</p>
           <div class="lc-flow">
             <svg class="lc-flow-art" viewBox="0 0 1200 240" preserveAspectRatio="none" aria-hidden="true" focusable="false">
               <defs><linearGradient id="lc-stream-gradient" x1="0" x2="1"><stop offset="0" stop-color="#7e9cff" stop-opacity=".12"/><stop offset=".48" stop-color="#c9e8ff" stop-opacity=".9"/><stop offset="1" stop-color="#a88bff" stop-opacity=".32"/></linearGradient></defs>
@@ -172,7 +173,7 @@
             <div id="lc-delivery-content" class="lc-list"><p class="muted">Načítám běhy z Control Roomu…</p></div>
           </article>
           <article class="panel lc-panel lc-approvals">
-            <div class="panel-heading"><div><p class="lc-kicker">Plans · actual projection</p><h2>Approvals Queue</h2></div><button type="button" class="secondary" data-refresh="plans">Otevřít schválení</button></div>
+            <div class="panel-heading"><div><p class="lc-kicker">Plans · actual projection</p><h2>Čekající rozhodnutí</h2></div><button type="button" class="secondary" data-refresh="plans">Otevřít schválení</button></div>
             <div id="lc-approvals-content" class="lc-list"><p class="muted">Načítám schvalovací frontu…</p></div>
           </article>
           <article class="panel lc-panel lc-verification">
@@ -184,7 +185,7 @@
             <div id="lc-evidence-content" class="lc-list"><p class="muted">Načítám evidenci…</p></div>
           </article>
           <article class="panel lc-panel lc-metrics-panel">
-            <div class="panel-heading"><div><p class="lc-kicker">System Metrics</p><h2>Provozní dostupnost dat</h2></div><button type="button" class="secondary" data-refresh="health">Runtime health</button></div>
+            <div class="panel-heading"><div><p class="lc-kicker">Control Room · skutečná data</p><h2>Bezpečnost a ověření</h2></div><button type="button" class="secondary" data-refresh="health">Runtime health</button></div>
             <div id="lc-metrics-content" class="lc-metrics"></div>
           </article>
         </div>
