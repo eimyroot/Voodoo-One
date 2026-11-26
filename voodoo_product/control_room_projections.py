@@ -7,7 +7,10 @@ The ProductService facade retains the existing caller-facing method signatures.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .operation_passport import OperationPassport
 
 
 def execution_presentation_timestamp(execution: dict[str, Any]) -> Any:
@@ -22,6 +25,7 @@ def summarize_runs(
     executions: list[dict[str, Any]],
     *,
     limit: int,
+    canonical_passports: list[OperationPassport] | None = None,
 ) -> dict[str, Any]:
     recent = [
         {
@@ -35,17 +39,66 @@ def summarize_runs(
             "receipt_id": item.get("receipt_id"),
             "request_id": item.get("request_id"),
         }
-        for item in executions[:limit]
+        for item in executions
     ]
+    # Canonical durable state wins for the same execution ID. Never turn
+    # runtime COMPLETED into SUCCEEDED or VERIFIED.
+    if canonical_passports:
+        by_id = {row["id"]: row for row in recent}
+        requests_by_id = {
+            row["id"]: row for row in change_requests if row.get("id")
+        }
+        for passport in canonical_passports:
+            operation = passport.operation
+            request_id = operation["request_id"]
+            request = requests_by_id.get(request_id, {})
+            bound = (
+                request.get("workspace_id") == operation["workspace_id"]
+                and request.get("environment") == operation["environment"]
+            )
+            verification = passport.verification
+            verdict = (
+                verification.get("verdict") or "UNKNOWN"
+                if passport.integrity.get("independent_verification_validated") is True
+                and verification.get("status") == "PERSISTED"
+                and verification.get("independent_verification_exposed") is True
+                else "UNKNOWN"
+            )
+            by_id[passport.execution_id] = {
+                "id": passport.execution_id,
+                "title": (request.get("title") if bound else None)
+                or operation["capability"],
+                "status": passport.runtime["status"],
+                "risk": (request.get("risk") if bound else None) or "UNKNOWN",
+                "environment": operation["environment"],
+                "adapter": operation["capability"],
+                "updated_at": passport.runtime.get("updated_at")
+                or passport.runtime.get("completed_at")
+                or passport.authority.get("snapshot", {}).get("authorized_at"),
+                "receipt_id": None,
+                "request_id": request_id,
+                "source": "OPERATION_PASSPORT",
+                "lifecycle_stage": passport.lifecycle_stage,
+                "verification_status": verdict,
+            }
+        recent = sorted(
+            by_id.values(),
+            key=lambda row: (row["updated_at"] or "", row["id"]),
+            reverse=True,
+        )
     draft_or_review = sum(
         1 for item in change_requests if item["status"] in {"DRAFT", "REVIEW_REQUIRED"}
     )
     return {
-        "recent": recent,
+        "recent": recent[:limit],
         "queue_depth": draft_or_review,
-        "active_count": sum(1 for item in executions if item["status"] == "RUNNING"),
-        "completed_count": sum(1 for item in executions if item["status"] == "SUCCEEDED"),
-        "failed_count": sum(1 for item in executions if item["status"] == "FAILED"),
+        "active_count": sum(
+            1 for item in recent if item["status"] in {"RUNNING", "ACTIVE"}
+        ),
+        "completed_count": sum(
+            1 for item in recent if item["status"] in {"SUCCEEDED", "COMPLETED"}
+        ),
+        "failed_count": sum(1 for item in recent if item["status"] == "FAILED"),
     }
 
 

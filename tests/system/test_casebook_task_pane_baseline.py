@@ -114,6 +114,69 @@ def test_optional_reader_respects_native_auth_and_safe_projection(native):
     ).status_code == 404
 
 
+def test_bound_index_is_authorized_metadata_only(native):
+    app, composition, client, token, scope = native
+    calls = []
+    hidden = TaskScope(
+        session_id="caser-other-private", workspace_id="missing-workspace",
+        environment="local", project="private/project",
+    )
+    attach_casebook_task_gateway(
+        app=app, composition=composition,
+        reader=lambda session: (calls.append(session), projection())[1],
+        scopes=[scope, hidden],
+    )
+    url = "/api/v1/casebook/tasks"
+    auth = {"Authorization": "Bearer " + token}
+    assert client.get(url).status_code == 401
+    response = client.get(url, headers=auth)
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json() == {
+        "schema": "voodoo-casebook/bound-task-index/v1",
+        "items": [{
+            "session_id": scope.session_id,
+            "workspace_id": scope.workspace_id,
+            "environment": scope.environment,
+            "project": scope.project,
+        }],
+        "has_more": False,
+        "journal_integrity": "NOT_CHECKED_BY_INDEX",
+    }
+    assert "private/project" not in response.text
+    assert calls == []
+    assert client.get(url + "/" + SESSION, headers=auth).status_code == 200
+    assert calls == [SESSION]
+    assert client.post("/api/v1/auth/logout", headers=auth).status_code == 204
+    assert client.get(url, headers=auth).status_code == 401
+
+
+def test_unconfigured_bound_index_is_not_empty_success(native):
+    _, _, client, token, _ = native
+    assert client.get("/api/v1/casebook/tasks").status_code == 401
+    assert client.get(
+        "/api/v1/casebook/tasks", headers={"Authorization": "Bearer " + token},
+    ).status_code == 503
+
+
+def test_passport_correlation_default_disabled_and_never_executes(native):
+    app, composition, client, token, scope = native
+    calls = []
+    attach_casebook_task_gateway(
+        app=app, composition=composition,
+        reader=lambda session: (calls.append(session), projection())[1],
+        scopes=[scope],
+    )
+    auth = {"Authorization": "Bearer " + token}
+    url = f"/api/v1/casebook/tasks/{SESSION}/passport/exec_sample"
+    assert client.get(url).status_code == 401
+    assert client.get(url, headers=auth).status_code == 503
+    assert calls == []
+    assert client.post(url, headers=auth).status_code == 405
+    detail = client.get(f"/api/v1/casebook/tasks/{SESSION}", headers=auth)
+    assert detail.json()["passport_correlation_available"] is False
+
+
 def test_untrusted_verification_claim_is_denied(native):
     app, composition, client, token, scope = native
     bad = projection()

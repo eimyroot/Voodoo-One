@@ -4,7 +4,7 @@
 |---|---|
 | Document class | Governance authority and adoption register |
 | Candidate preparation date | `2026-08-06` |
-| Latest recorded owner adoption date | `2026-10-08` |
+| Latest recorded owner adoption date | `2026-11-26` |
 | Scope | VOODOO One governance documents, accepted ADRs, and technical operating-standard succession |
 | Live repository authority | None; live Git, tests, CI, artifacts and runtime remain separate evidence sources |
 | Owner adoption effect | An explicit owner decision over an exact content SHA-256 and candidate commit creates adoption when recorded here without modifying the adopted content |
@@ -466,3 +466,61 @@ for the gate semantics only.
 This record does not authorize merge, Writer App provisioning, credential or secret creation,
 live CREATE_REF or DELETE_REF effects, release, deployment or production effects. Those remain
 separate governed operations with their own explicit authority and evidence gates.
+
+## 19. ADR-0031 owner adoption record
+
+```text
+DOCUMENT: docs/adr/ADR-0031-casebook-handoff-structural-verifier-v1.md
+VERSION_OR_CANDIDATE_VERSION: ADR-0031
+DECLARED_STATUS: PROPOSED
+EFFECTIVE_STATUS: ADOPTED
+OWNER: project owner VOODOO — ENGINEERING
+ADOPTION_METHOD: explicit owner decision on 2026-11-26 approving ADR-0031 and ADR-0032 in exact content revision 6955a408802b511e1fa3f5726b451e8bb823895f, with the previously presented exact-content SHA-256 identities
+ADOPTION_DATE: 2026-11-26
+ADOPTED_CONTENT_COMMIT: 6955a408802b511e1fa3f5726b451e8bb823895f
+CONTENT_SHA256: 498f8b8471da60822ca987a8a7f177100904fbd7380ec67c6f3edbcdec0b4f97
+INDEPENDENT_REMEDIATION_REVIEW: CODE_REMEDIATION_PASS
+INDEPENDENT_REMEDIATION_REVIEW_SHA256: 59cd4f4bb858437e73931f002b2bea08a91d0ce061bd794637a7176d8272291a
+SCOPE: Read-only structural correlation of exact CASEBOOK session and Operation Passport in explicitly bound local/staging scope; disabled-by-default native route; no independent attestation or resume authorization.
+NEXT_REVIEW: before widening the reader, scope, permission, evidence, correlation or runtime activation boundary
+RUNTIME_ACTIVATION: NOT_AUTHORIZED_BY_THIS_RECORD
+MERGE: NOT_AUTHORIZED_BY_THIS_RECORD
+RELEASE: NOT_AUTHORIZED_BY_THIS_RECORD
+DEPLOYMENT: NOT_AUTHORIZED_BY_THIS_RECORD
+PROVIDER_WRITE: NOT_AUTHORIZED
+PRODUCTION_EFFECTS: BLOCKED
+```
+
+The external record adopts the exact immutable ADR bytes in the content commit.
+The embedded PROPOSED status is preserved. This record does not activate any
+reader, authorize a runtime effect, establish runtime acceptance or replace
+independent verification, merge, release or deployment gates.
+
+## 20. ADR-0032 owner adoption record
+
+```text
+DOCUMENT: docs/adr/ADR-0032-casebook-bound-task-index-v1.md
+VERSION_OR_CANDIDATE_VERSION: ADR-0032
+DECLARED_STATUS: PROPOSED
+EFFECTIVE_STATUS: ADOPTED
+OWNER: project owner VOODOO — ENGINEERING
+ADOPTION_METHOD: explicit owner decision on 2026-11-26 approving ADR-0031 and ADR-0032 in exact content revision 6955a408802b511e1fa3f5726b451e8bb823895f, with the previously presented exact-content SHA-256 identities
+ADOPTION_DATE: 2026-11-26
+ADOPTED_CONTENT_COMMIT: 6955a408802b511e1fa3f5726b451e8bb823895f
+CONTENT_SHA256: 72bb689580559efbc0ef9430613e5f2b2ca69746987da3a5ec7c46a9094b5926
+INDEPENDENT_REMEDIATION_REVIEW: CODE_REMEDIATION_PASS
+INDEPENDENT_REMEDIATION_REVIEW_SHA256: 59cd4f4bb858437e73931f002b2bea08a91d0ce061bd794637a7176d8272291a
+SCOPE: Read-only index of explicitly configured authorized CASEBOOK bindings; bounded metadata only; current native permission checks; no discovery of unbound tasks or execution.
+NEXT_REVIEW: before widening the reader, scope, permission, evidence, correlation or runtime activation boundary
+RUNTIME_ACTIVATION: NOT_AUTHORIZED_BY_THIS_RECORD
+MERGE: NOT_AUTHORIZED_BY_THIS_RECORD
+RELEASE: NOT_AUTHORIZED_BY_THIS_RECORD
+DEPLOYMENT: NOT_AUTHORIZED_BY_THIS_RECORD
+PROVIDER_WRITE: NOT_AUTHORIZED
+PRODUCTION_EFFECTS: BLOCKED
+```
+
+The external record adopts the exact immutable ADR bytes in the content commit.
+The embedded PROPOSED status is preserved. This record does not activate any
+reader, authorize a runtime effect, establish runtime acceptance or replace
+independent verification, merge, release or deployment gates.

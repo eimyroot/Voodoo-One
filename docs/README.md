@@ -21,6 +21,7 @@ normative authority remains governed separately by adopted records and repositor
 | What gate controls the first current bounded GitHub CREATE_REF write canary? | [`adr/ADR-0027-bounded-github-create-ref-write-activation.md`](adr/ADR-0027-bounded-github-create-ref-write-activation.md) — PROPOSED candidate; live effect BLOCKED |
 | What should it support later? | [`product/TARGET_CAPABILITIES.md`](product/TARGET_CAPABILITIES.md) |
 | What is the Control Room CURRENT → TARGET gap? | [`product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md`](product/CONTROL_ROOM_CURRENT_TO_TARGET_GAP.md) |
+| What operator-facing information architecture governs the menu redesign? | [`product/OPERATOR_WORKSPACE_INFORMATION_ARCHITECTURE.md`](product/OPERATOR_WORKSPACE_INFORMATION_ARCHITECTURE.md) |
 | What is the security overview? | [`product/SECURITY_OVERVIEW.md`](product/SECURITY_OVERVIEW.md) |
 | What is the Security Intelligence R-SI1.1 authority ceiling? | [`product/SECURITY_INTELLIGENCE_RSI1_BOUNDARY.md`](product/SECURITY_INTELLIGENCE_RSI1_BOUNDARY.md) |
 | What is the MVP delivery map? | [`product/MVP_DELIVERY_MAP.md`](product/MVP_DELIVERY_MAP.md) |
@@ -40,6 +41,8 @@ normative authority remains governed separately by adopted records and repositor
 | What threat model is bound to ADR-0008? | [`security/ISOLATED_RUNNER_THREAT_MODEL_V1.md`](security/ISOLATED_RUNNER_THREAT_MODEL_V1.md) — exact reviewed artifact remains immutable; later implementation does not rewrite it |
 | What is the current OperationProof/v2 decision? | [`adr/ADR-0015-operation-proof-v2-current-lineage-r1.md`](adr/ADR-0015-operation-proof-v2-current-lineage-r1.md) — ACCEPTED / MERGED |
 | What is the current OperationCell/v1 decision? | [`adr/ADR-0017-operation-cell-v1-r1.md`](adr/ADR-0017-operation-cell-v1-r1.md) — ACCEPTED / MERGED |
+| How may one V-One grant consumption be correlated with CASEBOOK without overstating proof? | [ADR-0031](adr/ADR-0031-casebook-handoff-structural-verifier-v1.md) — PROPOSED / NOT ADOPTED |
+| How can an operator discover authorized CASEBOOK tasks? | [ADR-0032](adr/ADR-0032-casebook-bound-task-index-v1.md) — PROPOSED / NOT ADOPTED |
 | How are local checkpoint candidates finalized? | [`adr/ADR-0004-repository-owned-checkpoint-finalization.md`](adr/ADR-0004-repository-owned-checkpoint-finalization.md) |
 
 | Where is the proposed Architecture Lab identity reconciliation? | [ADR-0030](adr/ADR-0030-architecture-lab-controlled-promotion-v1.md) / [identity note](governance/ARCHITECTURE_LAB_ADR_ID_RECONCILIATION_CANDIDATE.md) — PROPOSED / NOT ADOPTED |

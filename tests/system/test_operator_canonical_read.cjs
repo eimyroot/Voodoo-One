@@ -23,6 +23,7 @@ class Element {
     };
   }
   addEventListener(name, listener) { this.listeners[name] = listener; }
+  replaceChildren() { this.innerHTML = ''; this.textContent = ''; this.value = ''; }
   closest(selector) { return selector === 'button[data-change-action]' ? this : null; }
 }
 const elements = new Map();
@@ -62,7 +63,9 @@ const plans = {
   ]},
   runs: {queue_depth: 0, active_count: 0, completed_count: 0, failed_count: 0, recent: []},
 };
+const deferredPassports = new Map();
 const passport = {
+  schema: 'vone.operation-passport/v1',
   execution_id: executionId, operation: {}, authority: {}, dispatch: {}, runtime: {},
   verification: {status: 'NOT_PERSISTED', verdict: 'UNKNOWN', independent_verification_exposed: false},
   integrity: {canonical_json_validated: true, lineage_bindings_validated: true,
@@ -94,7 +97,8 @@ async function fetchStub(url, options = {}) {
       verification: {verdict, strength_class: 'INDEPENDENT_PROVIDER_READBACK',
         result_digest: 'v1-digest'},
     };
-  } else if (pathname === '/operations/' + executionId + '/passport') body = passport;
+  } else if (deferredPassports.has(pathname)) return new Promise((resolve,reject)=>deferredPassports.set(pathname,{resolve,reject}));
+  else if (pathname === '/operations/' + executionId + '/passport') body = passport;
   else throw Error('Unexpected API call: ' + method + ' ' + pathname);
   return {ok: true, status: 200, json: async () => body};
 }
@@ -194,6 +198,197 @@ async function test() {
   assert.ok(requests.some(x => x.pathname === '/operations/' + executionId + '/passport'));
   assert.equal(requests.filter(x=>x.method==='POST' && x.pathname.includes('/change-requests/') && x.pathname.endsWith('/execute')).length, 0);
   assert.ok(confirmCalls >= 3);
+  const pathFor = id => '/operations/'+id+'/passport';
+  const startPassport = id => {
+    deferredPassports.set(pathFor(id),null);
+    return run('loadOperationPassport('+JSON.stringify(id)+')');
+  };
+  const resolvePassport = (id, body) => deferredPassports.get(pathFor(id)).resolve({
+    ok:true,status:200,json:async()=>body,
+  });
+  const a=startPassport('exec_A'), b=startPassport('exec_B');
+  resolvePassport('exec_B',{...passport,execution_id:'exec_B'});
+  await b;
+  resolvePassport('exec_A',{...passport,execution_id:'exec_A'});
+  await a;
+  assert.match(el('operation-passport-content').innerHTML,/exec_B/);
+  assert.doesNotMatch(el('operation-passport-content').innerHTML,/exec_A/);
+  const c=startPassport('exec_C');
+  resolvePassport('exec_C',{...passport,execution_id:'exec_D'});
+  await c;
+  assert.match(el('operation-passport-content').innerHTML,/neodpovídá vybranému běhu/);
+  assert.doesNotMatch(el('operation-passport-content').innerHTML,/exec_D/);
+  const d=startPassport('exec_D'), e=startPassport('exec_E');
+  resolvePassport('exec_E',{...passport,execution_id:'exec_E'});
+  await e;
+  deferredPassports.get(pathFor('exec_D')).reject(Error('stale error'));
+  await d;
+  assert.match(el('operation-passport-content').innerHTML,/exec_E/);
+  assert.doesNotMatch(el('operation-passport-content').innerHTML,/stale error/);
+  const f=startPassport('exec_F');
+  el('close-passport-button').listeners.click();
+  resolvePassport('exec_F',{...passport,execution_id:'exec_F'});
+  await f;
+  assert.equal(el('operation-passport-panel').classList.contains('hidden'),true);
+  assert.equal(el('operation-passport-content').innerHTML,'');
+  const g=startPassport('exec_G');
+  resolvePassport('exec_G',{...passport,execution_id:'exec_G',schema:'unexpected'});
+  await g;
+  assert.match(el('operation-passport-content').innerHTML,/neodpovídá vybranému běhu/);
+  console.log('PASS: latest passport selection wins, identity/schema mismatch rejected, stale error ignored, close cancels display');
+  let evidenceRequests=[];
+  const normalFetch=ctx.fetch;
+  ctx.fetch=(url,options={})=>{
+    if(String(url)==='/api/v1/control-room'){
+      assert.equal(options.cache,'no-store');
+      return new Promise((resolve,reject)=>evidenceRequests.push({resolve,reject}));
+    }
+    return normalFetch(url,options);
+  };
+  const reply=(index,data)=>evidenceRequests[index].resolve({ok:true,status:200,json:async()=>data});
+  const verificationProjection=(id,verification_status,extra={})=>({verifier_center:{
+    separation_rule:'ExecutionReceipt != VerificationResult',recent_checks:[{
+      source:'VERIFICATION_RESULT_V1',execution_id:id,execution_status:'COMPLETED',
+      result_digest:'digest-'+id,verification_strength:'INDEPENDENT_PROVIDER_READBACK',
+      checked_at:'2026-11-25T20:00:00Z',verification_status,...extra
+    }]
+  }});
+  const oldVerifier=run('loadVerifier()'), currentVerifier=run('loadVerifier()');
+  reply(1,verificationProjection('exec_new','NOT_VERIFIED'));
+  await currentVerifier;
+  reply(0,verificationProjection('exec_old','VERIFIED'));
+  await oldVerifier;
+  assert.match(el('verifier-list').innerHTML,/exec_new/);
+  assert.match(el('verifier-list').innerHTML,/NOT_VERIFIED/);
+  assert.doesNotMatch(el('verifier-list').innerHTML,/exec_old/);
+  assert.match(el('verifier-list').innerHTML,/data-verifier-passport-execution-id="exec_new"/);
+  const staleVerifier=run('loadVerifier()'), failedVerifier=run('loadVerifier()');
+  evidenceRequests[3].reject(Error('offline'));
+  await assert.rejects(failedVerifier,/offline/);
+  reply(2,verificationProjection('exec_old','VERIFIED'));
+  await staleVerifier;
+  assert.match(el('verifier-list').textContent,/UNKNOWN/);
+  const incomplete=run('loadVerifier()');
+  reply(4,verificationProjection('exec_missing','VERIFIED',{result_digest:null}));
+  await incomplete;
+  assert.match(el('verifier-list').innerHTML,/class="status UNKNOWN"/);
+  assert.doesNotMatch(el('verifier-list').innerHTML,/class="status VERIFIED"/);
+  const legacyVerifier=run('loadVerifier()');
+  reply(5,verificationProjection('exec_legacy','VERIFIED',{source:'LEGACY_RECEIPT'}));
+  await legacyVerifier;
+  assert.match(el('verifier-list').innerHTML,/Legacy receipt/);
+  assert.match(el('verifier-list').innerHTML,/class="status UNKNOWN"/);
+  assert.doesNotMatch(el('verifier-list').innerHTML,/data-verifier-passport-execution-id/);
+  el('timeline-filter').value='all';
+  const oldTimeline=run('loadTimeline()'), newTimeline=run('loadTimeline()');
+  const timeline=title=>({evidence_timeline:[{title,kind:'OBSERVATION',status:'OBSERVED',source:'AUDIT',detail:'synthetic'}]});
+  reply(7,timeline('new-evidence'));
+  await newTimeline;
+  reply(6,timeline('old-evidence'));
+  await oldTimeline;
+  assert.match(el('timeline-list').innerHTML,/new-evidence/);
+  assert.doesNotMatch(el('timeline-list').innerHTML,/old-evidence/);
+  const failedTimeline=run('loadTimeline()');
+  evidenceRequests[8].reject(Error('offline'));
+  await assert.rejects(failedTimeline,/offline/);
+  assert.match(el('timeline-list').textContent,/UNKNOWN/);
+  ctx.fetch=normalFetch;
+  console.log('PASS: verifier/timeline latest refresh wins, outage is UNKNOWN, incomplete/legacy evidence cannot prove verification, exact Passport link');
+  const deferred=new Map();
+  const indexPath='/api/v1/casebook/tasks';
+  const taskId='caser-demo-123';
+  const taskPath=indexPath+'/'+taskId;
+  const correlationPath=taskPath+'/passport/'+executionId;
+  const logoutPath='/api/v1/auth/logout';
+  const indexPayload={schema:'voodoo-casebook/bound-task-index/v1',journal_integrity:'NOT_CHECKED_BY_INDEX',
+    has_more:false,items:[{session_id:taskId,project:'PRIVATE_PROJECT',workspace_id:'wrk-1',environment:'local'}]};
+  const taskPayload={schema:'voodoo-casebook/task-view/v1',session_id:taskId,project:'PRIVATE_PROJECT',
+    goal:'PRIVATE_GOAL',workspace_id:'wrk-1',journal_integrity:'LOCAL_HASH_CHAIN_VERIFIED_ONLY',
+    native_approval:'NOT_ATTESTED',isolated_runner_execution:'NOT_ATTESTED',independent_verifier:'NOT_ATTESTED',
+    timeline:[],passport_correlation_available:true};
+  const correlationPayload={schema:'voodoo-one/casebook-passport-correlation/v1',verdict:'LOCAL_STRUCTURAL_PASSPORT_MATCH',
+    session_id:taskId,execution_id:executionId,request_id:requestId,
+    execution_authorized_by_this_view:false,execution_verified_by_this_view:false,resume_authorized:false,
+    passport:{...passport,operation:{request_id:requestId}}};
+  ctx.fetch=(url,options={})=>{
+    if(deferred.has(url))return new Promise((resolve,reject)=>deferred.set(url,{resolve,reject,options}));
+    return normalFetch(url,options);
+  };
+  const start=(url,expression)=>{deferred.set(url,null);return run(expression)};
+  const settle=(url,data)=>{const pending=deferred.get(url);assert.ok(pending);deferred.delete(url);
+    pending.resolve({ok:true,status:200,json:async()=>data})};
+  const openIndex=start(indexPath,"loadView('casebook')");
+  await run("loadView('runs')");
+  settle(indexPath,indexPayload);assert.equal(await openIndex,false);
+  assert.equal(el('casebook-bound-session').innerHTML,'');
+  const detail=start(taskPath,'loadCasebookTask('+JSON.stringify(taskId)+')');
+  await run("loadView('runs')");
+  settle(taskPath,taskPayload);await detail;
+  assert.equal(el('casebook-task-goal').textContent,'');
+  let open=start(taskPath,'loadCasebookTask('+JSON.stringify(taskId)+')');
+  settle(taskPath,taskPayload);await open;
+  el('casebook-correlation-id').value=executionId;
+  deferred.set(correlationPath,null);
+  const correlate=el('casebook-correlation-form').listeners.submit({preventDefault(){}});
+  await run("loadView('runs')");
+  settle(correlationPath,correlationPayload);await correlate;
+  assert.equal(el('casebook-correlation-feedback').textContent,'');
+  assert.doesNotMatch(el('operation-passport-content').innerHTML,new RegExp(executionId));
+  // A matching correlation is still usable when navigation was not superseded.
+  open=start(taskPath,'loadCasebookTask('+JSON.stringify(taskId)+')');
+  settle(taskPath,taskPayload);await open;
+  el('casebook-correlation-id').value=executionId;
+  deferred.set(correlationPath,null);
+  const good=el('casebook-correlation-form').listeners.submit({preventDefault(){}});
+  settle(correlationPath,correlationPayload);await good;
+  assert.match(el('operation-passport-content').innerHTML,new RegExp(executionId));
+  const lateIndex=start(indexPath,'loadCasebookTasks()');
+  const lateDetail=start(taskPath,'loadCasebookTask('+JSON.stringify(taskId)+')');
+  const latePassport=start(pathFor('exec_logout').replace(/^/,'/api/v1'),'loadOperationPassport("exec_logout")');
+  // Normal stub uses its own deferred passport map; above request intercepted by ctx.fetch.
+  storage.set('voodoo_token','test-token');
+  el('app-shell').classList.remove('hidden');
+  deferred.set(logoutPath,null);
+  const logout=el('logout-button').listeners.click();
+  assert.equal(run('state.token'),'');
+  assert.equal(storage.has('voodoo_token'),false);
+  assert.equal(el('app-shell').classList.contains('hidden'),true);
+  assert.equal(el('casebook-task-goal').textContent,'');
+  assert.equal(el('operation-passport-content').innerHTML,'');
+  assert.equal(el('passport-raw-json').textContent,'');
+  assert.equal(deferred.get(logoutPath).options.headers.Authorization,'Bearer test-token');
+  settle(indexPath,indexPayload);settle(taskPath,taskPayload);
+  settle('/api/v1'+pathFor('exec_logout'),{...passport,execution_id:'exec_logout'});
+  await Promise.all([lateIndex,lateDetail,latePassport]);
+  assert.equal(el('casebook-bound-session').innerHTML,'');
+  assert.equal(el('casebook-task-goal').textContent,'');
+  assert.equal(el('operation-passport-content').innerHTML,'');
+  run("state.token='new-session'");
+  storage.set('voodoo_token','new-session');
+  el('app-shell').classList.remove('hidden');
+  const revocation=deferred.get(logoutPath);deferred.delete(logoutPath);revocation.reject(Error('delayed failure'));
+  await logout;
+  assert.equal(run('state.token'),'new-session');
+  assert.equal(storage.get('voodoo_token'),'new-session');
+  assert.equal(el('app-shell').classList.contains('hidden'),false);
+  assert.equal(el('auth-error').textContent,'');
+  open=start(taskPath,'loadCasebookTask('+JSON.stringify(taskId)+')');
+  settle(taskPath,taskPayload);await open;
+  el('casebook-correlation-id').value=executionId;
+  deferred.set(correlationPath,null);
+  const lateCorrelation=el('casebook-correlation-form').listeners.submit({preventDefault(){}});
+  deferred.set(logoutPath,null);
+  const secondLogout=el('logout-button').listeners.click();
+  assert.equal(deferred.get(logoutPath).options.headers.Authorization,'Bearer new-session');
+  settle(correlationPath,correlationPayload);await lateCorrelation;
+  assert.equal(el('operation-passport-content').innerHTML,'');
+  assert.equal(el('casebook-correlation-feedback').textContent,'');
+  const secondRevocation=deferred.get(logoutPath);deferred.delete(logoutPath);
+  secondRevocation.reject(Error('current revocation failure'));await secondLogout;
+  assert.match(el('auth-error').textContent,/Serverové odvolání relace se nepodařilo potvrdit/);
+  assert.equal(run('state.token'),'');
+  assert.equal(el('app-shell').classList.contains('hidden'),true);
+  console.log('PASS: CASEBOOK navigation invalidates index/detail/correlation; logout clears immediately, preserves captured revocation bearer and rejects late old-session responses');
   console.log('OPERATOR_CANONICAL_READ_UX_PASS RUNTIME_FAIL_CLOSED_APPROVAL_DENIAL_CANCEL_AMBIGUITY_SAME_IDEMPOTENCY_VERIFIER_PASSPORT');
 }
 test().catch(error => {console.error(error); process.exitCode = 1;});

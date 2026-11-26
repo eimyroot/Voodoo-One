@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from voodoo_product.operation_passport import OperationPassport
 from voodoo_product.service import CONTROL_ROOM_LIMIT, ProductService
 
 
@@ -57,6 +58,53 @@ def test_run_summary_empty_input_retains_exact_contract() -> None:
         "completed_count": 0,
         "failed_count": 0,
     }
+
+
+def test_run_summary_merges_canonical_identity_without_inventing_success() -> None:
+    def passport(identifier, status, validated=False):
+        return OperationPassport(
+            execution_id=identifier,
+            lifecycle_stage="EXECUTION_COMPLETED" if status == "COMPLETED"
+            else "EXECUTION_ACTIVE",
+            operation={"request_id": "req-1", "workspace_id": "wrk-1",
+                       "environment": "staging", "capability": "github.read-ref/v1"},
+            authority={"snapshot": {"authorized_at": "2026-10-11T00:00:00+00:00"}},
+            dispatch={},
+            runtime={"status": status, "updated_at": "2026-10-12T00:00:00+00:00"},
+            verification={"status": "PERSISTED", "verdict": "VERIFIED",
+                          "independent_verification_exposed": True},
+            integrity={"independent_verification_validated": validated},
+        )
+
+    requests = [{"id": "req-1", "workspace_id": "wrk-1",
+                 "environment": "staging", "status": "APPROVED",
+                 "title": "Observe", "risk": "R1"}]
+    summary = ProductService._summarize_runs(
+        None, requests, [_run(0, "SUCCEEDED"), _run(1, "FAILED")],
+        canonical_passports=[
+            passport("exec-0", "COMPLETED"),
+            passport("exec-active", "ACTIVE"),
+            passport("exec-verified", "COMPLETED", validated=True),
+        ],
+    )
+    rows = {row["id"]: row for row in summary["recent"]}
+    assert len(rows) == 4
+    assert rows["exec-0"]["status"] == "COMPLETED"
+    assert rows["exec-0"]["verification_status"] == "UNKNOWN"
+    assert rows["exec-0"]["request_id"] == "req-1"
+    assert rows["exec-0"]["title"] == "Observe"
+    assert rows["exec-0"]["source"] == "OPERATION_PASSPORT"
+    assert rows["exec-verified"]["verification_status"] == "VERIFIED"
+    assert summary["active_count"] == 1
+    assert summary["completed_count"] == 2
+    assert summary["failed_count"] == 1
+    # No title/risk may be borrowed from another workspace.
+    requests[0]["workspace_id"] = "other"
+    unbound = ProductService._summarize_runs(
+        None, requests, [], canonical_passports=[passport("exec-0", "COMPLETED")]
+    )["recent"][0]
+    assert unbound["title"] == "github.read-ref/v1"
+    assert unbound["risk"] == "UNKNOWN"
 
 
 def test_learning_projection_preserves_unknown_and_observed_states() -> None:

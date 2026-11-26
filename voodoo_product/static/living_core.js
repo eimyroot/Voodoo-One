@@ -126,7 +126,7 @@
     const observed=$('lc-observed-at');
     if(observed)observed.textContent='Projekce načtena · '+new Date().toLocaleTimeString();
 
-    const activeRun=runItems.find(item=>item.status==='RUNNING');
+    const activeRun=runItems.find(item=>['RUNNING','ACTIVE'].includes(item.status));
     const latestRun=activeRun||runItems[0];
     const delivery=$('lc-delivery-content');
     if(delivery)delivery.innerHTML=latestRun
@@ -200,7 +200,7 @@
       return;
     }
     // Reuse the native scoped CASEBOOK reader and its validation, authorization and truth rules.
-    await window.loadView('casebook');
+    if(!(await window.loadView('casebook')))return;
     const target=$('casebook-session-id');
     if(!target){if(hint)hint.textContent='CASEBOOK formulář není dostupný.';return}
     target.value=sessionId;

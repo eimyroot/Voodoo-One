@@ -296,7 +296,7 @@ def test_no_foreign_app_or_second_attachment_and_no_production(env, tmp_path):
         bootstrap_token="b" * 48,
     )
     object.__setattr__(env["composition"].service, "config", prod_config)
-    with pytest.raises(CasebookTaskAccessDenied, match="local/test"):
+    with pytest.raises(CasebookTaskAccessDenied, match="restricted to"):
         CasebookTaskGateway(
             composition=env["composition"], reader=env["reader"],
             scopes=(env["scope"],),

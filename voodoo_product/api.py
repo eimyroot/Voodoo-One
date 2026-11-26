@@ -325,6 +325,22 @@ def create_product_router(
             )
         )
 
+    @router.get("/casebook/tasks")
+    def casebook_task_index(
+        request: Request,
+        principal: Principal = Depends(require_permission("evidence.read")),
+    ) -> JSONResponse:
+        gateway = getattr(request.app.state, "voodoo_casebook_task_gateway", None)
+        if not isinstance(gateway, CasebookTaskGateway):
+            raise HTTPException(status_code=503, detail="CASEBOOK task view is not configured")
+        try:
+            projection = gateway.list_bound(principal=principal)
+        except CasebookTaskAccessDenied as exc:
+            raise HTTPException(status_code=403, detail="CASEBOOK task access denied") from exc
+        except CasebookTaskUnavailable as exc:
+            raise HTTPException(status_code=503, detail="CASEBOOK scope authority unavailable") from exc
+        return JSONResponse(content=projection, headers={"Cache-Control": "no-store"})
+
     @router.get("/casebook/tasks/{session_id}")
     def casebook_task_detail(
         session_id: str,
@@ -348,6 +364,28 @@ def create_product_router(
             raise HTTPException(
                 status_code=503, detail="CASEBOOK evidence is unavailable or unverified"
             ) from exc
+        return JSONResponse(content=projection, headers={"Cache-Control": "no-store"})
+
+    @router.get("/casebook/tasks/{session_id}/passport/{execution_id}")
+    def casebook_task_passport(
+        session_id: str,
+        execution_id: str,
+        request: Request,
+        principal: Principal = Depends(require_permission("evidence.read")),
+    ) -> JSONResponse:
+        gateway = getattr(request.app.state, "voodoo_casebook_task_gateway", None)
+        if not isinstance(gateway, CasebookTaskGateway):
+            raise HTTPException(status_code=503, detail="CASEBOOK correlation not configured")
+        try:
+            projection = gateway.correlate_passport(
+                principal=principal, session_id=session_id, execution_id=execution_id,
+            )
+        except CasebookTaskAccessDenied as exc:
+            raise HTTPException(status_code=403, detail="CASEBOOK task access denied") from exc
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail="CASEBOOK correlation not found") from exc
+        except CasebookTaskUnavailable as exc:
+            raise HTTPException(status_code=503, detail="CASEBOOK correlation unavailable") from exc
         return JSONResponse(content=projection, headers={"Cache-Control": "no-store"})
 
     @router.get("/project-control-map")

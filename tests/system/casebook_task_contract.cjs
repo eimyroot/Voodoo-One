@@ -55,7 +55,7 @@ async function render(payload) {
   };
   const ctx = vm.createContext({
     $, state: {token: "test-only"},
-    api: async () => payload,
+    api: async (_path,options) => { assert.equal(options.cache,'no-store'); return payload; },
     status: (value) => "<span>"+String(value)+"</span>",
     escapeHtml: (value) => String(value).replace(/[&<>"']/g, char => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;",
@@ -70,6 +70,9 @@ async function render(payload) {
     details: $("casebook-task-state").innerHTML,
     timeline: $("casebook-task-timeline").innerHTML,
     goal: $("casebook-task-goal").textContent,
+    meta: $("casebook-task-meta").textContent,
+    next: $("casebook-task-next").textContent,
+    signals: $("casebook-task-signals").innerHTML,
   };
 }
 
@@ -114,7 +117,62 @@ async function render(payload) {
   });
   assert.equal(spoofVerifier.visible, false, "independent verification is not a journal claim");
   assert.match(spoofVerifier.feedback, /NEDOSTUPNÉ \/ NEOVĚŘENO/);
-  process.stdout.write("CASEBOOK_JS_CONTRACT_PASS 7/7\n");
+  const story = await render({...base, timeline:[
+    ...fakeTimeline,
+    {...fakeTimeline[0],seq:2,type:'DECISION',summary:'Chosen approach'},
+    {...fakeTimeline[0],seq:3,type:'BLOCKER',summary:'<script>unsafe</script>',status_claim:'OPEN'},
+    {...fakeTimeline[0],seq:4,type:'BLOCKER',summary:'resolved earlier',status_claim:'RESOLVED'},
+    {...fakeTimeline[0],seq:5,type:'LEARNING',summary:'Lesson recorded'},
+  ]});
+  assert.match(story.meta,/synthetic\/CyberCaser/);
+  assert.match(story.next,/Doložit nativní schválení/);
+  assert.match(story.signals,/Chosen approach/);
+  assert.match(story.signals,/Lesson recorded/);
+  assert.match(story.signals,/&lt;script&gt;unsafe/);
+  assert.doesNotMatch(story.signals,/resolved earlier|<script>/);
+  assert.match(story.timeline,/Původ zápisu/);
+  const unknownNext=await render({...base,next_action:'UNREVIEWED_MUTATION'});
+  assert.equal(unknownNext.next,'Další krok není doložen.');
+  process.stdout.write("CASEBOOK_JS_CONTRACT_PASS 7/7 + JOURNAL_STORY_PASS\n");
+
+  const els=new Map(), requests=[];
+  const $=id=>{
+    if(!els.has(id))els.set(id,{textContent:'',innerHTML:'',value:'',disabled:true,listeners:{},
+      classList:{add(){},remove(){}},replaceChildren(){this.innerHTML='';},addEventListener(n,fn){this.listeners[n]=fn;}});
+    return els.get(id);
+  };
+  const ctx=vm.createContext({$,state:{token:'synthetic'},
+    api:(url,opts)=>{assert.equal(opts.cache,'no-store');return new Promise((resolve,reject)=>requests.push({url,resolve,reject}));},
+    escapeHtml:value=>String(value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])),
+    status:value=>String(value)});
+  vm.runInContext(pane,ctx);
+  const evaluate=expression=>vm.runInContext(expression,ctx);
+  const payload=id=>({schema:'voodoo-casebook/bound-task-index/v1',journal_integrity:'NOT_CHECKED_BY_INDEX',has_more:false,
+    items:[{session_id:id,project:'<synthetic>',workspace_id:'wrk-1',environment:'local'}]});
+  const a=evaluate('loadCasebookTasks()'),b=evaluate('loadCasebookTasks()');
+  assert.equal(requests[0].url,'/casebook/tasks');
+  requests[1].resolve(payload(session));await b;
+  requests[0].resolve(payload('caser-stale'));await a;
+  assert.match($('casebook-bound-session').innerHTML,/caser-demo-task/);
+  assert.match($('casebook-bound-session').innerHTML,/&lt;synthetic&gt;/);
+  assert.doesNotMatch($('casebook-bound-session').innerHTML,/caser-stale/);
+  assert.equal($('casebook-bound-open').disabled,false);
+  $('casebook-bound-session').value=session;
+  $('casebook-bound-form').listeners.submit({preventDefault(){}});
+  assert.equal(requests[2].url,'/casebook/tasks/'+session);
+  requests[2].resolve(base);await Promise.resolve();await Promise.resolve();
+  const c=evaluate('loadCasebookTasks()');
+  assert.equal($('casebook-bound-open').disabled,true);
+  requests[3].reject(Error('offline'));await c;
+  assert.match($('casebook-index-feedback').textContent,/UNKNOWN/);
+  assert.equal($('casebook-bound-session').innerHTML,'');
+  const d=evaluate('loadCasebookTasks()');
+  ctx.state.token='';
+  evaluate('clearCasebookIndex()');
+  requests[4].resolve(payload(session));await d;
+  assert.equal($('casebook-bound-session').innerHTML,'');
+  assert.equal($('casebook-bound-open').disabled,true);
+  console.log('CASEBOOK_BOUND_INDEX_PASS selection, stale response, outage, logout, escaping');
 
   if (process.argv[2] === "--live") {
     const root = process.argv[3];
