@@ -53,17 +53,34 @@ function deferred(){
   return {promise,resolve,reject};
 }
 const storage=new Map();
+const passportRequests=[];
+class RunPassportButton {
+  constructor(id){this.dataset={passportExecutionId:id}}
+  closest(selector){return selector==='button[data-passport-execution-id]'?this:null}
+}
+
 let wallNow=100000,monotonicNow=5000,timerId=0;
 const timers=new Map();
 const advance=ms=>{wallNow+=ms;monotonicNow+=ms};
 const context=vm.createContext({
-  document:{getElementById:element,querySelectorAll:selector=>selector==='.view'?['view-health','view-overview','view-casebook','view-governance'].map(element):[]},
+  Element:RunPassportButton,
+  document:{getElementById:element,querySelectorAll:selector=>selector==='.view'?['view-health','view-overview','view-casebook','view-governance','view-runs'].map(element):[]},
   sessionStorage:{getItem:key=>storage.get(key)??null,setItem:(key,val)=>storage.set(key,String(val)),removeItem:key=>storage.delete(key)},
   Date:class extends Date{static now(){return wallNow}},
   performance:{now:()=>monotonicNow},
   setTimeout:fn=>{const id=++timerId;timers.set(id,fn);return id},
   clearTimeout:id=>timers.delete(id),console,
   fetch:async(url,options={})=>{
+    if(url.startsWith('/api/v1/operations/')&&url.endsWith('/passport')){
+      assert.equal(options.method||'GET','GET');
+      const id=decodeURIComponent(url.slice('/api/v1/operations/'.length,-'/passport'.length));
+      passportRequests.push(id);
+      if(id==='ex_legacy_001')return response({detail:'not found'},404);
+      return response({schema:'vone.operation-passport/v1',execution_id:id,
+        operation:{},authority:{},dispatch:{},runtime:{status:'COMPLETED'},
+        verification:{status:'NOT_PERSISTED',verdict:'UNKNOWN',independent_verification_exposed:false},
+        integrity:{canonical_json_validated:true,lineage_bindings_validated:true,independent_verification_validated:false}});
+    }
     switch(url){
       case '/api/v1/bootstrap/status':return response({required:false});
       case '/api/v1/auth/logout':return response({});
@@ -285,4 +302,108 @@ const reset=()=>{
   assert.equal(element('settings-reduced-motion').checked,false);
   assert.equal(postCalls.length,5,'Settings must not issue mutations');
   console.log('PASS: native Nastavení, allowlisted read-only config, escaped identity/network, contradictions UNKNOWN, local motion preference, refresh/navigation/logout races');
+  // Runs must display only the current authenticated projection. These
+  // synthetic records have no real execution or independent verifier effect.
+  login();reset();
+  const emptyRuns={queue_depth:0,active_count:0,completed_count:0,failed_count:0,recent:[]};
+  const populatedRuns={queue_depth:1,active_count:1,completed_count:0,failed_count:0,recent:[
+    {id:'exec_private_old',title:'<old run>',status:'ACTIVE',risk:'R1',environment:'staging',adapter:'echo',updated_at:'2026-11-26T00:00:00Z',request_id:'cr_fixture_001',receipt_id:null}
+  ]};
+  snapshot.runs=structuredClone(populatedRuns);
+  await context.loadView('runs');
+  assert.match(element('runs-table').innerHTML,/exec_private_old/);
+  assert.match(element('runs-table').innerHTML,/&lt;old run&gt;/);
+  const oldRuns=deferred();primaryDeferred=oldRuns;const oldLoad=context.loadRuns();
+  snapshot.runs=structuredClone(emptyRuns);
+  await context.loadRuns();
+  oldRuns.resolve(response({...normal,runs:populatedRuns}));await oldLoad;
+  assert.match(element('runs-table').innerHTML,/Žádné běhy/,'old response must not replace a fresh empty result');
+  assert.doesNotMatch(element('runs-table').innerHTML,/exec_private_old/);
+  assert.equal(element('runs-kpis').hidden,true);
+  // The actual list contract is not the narrow request-ID contract.
+  const legacy={...populatedRuns.recent[0],id:'ex_legacy_001',status:'SUCCEEDED',receipt_id:'rc_fixture_001'};
+  const canonical={...populatedRuns.recent[0],id:'exec_'+'a'.repeat(251),status:'COMPLETED',
+    adapter:'github.read-ref/v1',source:'OPERATION_PASSPORT',lifecycle_stage:'EXECUTION_COMPLETED',verification_status:'UNKNOWN'};
+  assert.equal(canonical.id.length,256);
+  const oldLegacy={...legacy,id:'x'};
+  const escapedLegacy={...legacy,id:'old id <&>'};
+  snapshot.runs={...emptyRuns,completed_count:4,recent:[legacy,canonical,oldLegacy,escapedLegacy]};
+  await context.loadRuns();
+  assert.match(element('runs-table').innerHTML,new RegExp(canonical.id),'valid 256-character Passport ID is supported');
+  assert.match(element('runs-table').innerHTML,/ex_legacy_001/);
+  assert.match(element('runs-table').innerHTML,/old id &lt;&amp;&gt;/);
+  assert.doesNotMatch(element('runs-table').innerHTML,/data-passport-execution-id="x"|data-passport-execution-id="old id/);
+  assert.doesNotMatch(element('runs-table').innerHTML,/VERIFIED/);
+  await element('runs-table').listeners.click({target:new RunPassportButton(legacy.id)});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(element('operation-passport-content').innerHTML,/není pro tento execution dostupný/);
+  await element('runs-table').listeners.click({target:new RunPassportButton(canonical.id)});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(passportRequests,[legacy.id,canonical.id]);
+  assert.match(element('operation-passport-content').innerHTML,new RegExp(canonical.id));
+  assert.match(element('operation-passport-content').innerHTML,/NOT_PERSISTED/);
+  await element('runs-table').listeners.click({target:new RunPassportButton('x')});
+  assert.deepEqual(passportRequests,[legacy.id,canonical.id],'invalid drilldown ID must not call API');
+  // Only the canonical server projection carries a verification verdict.
+  const verified={...canonical,id:'exec_verified_fixture',verification_status:'VERIFIED'};
+  snapshot.runs={...emptyRuns,completed_count:2,recent:[legacy,verified]};
+  await context.loadRuns();
+  const rendered=element('runs-table').innerHTML;
+  assert.doesNotMatch(rendered.split(legacy.id)[1].split('</tr>')[0],/VERIFIED/);
+  assert.match(rendered.split(verified.id)[1].split('</tr>')[0],/VERIFIED/);
+  // Every base field is emitted by the backend, including nullable keys.
+  for(const key of ['id','title','status','risk','environment','adapter','updated_at','request_id','receipt_id']){
+    const missing={...legacy};delete missing[key];
+    for(const badRow of [missing,{...legacy,[key]:{unexpected:true}}]){
+      snapshot.runs={...emptyRuns,recent:[badRow]};
+      await assert.rejects(context.loadRuns(),/projekce běhů/,key);
+      assert.match(element('runs-table').innerHTML,/UNKNOWN/);
+    }
+  }
+  for(const badRow of [
+    {...legacy,source:'UNRECOGNIZED'},
+    {...legacy,verification_status:'VERIFIED'},
+    {...canonical,verification_status:undefined},
+    {...canonical,verification_status:'FAKE'},
+    {...canonical,lifecycle_stage:null},
+    {...canonical,request_id:null},
+    {...canonical,receipt_id:'legacy-receipt'},
+    {...canonical,id:'a'.repeat(257)}
+  ]){
+    snapshot.runs={...emptyRuns,recent:[badRow]};
+    await assert.rejects(context.loadRuns(),/projekce běhů/);
+    assert.match(element('runs-table').innerHTML,/UNKNOWN/);
+  }
+  // Current malformed or unavailable projections are UNKNOWN, not empty.
+  snapshot.runs={...emptyRuns,active_count:'0'};
+  await assert.rejects(context.loadRuns(),/projekce běhů/);
+  assert.match(element('runs-table').innerHTML,/UNKNOWN/);
+  assert.doesNotMatch(element('runs-table').innerHTML,/Žádné běhy/);
+  snapshot.runs={...emptyRuns,recent:[null]};
+  await assert.rejects(context.loadRuns(),/projekce běhů/);
+  snapshot.runs=structuredClone(populatedRuns);await context.loadRuns();
+  const oldRunsError=deferred();primaryDeferred=oldRunsError;const oldFail=context.loadRuns();
+  await context.loadRuns();oldRunsError.reject(Error('stale runs failure'));await oldFail;
+  assert.match(element('runs-table').innerHTML,/exec_private_old/);
+  snapshot=null;await assert.rejects(context.loadRuns(),/unavailable/);
+  assert.match(element('runs-table').innerHTML,/UNKNOWN/);
+  assert.equal(element('runs-kpis').hidden,true);
+  assert.doesNotMatch(element('runs-table').innerHTML,/exec_private_old/);
+  reset();snapshot.runs=structuredClone(populatedRuns);await context.loadView('runs');
+  const leavingRuns=deferred();primaryDeferred=leavingRuns;const leavingLoad=context.loadRuns();
+  await context.loadView('overview');
+  leavingRuns.resolve(response({...normal,runs:populatedRuns}));await leavingLoad;
+  assert.doesNotMatch(element('runs-table').innerHTML,/exec_private_old/);
+  await context.loadView('runs');
+  const logoutRuns=deferred();primaryDeferred=logoutRuns;const logoutLoad=context.loadRuns();
+  await element('logout-button').listeners.click();
+  // Even if a mock/new session reused the same token string, the old
+  // generation cannot reveal rows across the logout boundary.
+  login();logoutRuns.resolve(response({...normal,runs:populatedRuns}));await logoutLoad;
+  assert.doesNotMatch(element('runs-table').innerHTML,/exec_private_old/);
+  assert.equal(element('runs-kpis').hidden,true);
+  await element('logout-button').listeners.click();
+  assert.equal(postCalls.length,5,'Runs read paths never issue effects');
+  console.log('PASS: Runs authenticated freshness, positive projection, true empty vs UNKNOWN, malformed/outage, old refresh/error, leave/logout races, no effects');
+
 })().catch(error=>{console.error(error);process.exitCode=1});
