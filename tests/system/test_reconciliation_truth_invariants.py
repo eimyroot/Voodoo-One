@@ -19,9 +19,19 @@ def test_evidence_ui_does_not_promote_receipt_integrity_to_verified_operation() 
     source = (ROOT / "voodoo_product" / "static" / "control_room.js").read_text(
         encoding="utf-8"
     )
+    overview_source = (
+        ROOT / "voodoo_product" / "static" / "living_core.js"
+    ).read_text(encoding="utf-8")
 
-    assert "overview.receipt_integrity.valid?'PASS':'FAIL'" in source
-    assert "overview.audit_integrity.valid?'PASS':'FAIL'" in source
+    assert (
+        "const integrityState=value=>value?.valid===true?'PASS':"
+        "value?.valid===false?'FAIL':'UNKNOWN';"
+    ) in overview_source
+    assert (
+        "return a==='FAIL'||b==='FAIL'?'FAIL':"
+        "a==='PASS'&&b==='PASS'?'PASS':'UNKNOWN';"
+    ) in overview_source
+    assert "Nejde o ověření výsledku operace." in overview_source
     verifier = source.split("async function loadVerifier(){", 1)[1].split(
         "function showStopState(", 1
     )[0]
