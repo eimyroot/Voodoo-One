@@ -361,3 +361,67 @@ body {
   .lc-stream, .lc-stage-orb { animation:none !important; }
   .lc-screen * { scroll-behavior:auto !important; transition-duration:.01ms !important; }
 }
+
+/* Systém: diagnostic cockpit on the native desktop, not a second dashboard. */
+#view-health .system-status-line {
+  display:flex; flex-wrap:wrap; align-items:center; gap:12px;
+  padding:12px 16px; margin-bottom:14px; border:1px solid var(--line);
+  border-radius:12px; background:rgba(12,22,36,.74);
+}
+#view-health .system-status-line p {margin:0 0 0 auto;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+#view-health .system-core-grid {display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px;margin-bottom:14px}
+#view-health .system-core,#view-health .system-perimeter,#view-health .system-section {
+  min-width:0;padding:clamp(16px,2vw,25px);border:1px solid rgba(161,202,250,.23);
+  border-radius:16px;background:linear-gradient(145deg,rgba(25,43,67,.92),rgba(13,22,38,.92));
+}
+#view-health .system-core {position:relative;overflow:hidden}
+#view-health .system-core-symbol {height:72px;display:grid;place-items:center;position:relative;pointer-events:none}
+#view-health .system-core-symbol::before,#view-health .system-core-symbol::after {
+  content:"";position:absolute;width:190px;height:45px;border:1px solid rgba(154,205,255,.33);border-radius:50%;transform:rotate(-13deg)
+}
+#view-health .system-core-symbol::after {width:145px;transform:rotate(14deg);border-color:rgba(181,158,239,.3)}
+#view-health .system-core-symbol span {width:42px;height:42px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#e5f3ff,#a1c8fa 22%,#4c739e 52%,#16253c 80%);box-shadow:0 0 24px rgba(125,185,248,.35)}
+#view-health .fact-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#view-health .fact {min-width:0;overflow-wrap:anywhere}
+#view-health .system-section {margin-bottom:14px}
+#view-health .system-diagnostics .system-section {margin-bottom:0}
+#view-health .system-component-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+#view-health .system-component {border:1px solid var(--line);border-radius:12px;padding:13px;background:rgba(8,15,26,.53);min-width:0}
+#view-health .system-component summary {cursor:pointer;overflow-wrap:anywhere}
+#view-health .system-component summary strong {margin-right:8px;font-size:13px}
+#view-health .system-component p {line-height:1.55;font-size:12px;color:var(--text)}
+#view-health .system-component small {font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+#view-health .system-problem {border-bottom:1px solid var(--line);padding:10px 0}
+#view-health .system-problem strong {margin-left:8px;font-size:13px}
+#view-health .system-problem p {font-size:12px;color:var(--muted);margin:7px 0}
+#view-health .system-stop {border-color:rgba(255,142,154,.45);background:rgba(42,23,36,.7);padding:20px;border-radius:16px}
+#view-health .system-stop button.danger:not(:disabled) {background:linear-gradient(135deg,#703444,#502434);border-color:rgba(255,142,154,.65)}
+#view-health .system-stop button:disabled {opacity:.48;cursor:not-allowed}
+#view-health .system-stop label {font-size:12px;color:var(--muted)}
+#view-health .system-stop .inline-controls {margin-top:8px;flex-wrap:wrap}
+#view-health #health-action-feedback {color:var(--text);font-size:13px}
+#view-health .status.CONFIGURED {color:#c0d9ff}
+#view-health details>summary {cursor:pointer}
+@media(max-width:1040px){#view-health .system-core-grid {grid-template-columns:1fr} #view-health .system-component-grid {grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){#view-health .system-component-grid,#view-health .fact-grid {grid-template-columns:1fr} #view-health .system-status-line p {margin-left:0;width:100%}}
+
+/* Nastavení: real read-only configuration and a local accessibility preference. */
+#view-governance .settings-status-line {display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:12px 16px;border:1px solid var(--line);border-radius:12px;margin-bottom:14px;background:rgba(12,22,36,.74)}
+#view-governance .settings-status-line p {margin:0 0 0 auto;color:var(--muted);font-size:12px}
+#view-governance .settings-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#view-governance .settings-panel {padding:clamp(16px,2vw,25px);border:1px solid rgba(161,202,250,.23);border-radius:16px;min-width:0;background:linear-gradient(145deg,rgba(25,43,67,.92),rgba(13,22,38,.92))}
+#view-governance .fact-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#view-governance .fact {min-width:0;overflow-wrap:anywhere}
+#view-governance .settings-network-list {border-bottom:1px solid var(--line);padding:8px 0}
+#view-governance .settings-network-list h3 {font-size:13px;display:inline;margin-right:10px}
+#view-governance .settings-network-list ul {padding-left:20px;overflow-wrap:anywhere}
+#view-governance .settings-network-list li {padding:4px 0;font-size:12px}
+#view-governance .settings-preferences {margin-top:14px}
+#view-governance .settings-toggle {display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:12px;background:rgba(8,15,26,.53);cursor:pointer}
+#view-governance .settings-toggle input {width:20px;height:20px;flex:0 0 20px;accent-color:var(--accent)}
+#view-governance .settings-toggle small {display:block;margin-top:4px;color:var(--muted)}
+#view-governance #settings-motion-state {font-size:12px;color:var(--muted)}
+.app-shell.settings-reduced-motion .lc-stream,.app-shell.settings-reduced-motion .lc-stage-orb {animation:none !important}
+.app-shell.settings-reduced-motion .lc-screen * {scroll-behavior:auto !important;transition-duration:.01ms !important}
+@media(max-width:900px){#view-governance .settings-grid {grid-template-columns:1fr} #view-governance .settings-status-line p {margin-left:0;width:100%}}
+@media(max-width:560px){#view-governance .fact-grid {grid-template-columns:1fr}}
