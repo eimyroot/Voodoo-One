@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           persist-credentials: false
+          fetch-depth: 0  # exact adopted-content commit ancestry verification
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12.13"
@@ -123,10 +124,15 @@ jobs:
         run: |
           node --check voodoo_product/static/control_room.js
           node --check voodoo_product/static/workflow_boards.js
+          node --check voodoo_product/static/living_core.js
+          node --check tests/system/test_living_core_ui.cjs
+          node --check tests/system/test_menu_operator_state.cjs
           node --check tests/system/test_workflow_boards_render.cjs
           node --check tests/system/test_operator_canonical_read.cjs
           node tests/system/test_workflow_boards_render.cjs
           node tests/system/test_operator_canonical_read.cjs
+          node tests/system/test_living_core_ui.cjs
+          node tests/system/test_menu_operator_state.cjs
       - name: Product readiness gate
         run: python scripts/product_readiness_gate.py
       - name: Dependency vulnerability audits

@@ -298,9 +298,15 @@ def test_console_and_openapi_are_available(tmp_path: Path) -> None:
     assert "syncChangeEnvironment" in javascript.text
     assert "api('/auth/logout',{method:'POST',headers:{Authorization:" in javascript.text
     assert "Serverové odvolání relace se nepodařilo potvrdit" in javascript.text
-    assert "data.architecture.flows" in javascript.text
+    overview_javascript = client.get("/console/assets/living_core.js")
+    assert overview_javascript.status_code == 200
+    assert "renderer.renderProjection(data)" in javascript.text
+    assert "function renderArchitectureFlow(flow)" in javascript.text
+    assert "list(data.architecture?.flows)" in overview_javascript.text
+    assert ".map(window.renderArchitectureFlow)" in overview_javascript.text
     for invented_label in ("Intent Compiler", "Capability Router", "Dynamic DAG"):
         assert invented_label not in javascript.text
+        assert invented_label not in overview_javascript.text
     schema = client.get("/openapi.json")
     assert schema.status_code == 200
     assert "/api/v1/change-requests" in schema.json()["paths"]

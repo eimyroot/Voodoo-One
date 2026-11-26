@@ -83,7 +83,7 @@
       <button data-view="evidence" class="nav">Historie událostí</button>
       <button data-view="casebook" class="nav">Deník úkolu · CASEBOOK</button>
       <button data-view="health" class="nav">Stav systému</button>
-      <button data-view="governance" class="nav">Konfigurace prostředí</button>
+      <button data-view="governance" class="nav">Nastavení</button>
       <details class="sidebar-more">
         <summary>Další pohledy</summary>
         <button data-view="ecosystem" class="nav">Ecosystem Map</button>
@@ -107,7 +107,7 @@
         <header class="page-head lc-page-head">
           <div>
             <p class="eyebrow">VOODOO ONE · OPERATIONS CONTROL</p>
-            <h1 id="living-core-title">Living Core</h1>
+            <h1 id="living-core-title">Přehled · Living Core</h1>
             <p>Jedno přihlášené provozní rozhraní pro záměr, řízení, běh, ověření a důkaz.</p>
           </div>
           <button data-refresh="overview" type="button">Obnovit projekci</button>
@@ -127,9 +127,10 @@
           <article class="panel lc-casebook-card" aria-labelledby="lc-casebook-title">
             <p class="lc-kicker">CASEBOOK · SCOPED READ</p>
             <h2 id="lc-casebook-title">Kontext jedné relace</h2>
-            <p class="lc-casebook-desc">Otevře existující CASEBOOK Tasks. Lokální integrita journalu není důkaz Runneru ani nezávislé verifikace.</p>
+            <p class="lc-casebook-desc">Skutečné úkoly, rozhodnutí a překážky patří do autorizovaného Deníku. Lokální integrita journalu není důkaz Runneru ani nezávislé verifikace.</p>
+            <button type="button" class="secondary" data-refresh="casebook">Otevřít Deník úkolů</button>
             <form id="lc-casebook-form" class="lc-session-form">
-              <label for="lc-casebook-id">ID existující CASEBOOK relace</label>
+              <label for="lc-casebook-id">Volitelně: přesné ID existující CASEBOOK relace</label>
               <div class="lc-session-actions">
                 <input id="lc-casebook-id" type="text" maxlength="128" pattern="[A-Za-z0-9_-]{5,128}" autocomplete="off" placeholder="voodoo-one-…" required />
                 <button type="submit">Otevřít</button>
@@ -144,7 +145,7 @@
             <div><p class="lc-kicker">Provozní cyklus</p><h2 id="lc-cycle-title">Intent → Approval → JIT → Execution → Verification → Evidence</h2></div>
             <span id="lc-observed-at" class="lc-observed" role="status" aria-live="polite">Čekám na ověřenou projekci</span>
           </div>
-          <p class="lc-truth-note">Fáze jsou souhrnem samostatných záznamů z Control Roomu, nikoli tvrzením o jednom propojeném běhu.</p>
+          <p class="lc-truth-note">Fáze jsou souhrnem samostatných záznamů z Control Roomu, nikoli jedním propojeným během. Počty běhů a fronty vycházejí z omezeného výřezu; dokončený běh neznamená ověřený výsledek.</p>
           <div class="lc-flow">
             <svg class="lc-flow-art" viewBox="0 0 1200 240" preserveAspectRatio="none" aria-hidden="true" focusable="false">
               <defs><linearGradient id="lc-stream-gradient" x1="0" x2="1"><stop offset="0" stop-color="#7e9cff" stop-opacity=".12"/><stop offset=".48" stop-color="#c9e8ff" stop-opacity=".9"/><stop offset="1" stop-color="#a88bff" stop-opacity=".32"/></linearGradient></defs>
@@ -172,7 +173,7 @@
             <div id="lc-delivery-content" class="lc-list"><p class="muted">Načítám běhy z Control Roomu…</p></div>
           </article>
           <article class="panel lc-panel lc-approvals">
-            <div class="panel-heading"><div><p class="lc-kicker">Plans · actual projection</p><h2>Approvals Queue</h2></div><button type="button" class="secondary" data-refresh="plans">Otevřít schválení</button></div>
+            <div class="panel-heading"><div><p class="lc-kicker">Plans · actual projection</p><h2>Čekající rozhodnutí</h2></div><button type="button" class="secondary" data-refresh="plans">Otevřít schválení</button></div>
             <div id="lc-approvals-content" class="lc-list"><p class="muted">Načítám schvalovací frontu…</p></div>
           </article>
           <article class="panel lc-panel lc-verification">
@@ -184,7 +185,7 @@
             <div id="lc-evidence-content" class="lc-list"><p class="muted">Načítám evidenci…</p></div>
           </article>
           <article class="panel lc-panel lc-metrics-panel">
-            <div class="panel-heading"><div><p class="lc-kicker">System Metrics</p><h2>Provozní dostupnost dat</h2></div><button type="button" class="secondary" data-refresh="health">Runtime health</button></div>
+            <div class="panel-heading"><div><p class="lc-kicker">Control Room · skutečná data</p><h2>Bezpečnost a ověření</h2></div><button type="button" class="secondary" data-refresh="health">Runtime health</button></div>
             <div id="lc-metrics-content" class="lc-metrics"></div>
           </article>
         </div>
@@ -390,25 +391,69 @@
         </article>
       </section>
 
-      <section id="view-health" class="view">
-        <div class="page-head">
+      <section id="view-health" class="view lc-screen system-screen" aria-labelledby="system-title">
+        <header class="page-head lc-page-head">
           <div>
-            <p class="eyebrow">Runtime</p>
-            <h1>Stav systému</h1>
-            <p>API, databáze, canonical runtime a bezpečnostní provozní stav.</p>
+            <p class="eyebrow">VOODOO ONE · SYSTEM CONTROL</p>
+            <h1 id="system-title">Systém</h1>
+            <p>Živá diagnostika dostupnosti, bezpečnostních omezení a zdrojů evidence.</p>
           </div>
-          <button data-refresh="health">Obnovit</button>
+          <button data-refresh="health" type="button">Obnovit diagnostiku</button>
+        </header>
+        <div class="system-status-line">
+          <span>Stav základních signálů</span><strong id="health-overall" class="status UNKNOWN">UNKNOWN</strong>
+          <p id="health-time" role="status" aria-live="polite">Aktuální stav není ověřen.</p>
         </div>
-        <div id="health-summary" class="fact-grid health-summary"></div>
-        <details class="panel raw-health"><summary>Údaje provozní kontroly</summary><pre id="health-json"></pre></details>
-        <article class="panel danger-zone">
-          <h2>Nouzové zastavení</h2><p id="stop-state" role="status">Stav se načítá.</p>
-          <p>Zastaví nové execution operace a vytvoří auditní událost.</p>
-          <div class="inline-controls">
-            <input id="stop-reason" placeholder="Povinný důvod" />
-            <button disabled id="activate-stop" class="danger">Aktivovat emergency stop</button>
-            <button disabled id="clear-stop" class="secondary">Zrušit emergency stop</button>
+        <div class="system-core-grid">
+          <article class="panel system-core">
+            <p class="lc-kicker">SYSTEM CORE · LIVENESS</p>
+            <h2>Dostupnost jádra</h2>
+            <div class="system-core-symbol" aria-hidden="true"><span></span></div>
+            <div id="health-summary" class="fact-grid health-summary">Nedostupné.</div>
+            <p class="muted">Liveness potvrzuje dostupnost, nikoli integritu evidence nebo úspěšné provedení operace.</p>
+          </article>
+          <article class="panel system-perimeter">
+            <p class="lc-kicker">SECURITY PERIMETER · POLICY</p>
+            <h2>Bezpečnostní perimetr</h2>
+            <div id="health-perimeter" class="fact-grid">Nedostupné.</div>
+            <p class="muted">Integrita auditních řetězců není nezávislé ověření výsledku operace. Oprávnění vždy rozhoduje server.</p>
+            <button data-refresh="evidence" type="button" class="secondary">Otevřít důkazy</button>
+          </article>
+        </div>
+        <article class="panel system-section">
+          <div class="panel-heading">
+            <div><p class="lc-kicker">COMPONENTS · OBSERVED VS CONFIGURED</p><h2>Komponenty a dostupnost</h2><p>Rozbal zdroj a omezení každé komponenty.</p></div>
+            <button data-refresh="casebook" class="secondary" type="button">Otevřít Deník</button>
           </div>
+          <div id="health-components" class="system-component-grid">Nedostupné.</div>
+        </article>
+        <div class="system-core-grid system-diagnostics">
+          <article class="panel system-section">
+            <p class="lc-kicker">DIAGNOSTICS · CURRENT READ</p><h2>Problémy a omezení</h2>
+            <div id="health-problems">Nedostupné.</div>
+          </article>
+          <article class="panel system-section">
+            <p class="lc-kicker">AUDIT · BOUNDED WINDOW</p><h2>Poslední auditní události</h2>
+            <div id="health-events">Nedostupné.</div>
+            <button data-refresh="evidence" type="button" class="secondary">Otevřít časovou osu</button>
+          </article>
+        </div>
+        <details class="panel system-section">
+          <summary>Verze, obnova a telemetrie</summary>
+          <div id="health-versions" class="fact-grid">Nedostupné.</div>
+        </details>
+        <details class="panel raw-health system-section"><summary>Pokročilá diagnostika · zdrojová projekce</summary><pre id="health-json"></pre></details>
+        <article class="panel danger-zone system-stop">
+          <p class="lc-kicker">EMERGENCY CONTROL · SERVER AUTHORITY</p>
+          <h2>Nouzové zastavení</h2><p id="stop-state" role="status">Stav neověřen.</p>
+          <p>Zastaví nové execution operace a vytvoří auditní událost. Neznamená automatické ukončení probíhajících běhů. Zrušení vyžaduje konzistentní bezpečnostní signály a diagnostiku mladší než 30 sekund od zahájení čtení. Po vypršení obnov diagnostiku. Oprávnění vždy ověřuje server.</p>
+          <label for="stop-reason">Povinný důvod (min. 3 znaky)</label>
+          <div class="inline-controls">
+            <input id="stop-reason" placeholder="Povinný důvod" autocomplete="off" />
+            <button disabled id="activate-stop" type="button" class="danger">Aktivovat emergency stop</button>
+            <button disabled id="clear-stop" type="button" class="secondary">Zrušit emergency stop</button>
+          </div>
+          <p id="health-action-feedback" role="status" aria-live="polite"></p>
         </article>
       </section>
 
@@ -450,16 +495,46 @@
         </div>
       </section>
 
-      <section id="view-governance" class="view">
-        <div class="page-head">
-          <div>
-            <p class="eyebrow">Governance</p>
-            <h1>Konfigurace prostředí</h1>
-            <p>Nastavení prostředí pouze pro čtení.</p>
-          </div>
-          <button data-refresh="governance">Obnovit</button>
+      <section id="view-governance" class="view lc-screen settings-screen" aria-labelledby="settings-title">
+        <header class="page-head lc-page-head">
+          <div><p class="eyebrow">VOODOO ONE · CONFIGURATION</p><h1 id="settings-title">Nastavení</h1>
+            <p>Identita, hranice oprávnění, konfigurace prostředí a preference rozhraní.</p></div>
+          <button data-refresh="governance" type="button">Obnovit konfiguraci</button>
+        </header>
+        <div class="settings-status-line"><span>Serverová konfigurace · pouze pro čtení</span>
+          <strong id="settings-configuration-state" class="status UNKNOWN">UNKNOWN</strong>
+          <p id="governance-time" role="status" aria-live="polite">Aktuální konfigurace nebyla ověřena.</p>
         </div>
-        <p id="governance-time" role="status"></p><div id="governance-grid" class="fact-grid"></div>
+        <div class="settings-grid">
+          <article class="panel settings-panel">
+            <p class="lc-kicker">IDENTITY · CURRENT SESSION</p><h2>Profil a identita</h2>
+            <div id="settings-identity" class="fact-grid">Nedostupné.</div>
+            <p class="muted">Účet a role jsou z aktuální autorizované relace. Role sama nepovoluje konkrétní operaci.</p>
+          </article>
+          <article class="panel settings-panel">
+            <p class="lc-kicker">ENVIRONMENT · POLICY</p><h2>Prostředí a bezpečnost</h2>
+            <div id="governance-grid" class="fact-grid">Nedostupné.</div>
+            <p class="muted">Změny prostředí a politik vyžadují samostatný řízený postup. Zde se nic neukládá na server.</p>
+            <button data-refresh="policy" class="secondary" type="button">Pravidla a omezení</button>
+          </article>
+          <article class="panel settings-panel">
+            <p class="lc-kicker">NETWORK · ALLOWLIST</p><h2>Síťová konfigurace</h2>
+            <div id="settings-network">Nedostupné.</div>
+            <p class="muted">Konfigurované hodnoty nejsou test konektivity. Prázdný seznam neznamená povolení všech origins.</p>
+          </article>
+          <article class="panel settings-panel">
+            <p class="lc-kicker">INTEGRATIONS · READ ONLY</p><h2>Integrace a runtime</h2>
+            <div id="settings-integrations" class="fact-grid">Nedostupné.</div>
+            <p class="muted">Konfigurace neprokazuje funkčnost externího poskytovatele ani nezávislé ověření.</p>
+            <button data-refresh="health" class="secondary" type="button">Otevřít diagnostiku systému</button>
+          </article>
+        </div>
+        <article class="panel settings-panel settings-preferences">
+          <p class="lc-kicker">ACCESSIBILITY · LOCAL SESSION ONLY</p><h2>Preference rozhraní</h2>
+          <label class="settings-toggle"><input type="checkbox" id="settings-reduced-motion" />
+            <span><strong>Omezit animace Living Core</strong><small>Platí pouze v této relaci prohlížeče. Nemění žádnou serverovou konfiguraci.</small></span></label>
+          <p id="settings-motion-state" role="status">Používá se výchozí nastavení a preference operačního systému.</p>
+        </article>
       </section>
     </main>
     <div id="toast" class="toast hidden"></div>
