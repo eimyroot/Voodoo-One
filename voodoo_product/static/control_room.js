@@ -41,7 +41,7 @@ function revealActiveNavOnCompactViewport(name){
     current.scrollIntoView({block:'nearest',inline:'center',behavior:'auto'});
   }
 }
-async function loadView(name){const bearer=state.token;if(!bearer)return false;const epoch=++viewEpoch;if(name!=='governance')clearSettingsContext();if(name!=='health')clearRuntimeHealthContext({clearReason:true});if(name!=='overview')clearOverviewContext({clearHeader:false});if(name!=='casebook')clearCasebookContext();if(name!=='runs')clearOperationPassport();document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return false}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){if(epoch===viewEpoch&&bearer===state.token)toast(err.message,true)}return epoch===viewEpoch&&bearer===state.token}
+async function loadView(name){const bearer=state.token;if(!bearer)return false;const epoch=++viewEpoch;if(name!=='governance')clearSettingsContext();if(name!=='health')clearRuntimeHealthContext({clearReason:true});if(name!=='overview')clearOverviewContext({clearHeader:true});if(name!=='casebook')clearCasebookContext();if(name!=='runs')clearOperationPassport();document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return false}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){if(epoch===viewEpoch&&bearer===state.token)toast(err.message,true)}return epoch===viewEpoch&&bearer===state.token}
 const casebookSessionIdPattern=/^[A-Za-z0-9_-]{5,128}$/;
 let casebookRequestGeneration=0;
 let casebookCorrelationGeneration=0;
@@ -610,9 +610,9 @@ $('verifier-list').addEventListener('click',async event=>{
 });
 // Systém is a read-only diagnostic projection except for the existing,
 // server-authorized emergency-stop action. Configuration is not live proof.
-function showStopState(active, environment, canControl=false) {
-  $('activate-stop').disabled = !canControl || active !== false;
-  $('clear-stop').disabled = !canControl || active !== true;
+function showStopState(active, environment, canActivate=false, canClear=false) {
+  $('activate-stop').disabled = !canActivate || active !== false;
+  $('clear-stop').disabled = !canClear || active !== true;
   $('activate-stop').hidden = active === true;
   $('clear-stop').hidden = active === false;
   const label = active === true ? 'Aktivní' : active === false ? 'Vypnuto' : 'Stav neověřen';
@@ -647,7 +647,7 @@ function healthCard(title,verdict,detail,source){
   return '<details class="system-component"><summary><strong>'+escapeHtml(title)+'</strong>'+status(verdict)+'</summary>'+
     '<p>'+escapeHtml(detail)+'</p><small>Zdroj: '+escapeHtml(source)+'</small></details>';
 }
-function renderRuntimeHealth(data,liveness,operations,principal){
+function renderRuntimeHealth(data,liveness,operations,principal,allowControls=true){
   if(!healthRecord(data)||!healthRecord(data.overview)||!Array.isArray(data.runtime_health))
     throw new Error('Neplatná provozní projekce.');
   const o=data.overview;
@@ -673,9 +673,22 @@ function renderRuntimeHealth(data,liveness,operations,principal){
   const runtimeConflict=(projectionConfigured==='DISABLED'&&runtime.configured===true)||(projectionConfigured==='ENABLED'&&runtime.configured===false);
   const role=healthRecord(principal)?healthString(principal.role):'Nedostupné';
   const uiEligible=['administrator','security_reviewer'].includes(role);
-  const canControl=uiEligible&&!conflictingStop&&env!=='Nedostupné'&&typeof o.emergency_stop==='boolean';
+  const primaryApi=healthKnown(byName('API')?.status,['HEALTHY','EMERGENCY_STOP','UNAVAILABLE']);
+  const primaryDb=healthKnown(byName('Database')?.status,['HEALTHY','UNAVAILABLE']);
+  const conflictingApi=primaryApi!=='UNKNOWN'&&apiState!=='UNKNOWN'&&primaryApi!==apiState;
+  const eligible=uiEligible&&!conflictingStop&&!conflictingApi&&env!=='Nedostupné';
+  // Activating a protective stop is distinct from removing it. Only the
+  // latter requires complete, consistent fresh safety signals. Server
+  // authorization remains authoritative; these are presentation safeguards.
+  const confirmedStop=(stop==='ACTIVE'&&apiState==='EMERGENCY_STOP'&&primaryApi==='EMERGENCY_STOP')
+    ||(stop==='INACTIVE'&&apiState==='HEALTHY'&&primaryApi==='HEALTHY');
+  const confirmedDb=dbState==='HEALTHY'&&primaryDb==='HEALTHY'&&!conflictingDb;
+  const canActivate=allowControls&&eligible&&stop==='INACTIVE';
+  const canClear=allowControls&&eligible&&stop==='ACTIVE'&&trust==='INCIDENT'
+    &&confirmedStop&&confirmedDb&&integrity==='PASS'&&!runtimeConflict;
+  const observedStop=confirmedStop&&confirmedDb?o.emergency_stop:null;
   const overall=trust==='INCIDENT'||integrity==='FAIL'||stop==='ACTIVE'||apiState==='EMERGENCY_STOP'||apiState==='UNAVAILABLE'||dbState==='UNAVAILABLE'?'INCIDENT':
-    trust==='HEALTHY'&&integrity==='PASS'&&stop==='INACTIVE'&&apiState==='HEALTHY'&&dbState==='HEALTHY'&&!conflictingDb&&!runtimeConflict?'HEALTHY':'UNKNOWN';
+    trust==='HEALTHY'&&integrity==='PASS'&&stop==='INACTIVE'&&apiState==='HEALTHY'&&dbState==='HEALTHY'&&!conflictingApi&&!conflictingDb&&!runtimeConflict?'HEALTHY':'UNKNOWN';
   $('health-overall').textContent=overall;
   $('health-overall').className='status '+overall;
   $('health-time').textContent='Načteno v prohlížeči '+new Date().toLocaleTimeString()+' · '+env.toUpperCase()+' · není trvalý monitoring';
@@ -707,7 +720,7 @@ function renderRuntimeHealth(data,liveness,operations,principal){
   if(stop==='ACTIVE'||apiState==='EMERGENCY_STOP')problems.push(['BLOCKED','Nouzové zastavení hlášeno','Prověř aktuální stav; aktivní stop blokuje nové execution operace.']);
   if(integrity==='FAIL')problems.push(['FAIL','Integrita evidence','Audit nebo receipt řetězec je neplatný. Prověř důkazy, nikoli pouze liveness.']);
   if(apiState==='UNAVAILABLE'||dbState==='UNAVAILABLE')problems.push(['UNAVAILABLE','Liveness','API nebo databáze hlásí nedostupnost.']);
-  if(conflictingStop||conflictingDb||runtimeConflict)problems.push(['UNKNOWN','Rozpor mezi čteními','Obnov diagnostiku. Údaje nejsou jedním atomickým snapshotem.']);
+  if(conflictingStop||conflictingApi||conflictingDb||runtimeConflict)problems.push(['UNKNOWN','Rozpor mezi čteními','Obnov diagnostiku. Údaje nejsou jedním atomickým snapshotem.']);
   if(trust==='INCIDENT'&&!problems.length)problems.push(['INCIDENT','Control Room hlásí incident','Příčina nebyla v projekci potvrzena.']);
   if(trust==='UNKNOWN'||integrity==='UNKNOWN'||stop==='UNKNOWN'||apiState==='UNKNOWN'||dbState==='UNKNOWN')
     problems.push(['UNKNOWN','Neúplná diagnostika','Chybí platné měření nebo stav některého povinného signálu.']);
@@ -729,15 +742,19 @@ function renderRuntimeHealth(data,liveness,operations,principal){
     fact('Latence / vytížení','Bez měření','NOT_EXPOSED')
   ].join('');
   $('health-json').textContent=JSON.stringify({runtime_health:rows,liveness:probe,operations_status:runtime},null,2);
-  showStopState(conflictingStop?null:o.emergency_stop,env==='Nedostupné'?undefined:env,
-    canControl&&healthStopPending?.bearer!==state.token);
-  return canControl?{active:o.emergency_stop,environment:env}:null;
+  showStopState(conflictingStop||conflictingApi?null:o.emergency_stop,env==='Nedostupné'?undefined:env,canActivate,canClear);
+  if(!allowControls)$('health-action-feedback').textContent='Čtení začalo během předchozího požadavku. Ovládání zůstává blokováno; po jeho dokončení obnov diagnostiku.';
+  else if(stop==='ACTIVE'&&!canClear)$('health-action-feedback').textContent='Zrušení stop není nyní způsobilé: vyžaduje oprávněnou relaci, konzistentní stop, dostupnou databázi a platnou integritu.';
+  return {active:o.emergency_stop,environment:env,canActivate,canClear,observedStop};
 }
 async function loadRuntimeHealth(){
   const bearer=state.token,epoch=viewEpoch;
   if(!bearer||!healthViewActive())return;
   clearRuntimeHealthContext({loading:true});
   const generation=healthRefreshEpoch;
+  // A read begun during a mutation is never a fresh action authority, even
+  // if it completes after the POST. A new explicit refresh is required.
+  const pendingAtStart=healthStopPending?.bearer===bearer;
   const current=()=>bearer===state.token&&epoch===viewEpoch&&generation===healthRefreshEpoch&&healthViewActive();
   try{
     // Only the authenticated Control Room projection owns presentation.
@@ -752,8 +769,10 @@ async function loadRuntimeHealth(){
     if(ops.status==='rejected'&&ops.reason?.statusCode===401)throw ops.reason;
     const liveness=live.status==='fulfilled'?live.value:
       live.reason?.statusCode===503?{status:'UNAVAILABLE'}:null;
-    const authority=renderRuntimeHealth(primary.value,liveness,ops.status==='fulfilled'?ops.value:null,me.status==='fulfilled'?me.value:null);
-    healthStopAuthority=authority?{...authority,bearer,epoch,generation}:null;
+    const observation=renderRuntimeHealth(primary.value,liveness,ops.status==='fulfilled'?ops.value:null,me.status==='fulfilled'?me.value:null,
+      !pendingAtStart&&healthStopPending?.bearer!==bearer);
+    healthStopAuthority=observation.canActivate||observation.canClear?{...observation,bearer,epoch,generation}:null;
+    return observation.observedStop;
   }catch(error){
     if(!current())return;
     clearRuntimeHealthContext();
@@ -763,12 +782,15 @@ async function loadRuntimeHealth(){
 async function setStop(active){
   const auth=healthStopAuthority,bearer=state.token;
   if(typeof active!=='boolean'||!auth||!bearer||auth.bearer!==bearer||auth.epoch!==viewEpoch
-    ||auth.generation!==healthRefreshEpoch||!healthViewActive()||auth.active===active||healthStopPending?.bearer===bearer)return;
+    ||auth.generation!==healthRefreshEpoch||!healthViewActive()||auth.active===active
+    ||(active?!auth.canActivate:!auth.canClear)||healthStopPending?.bearer===bearer)return;
   const reason=$('stop-reason').value.trim();
   if(reason.length<3){toast('Vyplň důvod',true);return}
+  const epoch=viewEpoch;
   const pending={bearer};
   healthStopPending=pending;
   clearRuntimeHealthContext({loading:true});
+  const generation=healthRefreshEpoch;
   $('health-action-feedback').textContent='Odesílám jediný požadavek. Čekám na potvrzení serveru.';
   let accepted=false;
   try{
@@ -779,12 +801,14 @@ async function setStop(active){
   }finally{
     if(healthStopPending===pending)healthStopPending=null;
   }
-  if(bearer!==state.token||!healthViewActive())return;
-  $('stop-reason').value='';
-  const epoch=viewEpoch,expectedGeneration=healthRefreshEpoch+1;
-  try{await loadRuntimeHealth()}catch{return}
+  // Do not let an older mutation erase input, refresh, or report its
+  // outcome in a newer view or refresh generation of the same session.
+  if(bearer!==state.token||epoch!==viewEpoch||generation!==healthRefreshEpoch||!healthViewActive())return;
+  if($('stop-reason').value.trim()===reason)$('stop-reason').value='';
+  const expectedGeneration=generation+1;
+  let readback;
+  try{readback=await loadRuntimeHealth()}catch{return}
   if(bearer!==state.token||epoch!==viewEpoch||expectedGeneration!==healthRefreshEpoch||!healthViewActive())return;
-  const readback=healthStopAuthority?.active;
   $('health-action-feedback').textContent=accepted&&readback===active
     ?'Server potvrdil požadavek a stav byl znovu načten.'
     :'Výsledek požadavku není potvrzen. Nepokračuj automatickým opakováním; zkontroluj aktuální stav a audit.';

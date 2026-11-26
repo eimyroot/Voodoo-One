@@ -118,10 +118,18 @@ const reset=()=>{
   assert.match(element('health-components').innerHTML,/Neprokazuje funkční provider/);
   assert.doesNotMatch(element('health-components').innerHTML,/VERIFIED/);
   reset();
-  snapshot.overview.emergency_stop=true;snapshot.overview.trust_state='INCIDENT';live.status='EMERGENCY_STOP';
+  snapshot.overview.emergency_stop=true;snapshot.overview.trust_state='INCIDENT';snapshot.runtime_health[0].status='EMERGENCY_STOP';live.status='EMERGENCY_STOP';
   await context.loadRuntimeHealth();
   assert.equal(element('health-overall').textContent,'INCIDENT');
   assert.equal(element('activate-stop').disabled,true);assert.equal(element('clear-stop').disabled,false);
+  live=null;await context.loadRuntimeHealth();buttonsDisabled();
+  element('stop-reason').value='blocked clear';await context.setStop(false);assert.equal(postCalls.length,0);
+  live={status:'EMERGENCY_STOP',database:'HEALTHY'};snapshot.overview.audit_integrity={valid:false};
+  await context.loadRuntimeHealth();buttonsDisabled();
+  await context.setStop(false);assert.equal(postCalls.length,0);
+  snapshot.overview.audit_integrity={valid:true};live.database='UNAVAILABLE';await context.loadRuntimeHealth();buttonsDisabled();
+  live.database='HEALTHY';snapshot.runtime_health[1].status='UNAVAILABLE';await context.loadRuntimeHealth();buttonsDisabled();
+  snapshot.runtime_health[1].status='HEALTHY';await context.loadRuntimeHealth();assert.equal(element('clear-stop').disabled,false);
   // Contradictory stop snapshots do not enable either control.
   live.status='HEALTHY';await context.loadRuntimeHealth();buttonsDisabled();
   assert.match(element('health-problems').innerHTML,/Rozpor mezi čteními/);
@@ -135,6 +143,7 @@ const reset=()=>{
   reset();live=null;operations=null;await context.loadRuntimeHealth();
   assert.equal(element('health-overall').textContent,'UNKNOWN');
   assert.match(element('health-problems').innerHTML,/Neúplná diagnostika/);
+  assert.equal(element('activate-stop').disabled,false,'protective activation remains available on explicit inactive primary state');
   reset();await context.loadRuntimeHealth();snapshot=null;
   await assert.rejects(context.loadRuntimeHealth(),/unavailable/);buttonsDisabled();
   assert.equal(element('health-overall').textContent,'UNKNOWN');
@@ -145,7 +154,7 @@ const reset=()=>{
   // Late old success/failure cannot change newer health or controls.
   const stale=deferred();primaryDeferred=stale;const old=context.loadRuntimeHealth();
   buttonsDisabled();assert.equal(element('health-json').textContent,'');
-  snapshot.overview.emergency_stop=true;snapshot.overview.trust_state='INCIDENT';live.status='EMERGENCY_STOP';
+  snapshot.overview.emergency_stop=true;snapshot.overview.trust_state='INCIDENT';snapshot.runtime_health[0].status='EMERGENCY_STOP';live.status='EMERGENCY_STOP';
   await context.loadRuntimeHealth();stale.resolve(response(normal));await old;
   assert.equal(element('health-overall').textContent,'INCIDENT');assert.equal(element('clear-stop').disabled,false);
   const oldError=deferred();primaryDeferred=oldError;const err=context.loadRuntimeHealth();
@@ -163,8 +172,7 @@ const reset=()=>{
   login();reset();await context.loadView('health');element('stop-reason').value='test stop';
   const pending=deferred();postDeferred=pending;const action=context.setStop(true);
   buttonsDisabled();await context.setStop(true);assert.equal(postCalls.length,1);
-  await context.loadRuntimeHealth();buttonsDisabled();
-  snapshot.overview.emergency_stop=true;snapshot.overview.trust_state='INCIDENT';live.status='EMERGENCY_STOP';
+  snapshot.overview.emergency_stop=true;snapshot.overview.trust_state='INCIDENT';snapshot.runtime_health[0].status='EMERGENCY_STOP';live.status='EMERGENCY_STOP';
   pending.resolve(response({}));await action;
   assert.equal(postCalls.length,1);assert.equal(element('clear-stop').disabled,false);
   assert.match(element('health-action-feedback').textContent,/Server potvrdil/);
@@ -177,7 +185,31 @@ const reset=()=>{
   await element('logout-button').listeners.click();late.resolve(response({}));await lateAction;
   buttonsDisabled();assert.equal(postCalls.length,3);assert.equal(element('health-json').textContent,'');
   assert.equal(element('health-action-feedback').textContent,'');
-  console.log('PASS: native Systém diagnostics, real source truth, role/stop guard, malformed/failed reads, refresh/navigation/logout races, explicit single POST and readback');
+  // Same-session leave/return: the old POST must not mutate newer UI or authority.
+  login();reset();await context.loadView('health');element('stop-reason').value='old intent';
+  const race=deferred();postDeferred=race;const oldAction=context.setStop(true);
+  await context.loadView('overview');await context.loadView('health');buttonsDisabled();
+  element('stop-reason').value='new operator intent';
+  const newerFeedback=element('health-action-feedback').textContent;
+  snapshot.overview.emergency_stop=true;snapshot.overview.trust_state='INCIDENT';snapshot.runtime_health[0].status='EMERGENCY_STOP';live.status='EMERGENCY_STOP';
+  race.resolve(response({}));await oldAction;
+  assert.equal(element('stop-reason').value,'new operator intent');
+  assert.equal(element('health-action-feedback').textContent,newerFeedback);
+  buttonsDisabled();await context.setStop(true);await context.setStop(false);assert.equal(postCalls.length,4);
+  await context.loadRuntimeHealth();assert.equal(element('clear-stop').disabled,false);
+  // A refresh begun during a POST is not action authority even if it finishes later.
+  element('stop-reason').value='old clear';const clearRace=deferred();postDeferred=clearRace;
+  const oldClear=context.setStop(false);
+  const delayedRead=deferred();primaryDeferred=delayedRead;const newerRead=context.loadRuntimeHealth();
+  element('stop-reason').value='new reason after refresh';
+  clearRace.reject(Error('ambiguous old POST'));await oldClear;
+  delayedRead.resolve(response(snapshot));await newerRead;
+  assert.equal(element('stop-reason').value,'new reason after refresh');
+  assert.match(element('health-action-feedback').textContent,/Čtení začalo během/);
+  buttonsDisabled();await context.setStop(false);assert.equal(postCalls.length,5);
+  await context.loadRuntimeHealth();assert.equal(element('clear-stop').disabled,false);
+  await element('logout-button').listeners.click();
+  console.log('PASS: native Systém diagnostics, real source truth, asymmetric safety guard, malformed/failed reads, refresh/navigation/logout races, explicit single POST and readback');
   // Settings: actual allowlisted fields, no arbitrary configuration or secret rendering.
   login();reset();await context.loadView('governance');
   assert.equal(element('settings-configuration-state').textContent,'OBSERVED');
@@ -218,6 +250,6 @@ const reset=()=>{
   assert.equal(element('settings-identity').innerHTML,'');
   assert.equal(element('app-shell').classList.contains('settings-reduced-motion'),false);
   assert.equal(element('settings-reduced-motion').checked,false);
-  assert.equal(postCalls.length,3,'Settings must not issue mutations');
+  assert.equal(postCalls.length,5,'Settings must not issue mutations');
   console.log('PASS: native Nastavení, allowlisted read-only config, escaped identity/network, contradictions UNKNOWN, local motion preference, refresh/navigation/logout races');
 })().catch(error=>{console.error(error);process.exitCode=1});

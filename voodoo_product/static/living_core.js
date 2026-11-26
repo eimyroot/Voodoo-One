@@ -20,6 +20,12 @@
     return /^[A-Z][A-Z0-9_]{0,31}$/.test(candidate)?candidate:'UNKNOWN';
   }
 
+  // VerificationResult/v1 has exactly two verdicts; legacy receipts are not results.
+  function verificationState(item){
+    return item?.source==='VERIFICATION_RESULT_V1'&&['VERIFIED','NOT_VERIFIED'].includes(item.verification_status)
+      ?item.verification_status:'UNKNOWN';
+  }
+
   function setStage(name,state,detail,source){
     const node=document.querySelector('.lc-stage[data-stage="'+name+'"]');
     if(!node)return;
@@ -64,7 +70,7 @@
     const failures=nonnegative(runs.failed_count);
     // Only actual canonical verdicts can drive a verification-specific priority.
     const latest=list(checks).find(item=>item.source==='VERIFICATION_RESULT_V1');
-    const verdict=latest?stateName(latest.verification_status):'UNKNOWN';
+    const verdict=verificationState(latest);
     const integrity=combinedIntegrity(overview);
     if(overview.emergency_stop===true){
       setFocus('BLOCKED','Nouzové zastavení je aktivní',
@@ -98,9 +104,13 @@
       setFocus('UNKNOWN','Stav aktivních běhů není ověřen',
         'Chybí platný počet aktivních běhů.',
         'Zdroj: Runs / neúplná projekce',null,null);
-    }else if(['FAILED','DENIED','REJECTED','INCONCLUSIVE'].includes(verdict)){
+    }else if(verdict==='NOT_VERIFIED'){
       setFocus(verdict,'Poslední kanonická kontrola vyžaduje pozornost',
         'Verdikt patří poslednímu kanonickému výsledku v načteném výřezu, nikoli všem běhům.',
+        'Zdroj: Verifier Center / recent_checks','verifier','Otevřít ověření');
+    }else if(latest&&verdict==='UNKNOWN'){
+      setFocus('UNKNOWN','Kanonický verdikt není platný',
+        'Poslední kanonický záznam nemá přípustný verdikt VerificationResult/v1. Prověř důkazy.',
         'Zdroj: Verifier Center / recent_checks','verifier','Otevřít ověření');
     }else if(queued!==null&&queued>0){
       setFocus('REVIEW_REQUIRED','Požadavky čekají na zpracování',
@@ -184,8 +194,8 @@
       'Runs');
 
     const latestCheck=checks[0];
-    setStage('verification',latestCheck?stateName(latestCheck.verification_status):'UNKNOWN',
-      latestCheck?('Execution '+(latestCheck.execution_id||'Nedostupné')+' · '+stateName(latestCheck.verification_status)):'Nedostupné · verifier zatím nemá záznam',
+    setStage('verification',verificationState(latestCheck),
+      latestCheck?('Execution '+(latestCheck.execution_id||'Nedostupné')+' · '+verificationState(latestCheck)):'Nedostupné · verifier zatím nemá záznam',
       latestCheck?'Verifier Center':'Verifier Center');
     const latestEvidence=evidence[0];
     setStage('evidence',latestEvidence?stateName(latestEvidence.status):'UNKNOWN',
@@ -210,7 +220,7 @@
     }
 
     const verification=$('lc-verification-content');
-    if(verification)verification.innerHTML=checks.length?checks.slice(0,3).map(item=>'<div class="lc-record"><strong>'+html(item.source==='VERIFICATION_RESULT_V1'?'VerificationResult/v1':'Kontrola')+' · '+html(item.execution_id||'Execution nedostupné')+'</strong><span class="status '+stateName(item.verification_status)+'">'+html(stateName(item.verification_status))+'</span><small>'+html(item.verification_strength||'Síla ověření nedostupná')+' · '+html(item.checked_at||'Čas nedostupný')+'</small></div>').join(''):'<p class="lc-empty">Nedostupné · verifier zatím nevystavil výsledek.</p>';
+    if(verification)verification.innerHTML=checks.length?checks.slice(0,3).map(item=>'<div class="lc-record"><strong>'+html(item.source==='VERIFICATION_RESULT_V1'?'VerificationResult/v1':'Kontrola')+' · '+html(item.execution_id||'Execution nedostupné')+'</strong><span class="status '+verificationState(item)+'">'+html(verificationState(item))+'</span><small>'+html(item.verification_strength||'Síla ověření nedostupná')+' · '+html(item.checked_at||'Čas nedostupný')+'</small></div>').join(''):'<p class="lc-empty">Nedostupné · verifier zatím nevystavil výsledek.</p>';
 
     const eventList=$('lc-evidence-content');
     if(eventList)eventList.innerHTML=evidence.length?evidence.slice(0,4).map(item=>'<div class="lc-event"><span class="status '+stateName(item.status)+'">'+html(stateName(item.status))+'</span><div><strong>'+html(item.kind||'Záznam')+' · '+html(item.title||'Bez názvu')+'</strong><small>'+html(item.source||'Zdroj nedostupný')+' · '+html(item.timestamp||'Čas nedostupný')+'</small></div></div>').join(''):'<p class="lc-empty">Nedostupné · timeline neobsahuje záznamy.</p>';

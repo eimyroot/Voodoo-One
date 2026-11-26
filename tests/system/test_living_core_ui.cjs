@@ -184,16 +184,28 @@ context.sample=sample;
   assert.equal(element('lc-focus-state').textContent,'UNKNOWN');
   render({...context.noPending,verifier_center:{recent_checks:[
     {source:'LEGACY_RECEIPT',verification_status:'UNKNOWN'},
-    {source:'VERIFICATION_RESULT_V1',verification_status:'FAILED'}
+    {source:'VERIFICATION_RESULT_V1',verification_status:'NOT_VERIFIED'}
   ]}});
-  assert.equal(element('lc-focus-state').textContent,'FAILED');
+  assert.equal(element('lc-focus-state').textContent,'NOT_VERIFIED');
   assert.equal(element('lc-focus-open').dataset.refresh,'verifier');
+  for(const verdict of ['VERIFIED','FAILED','verified',null]){
+    render({...context.noPending,verifier_center:{recent_checks:[{source:'VERIFICATION_RESULT_V1',verification_status:verdict}]}});
+    assert.equal(stage('verification').parts['.lc-stage-state'].textContent,verdict==='VERIFIED'?'VERIFIED':'UNKNOWN');
+    assert.equal(element('lc-focus-state').textContent,verdict==='VERIFIED'?'NO_PENDING':'UNKNOWN');
+    assert.equal(element('lc-focus-open').dataset.refresh,verdict==='VERIFIED'?'casebook':'verifier');
+  }
+  render({...context.noPending,verifier_center:{recent_checks:[{source:'LEGACY_RECEIPT',verification_status:'VERIFIED'}]}});
+  assert.equal(stage('verification').parts['.lc-stage-state'].textContent,'UNKNOWN');
 
   const before=overviewCalls;
   await context.loadOverview();
   assert.equal(overviewCalls,before+1,'one native refresh, no duplicate projection fetch');
   assert.equal(element('lc-focus-state').textContent,'REVIEW_REQUIRED');
   assert.equal(element('health-badge').textContent,'HEALTHY');
+  await context.loadView('casebook');
+  assert.equal(element('health-badge').textContent,'UNKNOWN','header must not imply freshness outside Overview');
+  assert.equal(element('environment-badge').textContent,'Nedostupné');
+  await context.loadView('overview');
   const old=deferOverview(),oldLoad=context.loadOverview();
   assert.equal(element('lc-focus-state').textContent,'UNKNOWN','refresh must immediately invalidate old focus');
   snapshot=context.noPending;
