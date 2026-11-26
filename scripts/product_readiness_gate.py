@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -283,13 +284,46 @@ def product_version() -> str:
     return __version__
 
 
-def run(command: list[str]) -> dict[str, object]:
-    completed = subprocess.run(command, cwd=ROOT, text=True, capture_output=True, check=False)
+PROGRESS_INTERVAL_SECONDS = 10.0
+
+
+def progress(stage: str, state: str, **facts: object) -> None:
+    """Keep stdout as the final JSON report; emit bounded progress on stderr."""
+    print(
+        json.dumps({"event": "readiness_progress", "stage": stage, "state": state, **facts}),
+        file=sys.stderr,
+        flush=True,
+    )
+
+
+def run(command: list[str], *, stage: str) -> dict[str, object]:
+    started = time.monotonic()
+    progress(stage, "START")
+    with subprocess.Popen(
+        command, cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    ) as child:
+        while True:
+            try:
+                stdout, stderr = child.communicate(timeout=PROGRESS_INTERVAL_SECONDS)
+                break
+            except subprocess.TimeoutExpired as exc:
+                # communicate may be retried without losing captured output.
+                # Do not echo child logs or arguments into progress evidence.
+                progress(
+                    stage, "RUNNING", elapsed_seconds=round(time.monotonic() - started, 1),
+                    stdout_bytes=len(exc.output or b""),
+                    stderr_bytes=len(exc.stderr or b""),
+                )
+        code = child.returncode
+    progress(
+        stage, "PASS" if code == 0 else "FAIL", returncode=code,
+        elapsed_seconds=round(time.monotonic() - started, 1),
+    )
     return {
         "command": command,
-        "returncode": completed.returncode,
-        "stdout": completed.stdout[-8000:],
-        "stderr": completed.stderr[-8000:],
+        "returncode": code,
+        "stdout": stdout[-8000:],
+        "stderr": stderr[-8000:],
     }
 
 
@@ -453,11 +487,19 @@ def current_vop_registry_check() -> dict[str, object]:
 
 def main() -> int:
     checks: dict[str, object] = {}
+    progress("readiness", "START")
+    progress("required_files", "START")
     missing = [item for item in REQUIRED if not (ROOT / item).is_file()]
     checks["required_files"] = {"ok": not missing, "missing": missing}
+    progress("required_files", "PASS" if checks["required_files"]["ok"] else "FAIL")
+    progress("workflow_ui_source_admission", "START")
     checks["workflow_ui_source_admission"] = workflow_ui_source_admission(ROOT)
+    progress("workflow_ui_source_admission", "PASS" if checks["workflow_ui_source_admission"]["ok"] else "FAIL")
+    progress("current_vop_contract_registry", "START")
     checks["current_vop_contract_registry"] = current_vop_registry_check()
+    progress("current_vop_contract_registry", "PASS" if checks["current_vop_contract_registry"]["ok"] else "FAIL")
 
+    progress("repository_hygiene", "START")
     hygiene_findings = [
         path for path in repository_paths() if is_forbidden_repository_artifact(path)
     ]
@@ -468,6 +510,8 @@ def main() -> int:
         "scope": "versioned repository paths when git metadata is present; source files otherwise",
     }
 
+    progress("repository_hygiene", "PASS" if checks["repository_hygiene"]["ok"] else "FAIL")
+    progress("python_syntax", "START")
     syntax_errors: list[str] = []
     for path in (ROOT / "voodoo_product").rglob("*.py"):
         try:
@@ -476,6 +520,8 @@ def main() -> int:
             syntax_errors.append(f"{path}: {exc}")
     checks["python_syntax"] = {"ok": not syntax_errors, "errors": syntax_errors}
 
+    progress("python_syntax", "PASS" if checks["python_syntax"]["ok"] else "FAIL")
+    progress("secret_scan", "START")
     secret_findings: list[str] = []
     forbidden = {
         "default development secret": re.compile(r"local-dev-secret-change-me"),
@@ -494,21 +540,23 @@ def main() -> int:
                     secret_findings.append(f"{path.relative_to(ROOT)} contains {label}")
     checks["secret_scan"] = {"ok": not secret_findings, "findings": secret_findings}
 
-    lock_drift = run([sys.executable, "scripts/check_requirements_lock_drift.py"])
+    progress("secret_scan", "PASS" if checks["secret_scan"]["ok"] else "FAIL")
+    lock_drift = run([sys.executable, "scripts/check_requirements_lock_drift.py"], stage="dependency_lock_drift")
     checks["dependency_lock_drift"] = {
         "ok": lock_drift["returncode"] == 0,
         **lock_drift,
     }
 
-    atlas = run([sys.executable, "scripts/verify_architecture_atlas.py"])
+    atlas = run([sys.executable, "scripts/verify_architecture_atlas.py"], stage="architecture_atlas")
     checks["architecture_atlas"] = {"ok": atlas["returncode"] == 0, **atlas}
 
-    tests = run([sys.executable, "-m", "pytest", "tests/system", "-q"])
+    tests = run([sys.executable, "-m", "pytest", "tests/system", "-q"], stage="system_tests")
     checks["system_tests"] = {"ok": tests["returncode"] == 0, **tests}
 
-    compile_result = run([sys.executable, "-m", "compileall", "-q", "voodoo_product"])
+    compile_result = run([sys.executable, "-m", "compileall", "-q", "voodoo_product"], stage="compileall")
     checks["compileall"] = {"ok": compile_result["returncode"] == 0, **compile_result}
 
+    progress("production_fail_closed", "START")
     checks["production_fail_closed"] = {
         "ok": os.getenv("VOODOO_ALLOW_PRODUCTION_EFFECTS", "false").lower()
         not in {"1", "true", "yes", "on"},
@@ -518,6 +566,7 @@ def main() -> int:
         ),
     }
 
+    progress("production_fail_closed", "PASS" if checks["production_fail_closed"]["ok"] else "FAIL")
     passed = all(bool(value.get("ok")) for value in checks.values() if isinstance(value, dict))
     report = {
         "product": "VOODOO One",
@@ -525,7 +574,8 @@ def main() -> int:
         "passed": passed,
         "checks": checks,
     }
-    print(json.dumps(report, indent=2, ensure_ascii=False))
+    print(json.dumps(report, indent=2, ensure_ascii=False), flush=True)
+    progress("readiness", "PASS" if passed else "FAIL")
     return 0 if passed else 1
 
 

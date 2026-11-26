@@ -22,14 +22,30 @@ def test_evidence_ui_does_not_promote_receipt_integrity_to_verified_operation() 
 
     assert "overview.receipt_integrity.valid?'PASS':'FAIL'" in source
     assert "overview.audit_integrity.valid?'PASS':'FAIL'" in source
-    assert "status(check.verification_status)" in source
-    assert "check.source==='VERIFICATION_RESULT_V1'" in source
-    assert "check.verification_strength" in source
-    assert "check.result_digest" in source
+    verifier = source.split("async function loadVerifier(){", 1)[1].split(
+        "function showStopState(", 1
+    )[0]
+    assert "check.source==='VERIFICATION_RESULT_V1'" in verifier
+    assert "bound=canonical&&" in verifier
+    assert "canonicalReadRequestPattern.test(check.execution_id)" in verifier
+    assert "evidencePresent=bound&&" in verifier
+    assert "typeof check.result_digest==='string'&&!!check.result_digest" in verifier
+    assert "typeof check.verification_strength==='string'&&!!check.verification_strength" in verifier
+    assert "Number.isFinite(Date.parse(check.checked_at))" in verifier
+    assert "evidencePresent?(check.verification_status||'UNKNOWN'):'UNKNOWN'" in verifier
+    assert "status(verdict)" in verifier
+    assert "status(check.verification_status)" not in verifier
     assert "Independent verification zatím nemá runtime výsledek." in source
     assert "item.source==='OPERATION_PASSPORT'" in source
     assert "data-evidence-passport-execution-id" in source
-    assert "await loadView('runs')" in source
+    passport = source.split("async function openEvidencePassport(", 1)[1].split(
+        "$('timeline-list').addEventListener", 1
+    )[0]
+    assert "canonicalReadRequestPattern.test(executionId||'')" in passport
+    assert "loadView('runs')" in passport
+    assert "await loadOperationPassport(executionId)" in passport
+    assert "await openEvidencePassport(button.dataset.evidencePassportExecutionId)" in source
+    assert "await openEvidencePassport(button.dataset.verifierPassportExecutionId)" in verifier
     assert "status('VERIFIED')" not in source
 
 

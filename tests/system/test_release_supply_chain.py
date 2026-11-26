@@ -156,3 +156,47 @@ def test_ci_and_release_candidate_execute_operator_canonical_read_contract() -> 
         assert "node --check tests/system/test_operator_canonical_read.cjs" in workflow
         assert "node tests/system/test_operator_canonical_read.cjs" in workflow
     assert readiness.count('"tests/system/test_operator_canonical_read.cjs"') == 2
+
+
+
+def test_readiness_subprocess_progress_preserves_report_and_failure(monkeypatch, capsys):
+    import json
+    import sys
+
+    from scripts import product_readiness_gate as gate
+
+    monkeypatch.setattr(gate, "PROGRESS_INTERVAL_SECONDS", 0.05)
+    result = gate.run([
+        sys.executable, "-c",
+        "import time,sys; print('synthetic-output',flush=True); time.sleep(.35); "
+        "print('synthetic-error',file=sys.stderr); sys.exit(7)",
+    ], stage="synthetic_test")
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    events = [json.loads(line) for line in captured.err.splitlines()]
+    assert all(event["stage"] == "synthetic_test" for event in events)
+    assert events[0]["state"] == "START"
+    assert any(event["state"] == "RUNNING" for event in events)
+    assert events[-1]["state"] == "FAIL"
+    assert events[-1]["returncode"] == 7
+    assert result["returncode"] == 7
+    assert result["stdout"] == "synthetic-output\n"
+    assert result["stderr"] == "synthetic-error\n"
+    assert "synthetic-output" not in captured.err
+    assert "synthetic-error" not in captured.err
+
+
+def test_readiness_subprocess_success_has_distinct_terminal_event(capsys):
+    import json
+    import sys
+
+    from scripts import product_readiness_gate as gate
+
+    result = gate.run([sys.executable, "-c", "print('ok')"], stage="synthetic_success")
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    events = [json.loads(line) for line in captured.err.splitlines()]
+    assert events[0]["state"] == "START"
+    assert events[-1]["state"] == "PASS"
+    assert result["returncode"] == 0
+    assert result["stdout"].strip() == "ok"
