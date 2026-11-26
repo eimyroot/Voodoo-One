@@ -77,7 +77,7 @@
       <button data-view="overview" class="nav active">Přehled</button>
       <button data-view="runs" class="nav">Běhy a fronta</button>
       <button class="nav" type="button" disabled aria-disabled="true" title="Roster agentů není v současném API dostupný">Agents · Nedostupné</button>
-      <button class="nav" type="button" disabled aria-disabled="true" title="Katalog skills není v současném API dostupný">Skills · Nedostupné</button>
+      <button data-view="skills" class="nav" type="button">Skills</button>
       <button data-view="plans" class="nav" title="Vytvoření, posouzení a schválení řízeného požadavku">Požadavky</button>
       <button data-view="verifier" class="nav">Ověření výsledků</button>
       <button data-view="evidence" class="nav">Historie událostí</button>
@@ -266,6 +266,27 @@
           </article>
           <article class="panel table-panel"><table><caption>Všechny požadavky</caption><thead><tr><th>Risk</th><th>Request</th><th>Status</th><th>Approvals</th><th>Environment</th><th>Akce</th></tr></thead><tbody id="plans-table"></tbody></table></article>
         </div>
+      </section>
+
+      <section id="view-skills" class="view lc-screen">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Governed planning catalog</p>
+            <h1>Skills</h1>
+            <p>Definované schopnosti pro plánování úkolu. Výběr není oprávnění ke spuštění.</p>
+          </div>
+          <button type="button" data-refresh="skills">Obnovit</button>
+        </div>
+        <article class="panel">
+          <div class="panel-heading"><div><h2>Katalog a výběr pro úkol</h2><p>Zdroj: produktový katalog VOODOO One, nikoli celý systémový SKILLS registr.</p></div></div>
+          <div class="grid-two responsive-stack">
+            <label>Typ úkolu <select id="skills-task-type" disabled><option value="">Všechny typy</option></select></label>
+            <label>Hledat <input id="skills-search" type="search" placeholder="Název, role nebo účel" disabled></label>
+          </div>
+          <p id="skills-summary" class="muted" role="status" aria-live="polite">UNKNOWN · katalog není načten.</p>
+          <p id="skills-selection" class="muted"></p>
+        </article>
+        <div id="skills-cards" class="cards"></div>
       </section>
 
       <section id="view-registry" class="view">
