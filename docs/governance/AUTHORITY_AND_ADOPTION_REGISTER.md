@@ -556,3 +556,35 @@ and read-only; optional scan, CI for this candidate, live browser acceptance and
 deployment remain unverified. Adoption does not authorize skill execution,
 filesystem skill discovery, runtime activation, publication, merge, release or
 deployment. Those remain separate governed operations.
+
+## 22. ADR-0036 owner adoption record
+
+```text
+DOCUMENT: docs/adr/ADR-0036-agent-participation-projection-v1.md
+VERSION_OR_CANDIDATE_VERSION: ADR-0036
+DECLARED_STATUS: PROPOSED
+EFFECTIVE_STATUS: ADOPTED
+OWNER: project owner VOODOO — ENGINEERING
+ADOPTION_METHOD: explicit owner decision on 2026-11-27 over exact candidate commit and exact content SHA-256
+ADOPTION_DATE: 2026-11-27
+ADOPTED_CONTENT_COMMIT: 94a70ee9c1698b59fb46ecfa37478846f71d2d10
+CONTENT_SHA256: fc1f0c3d071f53f9500beec9844434e636a0d996442d724b0fd27f16d27a2804
+INDEPENDENT_REVIEW: AGENTS_REVIEW_CLEAN
+INDEPENDENT_REVIEW_SHA256: e4c718509ca743a65f56f1c8b5dc2e2765a454df0bbb5e316819f33cd321aa02
+SCOPE: Additive authenticated read-only agent participation projection v1; reuse of the bounded recent validated Operation Passport window; native Runner/Verifier role presentation and existing Passport drilldown. Instance presence UNKNOWN; no instance identity inference or execution authorization.
+NEXT_REVIEW: before widening data source, read authorization, schema, role semantics, instance identity/presence or execution boundary
+PUBLICATION: NOT_AUTHORIZED_BY_THIS_RECORD
+MERGE: NOT_AUTHORIZED_BY_THIS_RECORD
+RUNTIME_ACTIVATION: NOT_AUTHORIZED_BY_THIS_RECORD
+RELEASE: NOT_AUTHORIZED_BY_THIS_RECORD
+DEPLOYMENT: NOT_AUTHORIZED_BY_THIS_RECORD
+PROVIDER_WRITE: NOT_AUTHORIZED
+PRODUCTION_EFFECTS: BLOCKED
+```
+
+The external record adopts the exact immutable ADR bytes in the content commit.
+The embedded PROPOSED status is preserved. The independent review was focused
+and read-only; optional scan, CI for this candidate, live browser acceptance and
+deployment remain unverified. Adoption does not authorize an agent registry,
+heartbeat, new runtime, execution, G8 activation, publication, merge, release
+or deployment. Those remain separate governed operations.

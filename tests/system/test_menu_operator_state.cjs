@@ -55,8 +55,8 @@ function deferred(){
 const storage=new Map();
 const passportRequests=[];
 class RunPassportButton {
-  constructor(id){this.dataset={passportExecutionId:id}}
-  closest(selector){return selector==='button[data-passport-execution-id]'?this:null}
+  constructor(id){this.dataset={passportExecutionId:id,agentPassportId:id}}
+  closest(selector){return selector==='button[data-passport-execution-id]'||selector==='button[data-agent-passport-id]'?this:null}
 }
 
 let wallNow=100000,monotonicNow=5000,timerId=0;
@@ -64,7 +64,7 @@ const timers=new Map();
 const advance=ms=>{wallNow+=ms;monotonicNow+=ms};
 const context=vm.createContext({
   Element:RunPassportButton,
-  document:{getElementById:element,querySelectorAll:selector=>selector==='.view'?['view-health','view-overview','view-casebook','view-governance','view-runs','view-skills'].map(element):[]},
+  document:{getElementById:element,querySelectorAll:selector=>selector==='.view'?['view-health','view-overview','view-casebook','view-governance','view-runs','view-skills','view-agents'].map(element):[]},
   sessionStorage:{getItem:key=>storage.get(key)??null,setItem:(key,val)=>storage.set(key,String(val)),removeItem:key=>storage.delete(key)},
   Date:class extends Date{static now(){return wallNow}},
   performance:{now:()=>monotonicNow},
@@ -481,6 +481,77 @@ const reset=()=>{
   await element('logout-button').listeners.click();
   assert.equal(postCalls.length,5,'Skills catalog never issues effects');
   console.log('PASS: native Skills catalog source, selection/search, escaping, malformed/unavailable, refresh/navigation/logout, no effects');
+  assert.equal(html.match(/data-view="agents"/g).length,1);
+  assert.match(html,/id="view-agents"/);
+  login();reset();
+  const agentRow={execution_id:'exec-canonical-1',lifecycle_stage:'EXECUTION_COMPLETED',
+    capability:'<read>',runner_class:'<runner-class>',runtime_status:'COMPLETED',verification_status:'UNKNOWN',
+    result_digest:null,verification_strength:null,checked_at:null};
+  const verifiedRow={...agentRow,execution_id:'exec-canonical-2',verification_status:'VERIFIED',
+    result_digest:'a'.repeat(64),verification_strength:'INDEPENDENT_PROVIDER_READBACK',checked_at:'2026-11-27T00:00:00Z'};
+  const agents={schema:'vone.agent-participation/v1',source:'OPERATION_PASSPORT',instance_presence:'UNKNOWN',
+    window_limit:12,recent:[agentRow,verifiedRow]};
+  snapshot.agent_participation=structuredClone(agents);
+  await context.loadView('agents');
+  assert.match(element('agents-summary').textContent,/2 nedávných.*UNKNOWN/);
+  assert.match(element('agents-rows').innerHTML,/&lt;runner-class&gt;/);
+  assert.match(element('agents-rows').innerHTML,/&lt;read&gt;/);
+  assert.match(element('agents-rows').innerHTML,/VERIFIED/);
+  assert.doesNotMatch(element('agents-rows').innerHTML,/<runner-class>|<read>|ONLINE/);
+  assert.match(element('agents-rows').innerHTML,/data-agent-passport-id="exec-canonical-1"/);
+  await element('agents-rows').listeners.click({target:new RunPassportButton('exec-canonical-1')});
+  assert.equal(passportRequests.at(-1),'exec-canonical-1');
+  assert.equal(element('view-runs').classList.contains('active'),true);
+  assert.equal(element('agents-rows').innerHTML,'');
+  await context.loadView('agents');
+  snapshot.agent_participation={...agents,recent:[{...verifiedRow,verification_status:'NOT_VERIFIED'}]};
+  await context.loadAgents();
+  assert.match(element('agents-rows').innerHTML,/NOT_VERIFIED/);
+  snapshot.agent_participation={...agents,recent:[]};
+  await context.loadAgents();
+  assert.match(element('agents-rows').innerHTML,/Žádné nedávné kanonické operace/);
+  for(const item of [
+    {...agents,source:'LEGACY_RECEIPT'},
+    {...agents,instance_presence:'ONLINE'},
+    {...agents,window_limit:1},
+    {...agents,recent:[agentRow,agentRow]},
+    {...agents,recent:[{...agentRow,verification_status:'VERIFIED'}]},
+    {...agents,recent:[{...agentRow,result_digest:'a'.repeat(64)}]},
+    {...agents,recent:[{...verifiedRow,runtime_status:'ACTIVE',lifecycle_stage:'EXECUTION_ACTIVE'}]},
+    {...agents,recent:[{...verifiedRow,checked_at:'invalid'}]},
+    {...agents,recent:[{...agentRow,agent_id:'invented'}]}
+  ]){
+    snapshot.agent_participation=item;
+    await assert.rejects(context.loadAgents(),/projekce účasti/);
+    assert.match(element('agents-summary').textContent,/UNKNOWN/);
+    assert.equal(element('agents-rows').innerHTML,'');
+  }
+  snapshot.agent_participation=structuredClone(agents);
+  await context.loadAgents();
+  const delayedAgent=deferred();primaryDeferred=delayedAgent;const oldAgentLoad=context.loadAgents();
+  snapshot.agent_participation={...agents,recent:[]};await context.loadAgents();
+  delayedAgent.resolve(response({...normal,agent_participation:agents}));await oldAgentLoad;
+  assert.match(element('agents-rows').innerHTML,/Žádné nedávné/);
+  const oldAgentError=deferred();primaryDeferred=oldAgentError;const oldAgentErrorLoad=context.loadAgents();
+  await context.loadAgents();oldAgentError.reject(Error('stale failure'));await oldAgentErrorLoad;
+  assert.match(element('agents-rows').innerHTML,/Žádné nedávné/);
+  snapshot=null;await assert.rejects(context.loadAgents(),/unavailable/);
+  assert.match(element('agents-summary').textContent,/UNKNOWN/);
+  assert.equal(element('agents-rows').innerHTML,'');
+  reset();snapshot.agent_participation=structuredClone(agents);await context.loadView('agents');
+  const leavingAgents=deferred();primaryDeferred=leavingAgents;const leavingAgentsLoad=context.loadAgents();
+  await context.loadView('overview');
+  leavingAgents.resolve(response({...normal,agent_participation:agents}));await leavingAgentsLoad;
+  assert.equal(element('agents-rows').innerHTML,'');
+  await context.loadView('agents');
+  const logoutAgents=deferred();primaryDeferred=logoutAgents;const logoutAgentsLoad=context.loadAgents();
+  await element('logout-button').listeners.click();
+  login();logoutAgents.resolve(response({...normal,agent_participation:agents}));await logoutAgentsLoad;
+  assert.equal(element('agents-rows').innerHTML,'');
+  await element('logout-button').listeners.click();
+  assert.equal(postCalls.length,5,'Agents never issues effects');
+  console.log('PASS: native Agents participation, canonical Passport navigation, empty/malformed/unavailable, verification truth, stale refresh/navigation/logout, no effects');
+
 
 
 })().catch(error=>{console.error(error);process.exitCode=1});

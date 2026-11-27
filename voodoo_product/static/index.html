@@ -76,7 +76,7 @@
       <div class="sidebar-group-label">LIVING CORE</div>
       <button data-view="overview" class="nav active">Přehled</button>
       <button data-view="runs" class="nav">Běhy a fronta</button>
-      <button class="nav" type="button" disabled aria-disabled="true" title="Roster agentů není v současném API dostupný">Agents · Nedostupné</button>
+      <button data-view="agents" class="nav" type="button">Agents</button>
       <button data-view="skills" class="nav" type="button">Skills</button>
       <button data-view="plans" class="nav" title="Vytvoření, posouzení a schválení řízeného požadavku">Požadavky</button>
       <button data-view="verifier" class="nav">Ověření výsledků</button>
@@ -266,6 +266,26 @@
           </article>
           <article class="panel table-panel"><table><caption>Všechny požadavky</caption><thead><tr><th>Risk</th><th>Request</th><th>Status</th><th>Approvals</th><th>Environment</th><th>Akce</th></tr></thead><tbody id="plans-table"></tbody></table></article>
         </div>
+      </section>
+
+      <section id="view-agents" class="view lc-screen">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Governed operation participation</p>
+            <h1>Agents</h1>
+            <p>Role a doložená účast na operacích. Nejde o živý seznam instancí.</p>
+          </div>
+          <button type="button" data-refresh="agents">Obnovit</button>
+        </div>
+        <div class="grid-two responsive-stack">
+          <article class="panel"><div class="panel-heading"><h2>Runner</h2><span class="status UNKNOWN">UNKNOWN</span></div><p>Provádí omezenou autorizovanou operaci.</p><p class="muted">Třída Runneru a stav operace nejsou identitou ani dostupností instance.</p></article>
+          <article class="panel"><div class="panel-heading"><h2>Verifier</h2><span class="status UNKNOWN">UNKNOWN</span></div><p>Nezávisle ověřuje pozorovaný výsledek.</p><p class="muted">Výsledek je doložen pouze validovaným uloženým VerificationResult.</p></article>
+        </div>
+        <article class="panel">
+          <div class="panel-heading"><div><h2>Účast na nedávných operacích</h2><p>Zdroj: kanonický Operation Passport.</p></div></div>
+          <p id="agents-summary" class="muted" role="status" aria-live="polite">UNKNOWN · účast není načtena.</p>
+          <div id="agents-rows" class="cards"></div>
+        </article>
       </section>
 
       <section id="view-skills" class="view lc-screen">

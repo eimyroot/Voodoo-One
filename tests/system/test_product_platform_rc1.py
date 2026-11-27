@@ -346,6 +346,7 @@ def test_control_room_exposes_fail_closed_runtime_truth(tmp_path: Path) -> None:
         "architecture",
         "capability_registry",
         "skill_catalog",
+        "agent_participation",
         "evidence_timeline",
         "policy_gates",
         "verifier_center",
@@ -682,5 +683,12 @@ def test_skill_catalog_is_authenticated_read_only_projection(tmp_path: Path) -> 
     assert response.status_code == 200
     assert response.json()["skill_catalog"] == skill_catalog_projection()
     assert response.json()["skill_catalog"]["runtime_availability"] == "UNKNOWN"
+    assert response.json()["agent_participation"] == {
+        "schema": "vone.agent-participation/v1",
+        "source": "OPERATION_PASSPORT",
+        "instance_presence": "UNKNOWN",
+        "window_limit": 12,
+        "recent": [],
+    }
     assert client.post("/api/v1/auth/logout", headers=headers(viewer)).status_code == 204
     assert client.get("/api/v1/control-room", headers=headers(viewer)).status_code == 401

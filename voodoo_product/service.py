@@ -13,6 +13,7 @@ from .change_request import ChangeRequestService
 from .config import ProductConfig
 from .control_room_projections import (
     execution_presentation_timestamp,
+    summarize_agent_participation,
     summarize_learning_intelligence,
     summarize_plans,
     summarize_runs,
@@ -547,6 +548,9 @@ class ProductService:
             "architecture": self._architecture_projection(canonical_runtime_enabled),
             "capability_registry": self._capability_registry(canonical_runtime_enabled),
             "skill_catalog": skill_catalog_projection(),
+            "agent_participation": summarize_agent_participation(
+                canonical_passports, limit=CONTROL_ROOM_LIMIT,
+            ),
             "evidence_timeline": self._evidence_timeline(
                 change_requests=change_requests,
                 executions=executions,

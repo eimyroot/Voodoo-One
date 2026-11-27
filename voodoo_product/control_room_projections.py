@@ -102,6 +102,48 @@ def summarize_runs(
     }
 
 
+def summarize_agent_participation(
+    passports: list[OperationPassport],
+    *,
+    limit: int,
+) -> dict[str, Any]:
+    """Project bounded operation roles; never infer instance identity or presence."""
+    if type(limit) is not int or not 1 <= limit <= 100:
+        raise ValueError("limit must be an integer between 1 and 100")
+    recent: list[dict[str, Any]] = []
+    for passport in passports[:limit]:
+        if (
+            passport.integrity.get("canonical_json_validated") is not True
+            or passport.integrity.get("lineage_bindings_validated") is not True
+        ):
+            raise ValueError("agent participation requires a validated Passport")
+        verification = passport.verification
+        persisted = (
+            passport.integrity.get("independent_verification_validated") is True
+            and verification.get("status") == "PERSISTED"
+            and verification.get("independent_verification_exposed") is True
+            and verification.get("verdict") in {"VERIFIED", "NOT_VERIFIED"}
+        )
+        recent.append({
+            "execution_id": passport.execution_id,
+            "lifecycle_stage": passport.lifecycle_stage,
+            "capability": passport.operation["capability"],
+            "runner_class": passport.runtime.get("runner_class"),
+            "runtime_status": passport.runtime["status"],
+            "verification_status": verification["verdict"] if persisted else "UNKNOWN",
+            "result_digest": verification["result_digest"] if persisted else None,
+            "verification_strength": verification["verification_strength_class"] if persisted else None,
+            "checked_at": verification["checked_at"] if persisted else None,
+        })
+    return {
+        "schema": "vone.agent-participation/v1",
+        "source": "OPERATION_PASSPORT",
+        "instance_presence": "UNKNOWN",
+        "window_limit": limit,
+        "recent": recent,
+    }
+
+
 def summarize_plans(
     change_requests: list[dict[str, Any]],
     approvals: list[dict[str, Any]],

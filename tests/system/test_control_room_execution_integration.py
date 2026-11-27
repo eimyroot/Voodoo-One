@@ -69,5 +69,6 @@ def test_control_room_http_accepts_real_persisted_execution(tmp_path: Path):
     assert row["id"] == execution["id"]
     assert row["updated_at"] == execution["completed_at"]
     assert response.json()["verifier_center"]["recent_checks"][0]["verification_status"] == "UNKNOWN"
+    assert response.json()["agent_participation"]["recent"] == []
     assert service.verify_receipt_chain()["valid"]
     assert service.verify_audit_chain()["valid"]
