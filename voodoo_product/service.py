@@ -28,6 +28,7 @@ from .platform_status import PlatformStatusService
 from .receipt import ReceiptLedger
 from .security import hash_password, session_reference, verify_password
 from .session_lifecycle import SessionLifecycleService
+from .skill_orchestration import skill_catalog_projection
 from .user_account import UserAccountService
 from .workspace import WorkspaceService
 
@@ -545,6 +546,7 @@ class ProductService:
             "plans": self._summarize_plans(change_requests, approvals),
             "architecture": self._architecture_projection(canonical_runtime_enabled),
             "capability_registry": self._capability_registry(canonical_runtime_enabled),
+            "skill_catalog": skill_catalog_projection(),
             "evidence_timeline": self._evidence_timeline(
                 change_requests=change_requests,
                 executions=executions,

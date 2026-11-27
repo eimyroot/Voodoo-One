@@ -10,8 +10,10 @@ from voodoo_product.evidence_primitives import canonical_json
 from voodoo_product.skill_orchestration import (
     DEVELOPMENT_USEFULNESS_GATE,
     PRIMARY_COORDINATOR,
+    TASK_TYPES,
     SkillOrchestrationPlan,
     select_relevant_skills,
+    skill_catalog_projection,
 )
 
 
@@ -125,3 +127,32 @@ def test_skill_orchestration_rejects_competing_selected_coordinator() -> None:
             else item
             for item in value.selections
         )
+
+def test_catalog_projection_is_exact_and_non_authorizing() -> None:
+    projection = skill_catalog_projection()
+    assert projection["schema"] == "vone.skill-catalog/v1"
+    assert projection["source"] == "voodoo_product.skill_orchestration"
+    assert projection["runtime_availability"] == "UNKNOWN"
+    assert projection["primary_coordinator"] == PRIMARY_COORDINATOR
+    assert projection["task_types"] == list(TASK_TYPES)
+    rows = projection["skills"]
+    assert [row["id"] for row in rows] == sorted({row["id"] for row in rows})
+    for task_type in TASK_TYPES:
+        expected = SkillOrchestrationPlan.create(
+            task_id="synthetic-catalog", task_type=task_type,
+            source_of_truth="test", objective="inspect", purpose="test",
+            system_benefit="catalog parity", selected_skills=select_relevant_skills(task_type=task_type),
+            excluded_operations=("execute",), acceptance_gates=(DEVELOPMENT_USEFULNESS_GATE,),
+        )
+        assert projection["selections"][task_type] == list(expected.selected_skills)
+        assert [row["id"] for row in rows] == [item.skill for item in expected.selections]
+        for row, item in zip(rows, expected.selections, strict=True):
+            assert set(row) == {"id", "role", "purpose", "authority", "task_types"}
+            assert (row["role"], row["purpose"], row["authority"]) == (
+                item.role, item.purpose, item.authority,
+            )
+            assert (task_type in row["task_types"]) == item.selected
+    rows[0]["purpose"] = "tampered"
+    projection["selections"][TASK_TYPES[0]].clear()
+    assert skill_catalog_projection()["skills"][0]["purpose"] != "tampered"
+    assert skill_catalog_projection()["selections"][TASK_TYPES[0]]

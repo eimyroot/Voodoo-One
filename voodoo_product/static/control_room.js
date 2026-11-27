@@ -18,7 +18,7 @@ $('logout-button').addEventListener('click',async()=>{
   $('app-shell').classList.add('hidden');
   $('current-user').textContent='';
   ++requestContextEpoch;++timelineRefreshEpoch;++verifierRefreshEpoch;
-  clearCasebookContext();clearOperationPassport();clearRunsContext();clearOverviewContext({clearHeader:true});clearRuntimeHealthContext({clearReason:true});clearSettingsContext({resetPreference:true});
+  clearCasebookContext();clearOperationPassport();clearRunsContext();clearSkillsContext();clearOverviewContext({clearHeader:true});clearRuntimeHealthContext({clearReason:true});clearSettingsContext({resetPreference:true});
   $('canonical-read-result').textContent='';$('canonical-read-result').classList.add('hidden');
   $('canonical-read-feedback').textContent='';$('canonical-read-feedback').classList.add('hidden');
   showAuth();$('auth-error').textContent='';
@@ -41,7 +41,7 @@ function revealActiveNavOnCompactViewport(name){
     current.scrollIntoView({block:'nearest',inline:'center',behavior:'auto'});
   }
 }
-async function loadView(name){const bearer=state.token;if(!bearer)return false;const epoch=++viewEpoch;if(name!=='governance')clearSettingsContext();if(name!=='health')clearRuntimeHealthContext({clearReason:true});if(name!=='overview')clearOverviewContext({clearHeader:true});if(name!=='casebook')clearCasebookContext();if(name!=='runs'){clearOperationPassport();clearRunsContext()}document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return false}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){if(epoch===viewEpoch&&bearer===state.token)toast(err.message,true)}return epoch===viewEpoch&&bearer===state.token}
+async function loadView(name){const bearer=state.token;if(!bearer)return false;const epoch=++viewEpoch;if(name!=='governance')clearSettingsContext();if(name!=='health')clearRuntimeHealthContext({clearReason:true});if(name!=='overview')clearOverviewContext({clearHeader:true});if(name!=='casebook')clearCasebookContext();if(name!=='skills')clearSkillsContext();if(name!=='runs'){clearOperationPassport();clearRunsContext()}document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return false}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,skills:loadSkills,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){if(epoch===viewEpoch&&bearer===state.token)toast(err.message,true)}return epoch===viewEpoch&&bearer===state.token}
 const casebookSessionIdPattern=/^[A-Za-z0-9_-]{5,128}$/;
 let casebookRequestGeneration=0;
 let casebookCorrelationGeneration=0;
@@ -599,6 +599,81 @@ async function loadPlans(){
     throw err;
   }
 }
+// Authenticated catalog snapshot only: never loads or executes a skill.
+let skillsRefreshEpoch=0;
+let skillsCatalog=null;
+function clearSkillsContext({loading=false}={}){
+  ++skillsRefreshEpoch;skillsCatalog=null;
+  if(!$('skills-search'))return;
+  $('skills-search').value='';$('skills-search').disabled=true;
+  $('skills-task-type').innerHTML='<option value="">Všechny typy</option>';
+  $('skills-task-type').value='';$('skills-task-type').disabled=true;
+  $('skills-summary').textContent=loading?'Načítám katalog…':'UNKNOWN · katalog není dostupný.';
+  $('skills-selection').textContent='';$('skills-cards').textContent='';
+}
+function validSkillsCatalog(value){
+  const object=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
+  const keys=(x,expected)=>object(x)&&Object.keys(x).sort().join('|')===[...expected].sort().join('|');
+  const id=x=>typeof x==='string'&&/^[a-z][a-z0-9_-]{0,127}$/.test(x);
+  const text=x=>typeof x==='string'&&x.trim().length>0&&x.length<=4096;
+  const uniqueIds=x=>Array.isArray(x)&&x.every(id)&&new Set(x).size===x.length;
+  if(!keys(value,['schema','source','runtime_availability','primary_coordinator','task_types','skills','selections'])
+    ||value.schema!=='vone.skill-catalog/v1'||value.source!=='voodoo_product.skill_orchestration'
+    ||value.runtime_availability!=='UNKNOWN'||!id(value.primary_coordinator)
+    ||!uniqueIds(value.task_types)||!value.task_types.length
+    ||!Array.isArray(value.skills)||!value.skills.length
+    ||!keys(value.selections,value.task_types))return false;
+  const roles=['coordinator','canonical_owner','specialist','verifier','supporting_overlay'];
+  if(!value.skills.every(row=>keys(row,['id','role','purpose','authority','task_types'])
+    &&id(row.id)&&roles.includes(row.role)&&text(row.purpose)&&text(row.authority)
+    &&uniqueIds(row.task_types)&&row.task_types.length>0&&row.task_types.every(t=>value.task_types.includes(t))))return false;
+  const ids=value.skills.map(row=>row.id);
+  if(!uniqueIds(ids)||value.skills.filter(row=>row.role==='coordinator').length!==1
+    ||!value.skills.some(row=>row.id===value.primary_coordinator&&row.role==='coordinator'))return false;
+  return value.task_types.every(task=>{
+    const selected=value.selections[task];
+    const expected=value.skills.filter(row=>row.task_types.includes(task)).map(row=>row.id);
+    return uniqueIds(selected)&&selected.includes(value.primary_coordinator)
+      &&selected.length===expected.length&&selected.every(skill=>expected.includes(skill));
+  });
+}
+function renderSkillsCatalog(){
+  const data=skillsCatalog;
+  if(!data||!state.token||!$('view-skills').classList.contains('active'))return;
+  const task=$('skills-task-type').value;
+  const selected=task&&Object.hasOwn(data.selections,task)?data.selections[task]:null;
+  const query=$('skills-search').value.trim().toLowerCase();
+  const rows=data.skills.filter(row=>(!selected||selected.includes(row.id))
+    &&[row.id,row.role,row.purpose,row.authority].join(' ').toLowerCase().includes(query));
+  $('skills-summary').textContent=`${rows.length} / ${data.skills.length} definovaných skills · runtime UNKNOWN`;
+  $('skills-selection').textContent=selected
+    ?`Náhled výběru: ${selected.length} skills · koordinátor: ${data.primary_coordinator}. Bez oprávnění ke spuštění.`
+    :'Vyber typ úkolu pro náhled řízeného výběru.';
+  $('skills-cards').innerHTML=rows.length?rows.map(row=>`<article class="panel"><div class="panel-heading"><div><h2>${escapeHtml(row.id)}</h2><p>${escapeHtml(row.role)} · ${escapeHtml(row.authority)}</p></div>${status('DEFINED')}</div><p>${escapeHtml(row.purpose)}</p><p class="muted">Typy úkolů: ${row.task_types.map(escapeHtml).join(', ')}</p><p class="muted">Dostupnost runtime: UNKNOWN</p></article>`).join('')
+    :'<p class="muted">Žádná skill neodpovídá filtru.</p>';
+}
+async function loadSkills(){
+  const bearer=state.token;if(!bearer)return;
+  clearSkillsContext({loading:true});
+  const generation=skillsRefreshEpoch,epoch=viewEpoch;
+  const current=()=>bearer===state.token&&epoch===viewEpoch&&generation===skillsRefreshEpoch
+    &&$('view-skills').classList.contains('active');
+  try{
+    const data=await api('/control-room',{cache:'no-store'});
+    if(!current())return;
+    if(!validSkillsCatalog(data?.skill_catalog))throw new Error('Neplatný nebo nedostupný katalog skills.');
+    skillsCatalog=data.skill_catalog;
+    $('skills-task-type').innerHTML='<option value="">Všechny typy</option>'+skillsCatalog.task_types.map(task=>`<option value="${escapeHtml(task)}">${escapeHtml(task)}</option>`).join('');
+    $('skills-task-type').value='';$('skills-task-type').disabled=false;
+    $('skills-search').disabled=false;
+    renderSkillsCatalog();
+  }catch(err){
+    if(!current())return;
+    clearSkillsContext();throw err;
+  }
+}
+$('skills-search')?.addEventListener('input',renderSkillsCatalog);
+$('skills-task-type')?.addEventListener('change',renderSkillsCatalog);
 async function loadRegistry(){const data=await controlRoom();$('registry-summary').innerHTML=[fact('Fail-closed default',String(data.capability_registry.fail_closed_default),data.capability_registry.fail_closed_default?'ENFORCED':'FAIL'),fact('Production effects',data.capability_registry.production_effects_enabled?'ENABLED':'DISABLED',data.capability_registry.production_effects_enabled?'ENABLED':'DISABLED')].join('');$('registry-cards').innerHTML=data.capability_registry.items.map(item=>`<article class="panel"><header class="panel-heading"><strong>${escapeHtml(item.id)}</strong>${status(item.runtime_status)}</header><p>${escapeHtml(item.surface)} · ${escapeHtml(item.effect)}</p><p class="muted">Verification: ${escapeHtml(item.verification)}</p></article>`).join('')}
 let timelineRefreshEpoch=0;
 async function loadTimeline(){const epoch=++timelineRefreshEpoch;$('timeline-list').textContent='Načítám aktuální důkazy…';try{const data=await api('/control-room',{cache:'no-store'});if(epoch!==timelineRefreshEpoch)return;if(!Array.isArray(data?.evidence_timeline))throw new Error('Neúplná projekce důkazů.');const filter=$('timeline-filter').value;

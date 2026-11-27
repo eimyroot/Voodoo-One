@@ -345,6 +345,31 @@ def select_relevant_skills(*, task_type: str) -> tuple[str, ...]:
     return tuple(sorted(set(selected) | {PRIMARY_COORDINATOR}))
 
 
+def skill_catalog_projection() -> dict[str, Any]:
+    """Describe the governed planning catalog; never attest runtime availability."""
+    return {
+        "schema": "vone.skill-catalog/v1",
+        "source": "voodoo_product.skill_orchestration",
+        "runtime_availability": "UNKNOWN",
+        "primary_coordinator": PRIMARY_COORDINATOR,
+        "task_types": list(TASK_TYPES),
+        "skills": [
+            {
+                "id": skill,
+                "role": item["role"],
+                "purpose": item["purpose"],
+                "authority": item["authority"],
+                "task_types": list(item["task_types"]),
+            }
+            for skill, item in sorted(_SKILL_CATALOG.items())
+        ],
+        "selections": {
+            task_type: list(select_relevant_skills(task_type=task_type))
+            for task_type in TASK_TYPES
+        },
+    }
+
+
 def _selection_from_dict(value: object) -> SkillSelection:
     if not isinstance(value, dict) or set(value) != {
         "skill",

@@ -64,7 +64,7 @@ const timers=new Map();
 const advance=ms=>{wallNow+=ms;monotonicNow+=ms};
 const context=vm.createContext({
   Element:RunPassportButton,
-  document:{getElementById:element,querySelectorAll:selector=>selector==='.view'?['view-health','view-overview','view-casebook','view-governance','view-runs'].map(element):[]},
+  document:{getElementById:element,querySelectorAll:selector=>selector==='.view'?['view-health','view-overview','view-casebook','view-governance','view-runs','view-skills'].map(element):[]},
   sessionStorage:{getItem:key=>storage.get(key)??null,setItem:(key,val)=>storage.set(key,String(val)),removeItem:key=>storage.delete(key)},
   Date:class extends Date{static now(){return wallNow}},
   performance:{now:()=>monotonicNow},
@@ -405,5 +405,82 @@ const reset=()=>{
   await element('logout-button').listeners.click();
   assert.equal(postCalls.length,5,'Runs read paths never issue effects');
   console.log('PASS: Runs authenticated freshness, positive projection, true empty vs UNKNOWN, malformed/outage, old refresh/error, leave/logout races, no effects');
+  // Only authenticated product catalog metadata, never runtime/authority.
+  assert.equal(html.match(/data-view="skills"/g).length,1);
+  assert.match(html,/id="view-skills"/);
+  login();reset();
+  const catalog={schema:'vone.skill-catalog/v1',source:'voodoo_product.skill_orchestration',
+    runtime_availability:'UNKNOWN',primary_coordinator:'governed-workflow-orchestrator',
+    task_types:['bugfix','product'],skills:[
+      {id:'governed-workflow-orchestrator',role:'coordinator',purpose:'<workflow>',authority:'workflow_framing',task_types:['bugfix','product']},
+      {id:'quality-evidence-verifier',role:'verifier',purpose:'Check evidence',authority:'evidence_sufficiency',task_types:['bugfix']},
+      {id:'product-value-and-discovery-governor',role:'supporting_overlay',purpose:'Product value',authority:'product_discovery',task_types:['product']}
+    ],selections:{bugfix:['governed-workflow-orchestrator','quality-evidence-verifier'],
+      product:['governed-workflow-orchestrator','product-value-and-discovery-governor']}};
+  snapshot.skill_catalog=structuredClone(catalog);
+  await context.loadView('skills');
+  assert.match(element('skills-summary').textContent,/3 \/ 3.*UNKNOWN/);
+  assert.match(element('skills-cards').innerHTML,/&lt;workflow&gt;/);
+  assert.doesNotMatch(element('skills-cards').innerHTML,/<workflow>|VERIFIED|ONLINE/);
+  assert.equal(element('skills-search').disabled,false);
+  element('skills-task-type').value='bugfix';
+  element('skills-task-type').listeners.change();
+  assert.match(element('skills-selection').textContent,/2 skills.*koordinátor/);
+  assert.match(element('skills-cards').innerHTML,/quality-evidence-verifier/);
+  assert.doesNotMatch(element('skills-cards').innerHTML,/product-value-and-discovery-governor/);
+  element('skills-search').value='evidence';
+  element('skills-search').listeners.input();
+  assert.match(element('skills-summary').textContent,/1 \/ 3/);
+  element('skills-search').value='not-a-real-skill';
+  element('skills-search').listeners.input();
+  assert.match(element('skills-cards').innerHTML,/Žádná skill/);
+  assert.match(element('skills-summary').textContent,/0 \/ 3/);
+  // Malformed source or claims never appear as an empty successful catalog.
+  const malformed=[
+    {...catalog,source:'untrusted'},
+    {...catalog,runtime_availability:'ACTIVE'},
+    {...catalog,skills:[]},
+    {...catalog,skills:[...catalog.skills,catalog.skills[0]]},
+    {...catalog,selections:{...catalog.selections,bugfix:['quality-evidence-verifier']}},
+    {...catalog,selections:{...catalog.selections,bugfix:['governed-workflow-orchestrator','invented-skill']}},
+    {...catalog,skills:catalog.skills.map(row=>({...row,secret:'never-show'}))},
+    {...catalog,skills:catalog.skills.map(row=>({...row,purpose:null}))}
+  ];
+  for(const item of malformed){
+    snapshot.skill_catalog=item;
+    await assert.rejects(context.loadSkills(),/katalog skills/);
+    assert.match(element('skills-summary').textContent,/UNKNOWN/);
+    assert.equal(element('skills-cards').innerHTML,'');
+    assert.equal(element('skills-task-type').disabled,true);
+  }
+  snapshot.skill_catalog=structuredClone(catalog);
+  await context.loadSkills();
+  const delayed=deferred();primaryDeferred=delayed;const oldSkills=context.loadSkills();
+  snapshot.skill_catalog={...catalog,skills:catalog.skills.map(row=>({...row,purpose:'fresh catalog'}))};
+  await context.loadSkills();
+  delayed.resolve(response({...normal,skill_catalog:catalog}));await oldSkills;
+  assert.match(element('skills-cards').innerHTML,/fresh catalog/);
+  assert.doesNotMatch(element('skills-cards').innerHTML,/&lt;workflow&gt;/);
+  const oldSkillError=deferred();primaryDeferred=oldSkillError;const oldSkillLoad=context.loadSkills();
+  await context.loadSkills();oldSkillError.reject(Error('stale failure'));await oldSkillLoad;
+  assert.match(element('skills-cards').innerHTML,/fresh catalog/);
+  snapshot=null;await assert.rejects(context.loadSkills(),/unavailable/);
+  assert.match(element('skills-summary').textContent,/UNKNOWN/);
+  assert.equal(element('skills-cards').innerHTML,'');
+  reset();snapshot.skill_catalog=structuredClone(catalog);await context.loadView('skills');
+  const leavingSkills=deferred();primaryDeferred=leavingSkills;const leavingSkillsLoad=context.loadSkills();
+  await context.loadView('overview');
+  leavingSkills.resolve(response({...normal,skill_catalog:catalog}));await leavingSkillsLoad;
+  assert.equal(element('skills-cards').innerHTML,'');
+  await context.loadView('skills');
+  const logoutSkills=deferred();primaryDeferred=logoutSkills;const logoutSkillsLoad=context.loadSkills();
+  await element('logout-button').listeners.click();
+  login();logoutSkills.resolve(response({...normal,skill_catalog:catalog}));await logoutSkillsLoad;
+  assert.equal(element('skills-cards').innerHTML,'');
+  assert.equal(element('skills-search').disabled,true);
+  await element('logout-button').listeners.click();
+  assert.equal(postCalls.length,5,'Skills catalog never issues effects');
+  console.log('PASS: native Skills catalog source, selection/search, escaping, malformed/unavailable, refresh/navigation/logout, no effects');
+
 
 })().catch(error=>{console.error(error);process.exitCode=1});

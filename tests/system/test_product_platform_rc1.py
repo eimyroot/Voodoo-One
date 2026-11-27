@@ -345,6 +345,7 @@ def test_control_room_exposes_fail_closed_runtime_truth(tmp_path: Path) -> None:
         "plans",
         "architecture",
         "capability_registry",
+        "skill_catalog",
         "evidence_timeline",
         "policy_gates",
         "verifier_center",
@@ -668,3 +669,18 @@ def test_oversized_change_payload_is_rejected(tmp_path: Path) -> None:
         },
     )
     assert response.status_code == 422
+
+def test_skill_catalog_is_authenticated_read_only_projection(tmp_path: Path) -> None:
+    from voodoo_product.skill_orchestration import skill_catalog_projection
+
+    client = build_client(tmp_path)
+    assert client.get("/api/v1/control-room").status_code == 401
+    admin = bootstrap(client)
+    create_user(client, admin, "catalog-viewer", "viewer")
+    viewer = login(client, "catalog-viewer")
+    response = client.get("/api/v1/control-room", headers=headers(viewer))
+    assert response.status_code == 200
+    assert response.json()["skill_catalog"] == skill_catalog_projection()
+    assert response.json()["skill_catalog"]["runtime_availability"] == "UNKNOWN"
+    assert client.post("/api/v1/auth/logout", headers=headers(viewer)).status_code == 204
+    assert client.get("/api/v1/control-room", headers=headers(viewer)).status_code == 401
