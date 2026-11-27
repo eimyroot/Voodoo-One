@@ -4,7 +4,7 @@
 |---|---|
 | Document class | Governance authority and adoption register |
 | Candidate preparation date | `2026-08-06` |
-| Latest recorded owner adoption date | `2026-11-26` |
+| Latest recorded owner adoption date | `2026-11-27` |
 | Scope | VOODOO One governance documents, accepted ADRs, and technical operating-standard succession |
 | Live repository authority | None; live Git, tests, CI, artifacts and runtime remain separate evidence sources |
 | Owner adoption effect | An explicit owner decision over an exact content SHA-256 and candidate commit creates adoption when recorded here without modifying the adopted content |
@@ -524,3 +524,35 @@ The external record adopts the exact immutable ADR bytes in the content commit.
 The embedded PROPOSED status is preserved. This record does not activate any
 reader, authorize a runtime effect, establish runtime acceptance or replace
 independent verification, merge, release or deployment gates.
+
+## 21. ADR-0035 owner adoption record
+
+```text
+DOCUMENT: docs/adr/ADR-0035-product-skill-catalog-projection-v1.md
+VERSION_OR_CANDIDATE_VERSION: ADR-0035
+DECLARED_STATUS: PROPOSED
+EFFECTIVE_STATUS: ADOPTED
+OWNER: project owner VOODOO — ENGINEERING
+ADOPTION_METHOD: explicit owner decision on 2026-11-27 over exact candidate commit and exact content SHA-256
+ADOPTION_DATE: 2026-11-27
+ADOPTED_CONTENT_COMMIT: 1f3b023079f4de546595c4a8df26f01e8ba1c4a8
+CONTENT_SHA256: 8df5c666b6d28cbd764852431658d2063e9d0e027a8fd1f199d08db2ec65d63e
+INDEPENDENT_REVIEW: SKILLS_REVIEW_CLEAN
+INDEPENDENT_REVIEW_SHA256: 04b223d07cbfc8055413bee128912f02178f27d798e4ae71d818c3c6c6dd5c25
+SCOPE: Additive authenticated read-only product skill catalog projection v1; single existing planning catalog and selection owner; native browse/search/task-selection preview. Runtime availability UNKNOWN; no execution authorization.
+NEXT_REVIEW: before widening catalog source, read authorization, schema, runtime availability or execution boundary
+PUBLICATION: NOT_AUTHORIZED_BY_THIS_RECORD
+MERGE: NOT_AUTHORIZED_BY_THIS_RECORD
+RUNTIME_ACTIVATION: NOT_AUTHORIZED_BY_THIS_RECORD
+RELEASE: NOT_AUTHORIZED_BY_THIS_RECORD
+DEPLOYMENT: NOT_AUTHORIZED_BY_THIS_RECORD
+PROVIDER_WRITE: NOT_AUTHORIZED
+PRODUCTION_EFFECTS: BLOCKED
+```
+
+The external record adopts the exact immutable ADR bytes in the content commit.
+The embedded PROPOSED status is preserved. The independent review was focused
+and read-only; optional scan, CI for this candidate, live browser acceptance and
+deployment remain unverified. Adoption does not authorize skill execution,
+filesystem skill discovery, runtime activation, publication, merge, release or
+deployment. Those remain separate governed operations.
