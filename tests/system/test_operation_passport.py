@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from voodoo_product.control_room_projections import summarize_agent_participation
 from voodoo_product.db import SQLiteProductDatabase
 from voodoo_product.evidence_primitives import canonical_json
 from voodoo_product.operation_passport import OperationPassportService
@@ -438,3 +439,54 @@ def test_recent_passport_limit_is_bounded(method_name: str) -> None:
     for invalid in (0, 101, True, 1.5):
         with pytest.raises(ValueError, match="limit must be an integer between 1 and 100"):
             method(limit=invalid)
+
+def test_agent_participation_uses_validated_passport_not_roster() -> None:
+    plain = OperationPassportService(database=FakeDatabase(contract_row())).get("exec-1")  # type: ignore[arg-type]
+    row = contract_row()
+    result = verification_result()
+    bind_verification(row, result)
+    verified = OperationPassportService(database=FakeDatabase(row)).get("exec-1")  # type: ignore[arg-type]
+    projection = summarize_agent_participation([plain], limit=12)
+    assert projection["schema"] == "vone.agent-participation/v1"
+    assert projection["source"] == "OPERATION_PASSPORT"
+    assert projection["instance_presence"] == "UNKNOWN"
+    assert projection["window_limit"] == 12
+    item = projection["recent"][0]
+    assert item == {
+        "execution_id": plain.execution_id,
+        "lifecycle_stage": plain.lifecycle_stage,
+        "capability": plain.operation["capability"],
+        "runner_class": plain.runtime["runner_class"],
+        "runtime_status": "COMPLETED",
+        "verification_status": "UNKNOWN",
+        "result_digest": None,
+        "verification_strength": None,
+        "checked_at": None,
+    }
+    projected = summarize_agent_participation([verified], limit=12)["recent"][0]
+    assert projected["verification_status"] == "VERIFIED"
+    assert projected["result_digest"] == result.result_digest
+    assert projected["checked_at"] == result.checked_at
+    assert projected["verification_strength"] == result.verification_strength_class
+    assert summarize_agent_participation([], limit=12)["recent"] == []
+    assert len(summarize_agent_participation([verified, plain], limit=1)["recent"]) == 1
+
+
+def test_agent_participation_refuses_unvalidated_lineage_and_verdict() -> None:
+    from dataclasses import replace
+
+    row = contract_row()
+    bind_verification(row, verification_result())
+    passport = OperationPassportService(database=FakeDatabase(row)).get("exec-1")  # type: ignore[arg-type]
+    unvalidated = replace(passport, integrity={**passport.integrity, "independent_verification_validated": False})
+    item = summarize_agent_participation([unvalidated], limit=12)["recent"][0]
+    assert item["verification_status"] == "UNKNOWN"
+    assert item["result_digest"] is None
+    assert item["checked_at"] is None
+    assert item["verification_strength"] is None
+    invalid_lineage = replace(passport, integrity={**passport.integrity, "lineage_bindings_validated": False})
+    with pytest.raises(ValueError, match="validated Passport"):
+        summarize_agent_participation([invalid_lineage], limit=12)
+    for limit in (0, 101, True):
+        with pytest.raises(ValueError):
+            summarize_agent_participation([], limit=limit)

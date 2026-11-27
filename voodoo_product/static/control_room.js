@@ -18,7 +18,7 @@ $('logout-button').addEventListener('click',async()=>{
   $('app-shell').classList.add('hidden');
   $('current-user').textContent='';
   ++requestContextEpoch;++timelineRefreshEpoch;++verifierRefreshEpoch;
-  clearCasebookContext();clearOperationPassport();clearRunsContext();clearSkillsContext();clearOverviewContext({clearHeader:true});clearRuntimeHealthContext({clearReason:true});clearSettingsContext({resetPreference:true});
+  clearCasebookContext();clearOperationPassport();clearRunsContext();clearSkillsContext();clearAgentsContext();clearOverviewContext({clearHeader:true});clearRuntimeHealthContext({clearReason:true});clearSettingsContext({resetPreference:true});
   $('canonical-read-result').textContent='';$('canonical-read-result').classList.add('hidden');
   $('canonical-read-feedback').textContent='';$('canonical-read-feedback').classList.add('hidden');
   showAuth();$('auth-error').textContent='';
@@ -41,7 +41,7 @@ function revealActiveNavOnCompactViewport(name){
     current.scrollIntoView({block:'nearest',inline:'center',behavior:'auto'});
   }
 }
-async function loadView(name){const bearer=state.token;if(!bearer)return false;const epoch=++viewEpoch;if(name!=='governance')clearSettingsContext();if(name!=='health')clearRuntimeHealthContext({clearReason:true});if(name!=='overview')clearOverviewContext({clearHeader:true});if(name!=='casebook')clearCasebookContext();if(name!=='skills')clearSkillsContext();if(name!=='runs'){clearOperationPassport();clearRunsContext()}document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return false}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,skills:loadSkills,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){if(epoch===viewEpoch&&bearer===state.token)toast(err.message,true)}return epoch===viewEpoch&&bearer===state.token}
+async function loadView(name){const bearer=state.token;if(!bearer)return false;const epoch=++viewEpoch;if(name!=='governance')clearSettingsContext();if(name!=='health')clearRuntimeHealthContext({clearReason:true});if(name!=='overview')clearOverviewContext({clearHeader:true});if(name!=='casebook')clearCasebookContext();if(name!=='skills')clearSkillsContext();if(name!=='agents')clearAgentsContext();if(name!=='runs'){clearOperationPassport();clearRunsContext()}document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.nav').forEach(v=>v.classList.toggle('active',v.dataset.view===name));revealActiveNavOnCompactViewport(name);const view=$(`view-${name}`);if(!view){toast(`Neznámý pohled: ${name}`,true);return false}view.classList.add('active');const loaders={ecosystem:loadEcosystemBoard,lifecycle:loadLifecycleBoard,authority:loadAuthorityBoard,lineage:loadLineageBoard,overlays:loadOverlaysBoard,projectmap:loadProjectMap,overview:loadOverview,runs:loadRuns,agents:loadAgents,skills:loadSkills,plans:loadPlans,registry:loadRegistry,evidence:loadTimeline,casebook:loadCasebookTasks,policy:loadPolicy,verifier:loadVerifier,health:loadRuntimeHealth,learning:loadLearning,governance:loadGovernance};try{await loaders[name]()}catch(err){if(epoch===viewEpoch&&bearer===state.token)toast(err.message,true)}return epoch===viewEpoch&&bearer===state.token}
 const casebookSessionIdPattern=/^[A-Za-z0-9_-]{5,128}$/;
 let casebookRequestGeneration=0;
 let casebookCorrelationGeneration=0;
@@ -599,6 +599,67 @@ async function loadPlans(){
     throw err;
   }
 }
+// Operation participation is not instance identity, presence or execution authority.
+let agentsRefreshEpoch=0;
+function clearAgentsContext({loading=false}={}){
+  ++agentsRefreshEpoch;
+  if(!$('agents-summary'))return;
+  $('agents-summary').textContent=loading?'Načítám účast na operacích…':'UNKNOWN · účast není dostupná.';
+  $('agents-rows').textContent='';
+}
+function validAgentParticipation(value){
+  const keys=(obj,expected)=>obj!==null&&typeof obj==='object'&&!Array.isArray(obj)
+    &&Object.keys(obj).sort().join('|')===[...expected].sort().join('|');
+  const text=x=>typeof x==='string'&&x.trim().length>0&&x.length<=4096;
+  if(!keys(value,['schema','source','instance_presence','window_limit','recent'])
+    ||value.schema!=='vone.agent-participation/v1'||value.source!=='OPERATION_PASSPORT'
+    ||value.instance_presence!=='UNKNOWN'||!Number.isSafeInteger(value.window_limit)
+    ||value.window_limit<1||value.window_limit>100||!Array.isArray(value.recent)
+    ||value.recent.length>value.window_limit)return false;
+  const ids=new Set();
+  return value.recent.every(row=>{
+    if(!keys(row,['execution_id','lifecycle_stage','capability','runner_class','runtime_status',
+        'verification_status','result_digest','verification_strength','checked_at'])
+      ||!text(row.execution_id)||Array.from(row.execution_id).length>256||row.execution_id.includes('\0')
+      ||ids.has(row.execution_id)||!text(row.capability)
+      ||!(row.runner_class===null||text(row.runner_class)))return false;
+    ids.add(row.execution_id);
+    const stages={SNAPSHOT_CREATED:'NOT_STARTED',GRANT_ISSUED:'NOT_STARTED',
+      GRANT_CONSUMED:'NOT_STARTED',DISPATCH_ENQUEUED:'NOT_STARTED',DISPATCH_ADMITTED:'NOT_STARTED',
+      EXECUTION_ACTIVE:'ACTIVE',EXECUTION_COMPLETED:'COMPLETED'};
+    if(!Object.hasOwn(stages,row.lifecycle_stage)||stages[row.lifecycle_stage]!==row.runtime_status)return false;
+    if(row.verification_status==='UNKNOWN')return row.result_digest===null&&row.verification_strength===null&&row.checked_at===null;
+    return ['VERIFIED','NOT_VERIFIED'].includes(row.verification_status)&&row.runtime_status==='COMPLETED'
+      &&typeof row.result_digest==='string'&&/^[a-f0-9]{64}$/.test(row.result_digest)
+      &&text(row.verification_strength)&&text(row.checked_at)&&Number.isFinite(Date.parse(row.checked_at));
+  });
+}
+async function loadAgents(){
+  const bearer=state.token;if(!bearer)return;
+  clearAgentsContext({loading:true});
+  const generation=agentsRefreshEpoch,epoch=viewEpoch;
+  const current=()=>bearer===state.token&&epoch===viewEpoch&&generation===agentsRefreshEpoch
+    &&$('view-agents').classList.contains('active');
+  try{
+    const data=await api('/control-room',{cache:'no-store'});
+    if(!current())return;
+    const value=data?.agent_participation;
+    if(!validAgentParticipation(value))throw new Error('Neplatná nebo nedostupná projekce účasti.');
+    $('agents-summary').textContent=`${value.recent.length} nedávných Passportů (max. ${value.window_limit}) · dostupnost instancí UNKNOWN`;
+    $('agents-rows').innerHTML=value.recent.length?value.recent.map(row=>`<article class="panel"><div class="panel-heading"><div><h3>${escapeHtml(row.capability)}</h3><p class="mono muted">${escapeHtml(row.execution_id)}</p></div>${status(row.lifecycle_stage)}</div><p>Runner class: ${escapeHtml(row.runner_class??'UNKNOWN')}</p><p>Stav operace: ${status(row.runtime_status)}</p><p>Výsledek Verifieru: ${status(row.verification_status)}</p>${row.result_digest?`<p class="muted">${escapeHtml(row.verification_strength)} · ${escapeHtml(row.checked_at)}</p><p class="mono muted">${escapeHtml(row.result_digest)}</p>`:''}${passportPathIdPattern.test(row.execution_id)?`<button class="secondary compact-button" type="button" data-agent-passport-id="${escapeHtml(row.execution_id)}">Otevřít Passport</button>`:'<p class="muted">Passport nedostupný pro formát ID.</p>'}</article>`).join('')
+      :'<p class="muted">Žádné nedávné kanonické operace. Účast instancí zůstává UNKNOWN.</p>';
+  }catch(err){
+    if(!current())return;
+    clearAgentsContext();throw err;
+  }
+}
+$('agents-rows')?.addEventListener('click',async event=>{
+  if(!(event.target instanceof Element)||!state.token||!$('view-agents').classList.contains('active'))return;
+  const button=event.target.closest('button[data-agent-passport-id]');
+  const id=button?.dataset.agentPassportId||'';
+  if(!passportPathIdPattern.test(id))return;
+  if(await loadView('runs'))await loadOperationPassport(id);
+});
 // Authenticated catalog snapshot only: never loads or executes a skill.
 let skillsRefreshEpoch=0;
 let skillsCatalog=null;
